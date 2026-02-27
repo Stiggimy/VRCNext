@@ -3712,7 +3712,42 @@ body {
     display: flex;
     align-items: center;
     gap: 8px;
+    flex: 1;
     flex-wrap: wrap;
+}
+
+.inst-friends-strip {
+    display: flex;
+    align-items: center;
+    gap: 0;
+}
+
+.inst-av-sm {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 2px solid var(--bg-input);
+    object-fit: cover;
+    margin-left: -6px;
+    background: var(--bg-hover);
+}
+
+.inst-av-sm:first-child { margin-left: 0; }
+
+.inst-av-sm-letter {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    font-weight: 700;
+    color: var(--tx3);
+}
+
+.inst-av-extra {
+    font-size: 10px;
+    color: var(--tx3);
+    font-weight: 600;
+    margin-left: 4px;
 }
 
 .wd-create-row {

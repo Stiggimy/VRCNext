@@ -71,26 +71,73 @@ function renderWorldSearchDetail(w) {
     }
 
     // Active instances HTML
+    const regionLabels = { us: 'US West', use: 'US East', eu: 'Europe', jp: 'Japan' };
+
+    // Build friend-by-location map for this world (for friend badges + inferred instances)
+    const worldFriendsByLoc = {};
+    if (typeof vrcFriendsData !== 'undefined') {
+        vrcFriendsData.forEach(f => {
+            const { worldId: fwid } = parseFriendLocation(f.location);
+            if (fwid === w.id) {
+                if (!worldFriendsByLoc[f.location]) worldFriendsByLoc[f.location] = [];
+                worldFriendsByLoc[f.location].push(f);
+            }
+        });
+    }
+
+    // Merge API instances with friend-inferred non-public instances
+    const allInstances = [...(w.instances || [])];
+    Object.keys(worldFriendsByLoc).forEach(loc => {
+        if (!allInstances.find(i => i.location === loc)) {
+            const { instanceType: iType } = parseFriendLocation(loc);
+            const regionMatch = loc.match(/region\(([^)]+)\)/);
+            allInstances.push({
+                instanceId: loc.includes(':') ? loc.split(':')[1] : loc,
+                users: worldFriendsByLoc[loc].length,
+                type: iType,
+                region: regionMatch ? regionMatch[1] : 'us',
+                location: loc
+            });
+        }
+    });
+
+    // Instances with friends first
+    allInstances.sort((a, b) => ((worldFriendsByLoc[b.location] || []).length) - ((worldFriendsByLoc[a.location] || []).length));
+
     let instancesHtml = '';
-    if (w.instances && w.instances.length > 0) {
-        const regionLabels = { us: 'US West', use: 'US East', eu: 'Europe', jp: 'Japan' };
-        instancesHtml = `<div class="wd-section-label" style="margin-top:4px;">ACTIVE INSTANCES (${w.instances.length})</div><div class="wd-instances-list">`;
-        w.instances.forEach(inst => {
+    if (allInstances.length > 0) {
+        instancesHtml = `<div class="wd-section-label" style="margin-top:4px;">ACTIVE INSTANCES (${allInstances.length})</div><div class="wd-instances-list">`;
+        allInstances.forEach(inst => {
             const { cls: tClass, label: tLabel } = getInstanceBadge(inst.type);
             const rLabel = regionLabels[inst.region] || inst.region.toUpperCase();
             const loc = (inst.location || '').replace(/'/g, "\\'");
+            const instFriends = worldFriendsByLoc[inst.location] || [];
+            let friendsStrip = '';
+            if (instFriends.length > 0) {
+                const MAX_AV = 3;
+                const avatars = instFriends.slice(0, MAX_AV).map(f => {
+                    const img = f.image || '';
+                    return img
+                        ? `<img class="inst-av-sm" src="${img}" title="${esc(f.displayName)}" onerror="this.style.display='none'">`
+                        : `<div class="inst-av-sm inst-av-sm-letter" title="${esc(f.displayName)}">${esc((f.displayName||'?')[0])}</div>`;
+                }).join('');
+                const extra = instFriends.length > MAX_AV ? `<span class="inst-av-extra">+${instFriends.length - MAX_AV}</span>` : '';
+                friendsStrip = `<div class="inst-friends-strip">${avatars}${extra}</div>`;
+            }
+            const canJoin = inst.type !== 'private';
             instancesHtml += `<div class="wd-instance-row">
                 <div class="wd-instance-info">
                     <span class="fd-instance-badge ${tClass}" style="font-size:10px;">${tLabel}</span>
                     <span style="font-size:11px;color:var(--tx2);">${rLabel}</span>
                     <span style="font-size:11px;color:var(--tx3);display:inline-flex;align-items:center;gap:2px;"><span class="msi" style="font-size:12px;">person</span> ${inst.users}${w.capacity ? '/' + w.capacity : ''}</span>
                 </div>
-                <button class="btn-f" onclick="sendToCS({action:'vrcJoinFriend',location:'${loc}'});this.disabled=true;this.textContent='Joining...';" style="padding:3px 10px;font-size:10px;"><span class="msi" style="font-size:14px;">login</span> Join</button>
+                ${friendsStrip}
+                ${canJoin ? `<button class="btn-f" onclick="sendToCS({action:'vrcJoinFriend',location:'${loc}'});this.disabled=true;this.textContent='Joining...';" style="padding:3px 10px;font-size:10px;"><span class="msi" style="font-size:14px;">login</span> Join</button>` : ''}
             </div>`;
         });
         instancesHtml += '</div>';
     } else {
-        instancesHtml = '<div style="font-size:11px;color:var(--tx3);margin-bottom:14px;">No active public instances</div>';
+        instancesHtml = '<div style="font-size:11px;color:var(--tx3);margin-bottom:14px;">No active instances</div>';
     }
 
     // Create instance UI
@@ -245,8 +292,10 @@ function openWorldDetail(worldId) {
     const { cls: instClass, label: instLabel } = getInstanceBadge(anyInstType);
     const loc = anyLoc.replace(/'/g, "\\'");
     const canJoin = !multiInstance && anyLoc && anyInstType !== 'private';
+    const wid = worldId.replace(/'/g, "\\'");
     let actionsHtml = '<div class="fd-actions">';
     if (canJoin) actionsHtml += `<button class="fd-btn fd-btn-join" onclick="worldJoinAction('${loc}')">Join World</button>`;
+    actionsHtml += `<button class="fd-btn" onclick="closeWorldDetail();openWorldSearchDetail('${wid}')">Open World</button>`;
     actionsHtml += `<button class="fd-btn" onclick="closeWorldDetail()">Close</button>`;
     actionsHtml += '</div>';
 
