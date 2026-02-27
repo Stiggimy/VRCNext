@@ -41,7 +41,7 @@ function renderNotifications(list) {
         return `<div class="notif-item ${n.seen && !canAccept ? 'notif-seen' : ''}">
             <span class="msi notif-icon" style="font-size:18px;">${icon}</span>
             <div class="notif-body">
-                <div class="notif-title">${esc(label)} from <strong>${esc(n.senderUsername)}</strong></div>
+                <div class="notif-title" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">${esc(label)} from ${n.senderUserId ? `<span onclick="toggleNotifPanel();openFriendDetail('${esc(n.senderUserId)}')" style="display:inline-flex;align-items:center;padding:1px 7px;border-radius:20px;background:var(--bg-hover);font-size:11px;font-weight:600;cursor:pointer;line-height:1.6;">${esc(n.senderUsername)}</span>` : `<strong>${esc(n.senderUsername)}</strong>`}</div>
                 ${n.message ? `<div class="notif-msg">${esc(n.message)}</div>` : ''}
                 <div class="notif-time">${time}</div>
             </div>

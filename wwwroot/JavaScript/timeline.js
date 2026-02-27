@@ -364,7 +364,7 @@ function renderTlDetailJoin(ev, el) {
         </div>
         ${playersHtml}
         <div style="margin-top:14px;text-align:right;">
-            <button class="modal-btn modal-btn-cancel" onclick="document.getElementById('modalDetail').style.display='none'">Close</button>
+            <button class="fd-btn" onclick="document.getElementById('modalDetail').style.display='none'">Close</button>
         </div>
     </div>`;
 }
@@ -410,8 +410,8 @@ function renderTlDetailPhoto(ev, el) {
         </div>
         ${playersHtml}
         <div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end;">
-            ${ev.photoUrl ? `<button class="modal-btn modal-btn-accent" onclick="openLightbox('${photoJs}','image')"><span class="msi" style="font-size:14px;">open_in_full</span> Full Size</button>` : ''}
-            <button class="modal-btn modal-btn-cancel" onclick="document.getElementById('modalDetail').style.display='none'">Close</button>
+            ${ev.photoUrl ? `<button class="fd-btn fd-btn-join" onclick="openLightbox('${photoJs}','image')"><span class="msi" style="font-size:14px;">open_in_full</span> Full Size</button>` : ''}
+            <button class="fd-btn" onclick="document.getElementById('modalDetail').style.display='none'">Close</button>
         </div>
     </div>`;
 }
@@ -441,8 +441,8 @@ function renderTlDetailMeet(ev, el) {
             ${ev.worldId ? `<div class="fd-meta-row"${worldClickMeet}><span class="fd-meta-label">World</span><span style="color:var(--accent-lt);">${esc(ev.worldName || ev.worldId)}</span></div>` : ''}
         </div>
         <div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end;">
-            ${ev.userId ? `<button class="modal-btn modal-btn-accent" onclick="document.getElementById('modalDetail').style.display='none';openFriendDetail('${esc(ev.userId)}')">View Profile</button>` : ''}
-            <button class="modal-btn modal-btn-cancel" onclick="document.getElementById('modalDetail').style.display='none'">Close</button>
+            ${ev.userId ? `<button class="fd-btn fd-btn-join" onclick="document.getElementById('modalDetail').style.display='none';openFriendDetail('${esc(ev.userId)}')">View Profile</button>` : ''}
+            <button class="fd-btn" onclick="document.getElementById('modalDetail').style.display='none'">Close</button>
         </div>
     </div>`;
 }
@@ -472,8 +472,8 @@ function renderTlDetailMeetAgain(ev, el) {
             ${ev.worldId ? `<div class="fd-meta-row"${worldClickAgain}><span class="fd-meta-label">World</span><span style="color:var(--accent-lt);">${esc(ev.worldName || ev.worldId)}</span></div>` : ''}
         </div>
         <div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end;">
-            ${ev.userId ? `<button class="modal-btn modal-btn-accent" onclick="document.getElementById('modalDetail').style.display='none';openFriendDetail('${esc(ev.userId)}')">View Profile</button>` : ''}
-            <button class="modal-btn modal-btn-cancel" onclick="document.getElementById('modalDetail').style.display='none'">Close</button>
+            ${ev.userId ? `<button class="fd-btn fd-btn-join" onclick="document.getElementById('modalDetail').style.display='none';openFriendDetail('${esc(ev.userId)}')">View Profile</button>` : ''}
+            <button class="fd-btn" onclick="document.getElementById('modalDetail').style.display='none'">Close</button>
         </div>
     </div>`;
 }
@@ -504,8 +504,8 @@ function renderTlDetailNotif(ev, el) {
             ${ev.message ? `<div class="fd-meta-row"><span class="fd-meta-label">Message</span><span>${esc(ev.message)}</span></div>` : ''}
         </div>
         <div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end;">
-            ${ev.senderId ? `<button class="modal-btn modal-btn-accent" onclick="document.getElementById('modalDetail').style.display='none';openFriendDetail('${esc(ev.senderId)}')">View Profile</button>` : ''}
-            <button class="modal-btn modal-btn-cancel" onclick="document.getElementById('modalDetail').style.display='none'">Close</button>
+            ${ev.senderId ? `<button class="fd-btn fd-btn-join" onclick="document.getElementById('modalDetail').style.display='none';openFriendDetail('${esc(ev.senderId)}')">View Profile</button>` : ''}
+            <button class="fd-btn" onclick="document.getElementById('modalDetail').style.display='none'">Close</button>
         </div>
     </div>`;
 }
@@ -776,12 +776,12 @@ function ftDetailAvRow(ev) {
 }
 
 function ftDetailClose() {
-    return `<button class="modal-btn modal-btn-cancel" onclick="document.getElementById('modalDetail').style.display='none'">Close</button>`;
+    return `<button class="fd-btn" onclick="document.getElementById('modalDetail').style.display='none'">Close</button>`;
 }
 
 function ftDetailViewProfile(ev) {
     return ev.friendId
-        ? `<button class="modal-btn modal-btn-accent" onclick="document.getElementById('modalDetail').style.display='none';openFriendDetail('${esc(ev.friendId)}')">View Profile</button>`
+        ? `<button class="fd-btn fd-btn-join" onclick="document.getElementById('modalDetail').style.display='none';openFriendDetail('${esc(ev.friendId)}')">View Profile</button>`
         : '';
 }
 
@@ -802,7 +802,7 @@ function renderFtDetailGps(ev, el) {
             <div class="fd-meta-row"${worldClick}><span class="fd-meta-label">World</span><span style="color:var(--accent-lt);">${esc(wname)}</span></div>
         </div>
         <div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end;">
-            ${ev.worldId ? `<button class="modal-btn modal-btn-accent" onclick="document.getElementById('modalDetail').style.display='none';openWorldDetail('${esc(ev.worldId)}')"><span class="msi" style="font-size:14px;">travel_explore</span> Open World</button>` : ''}
+            ${ev.worldId ? `<button class="fd-btn fd-btn-join" onclick="document.getElementById('modalDetail').style.display='none';openWorldDetail('${esc(ev.worldId)}')"><span class="msi" style="font-size:14px;">travel_explore</span> Open World</button>` : ''}
             ${ftDetailViewProfile(ev)}
             ${ftDetailClose()}
         </div>

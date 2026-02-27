@@ -32,9 +32,13 @@ function renderGroupDetail(g) {
     const headerHtml = `<div class="fd-content${banner ? ' fd-has-banner' : ''}"><div class="fd-header">${iconHtml}<div><div class="fd-name">${esc(g.name)}</div><div class="fd-status">${esc(g.shortCode)} · ${g.memberCount} members · ${esc(g.privacy)}</div></div></div>`;
 
     // Actions - moved to bottom bar
+    const canPost = g.canPost === true;
+    const createPostBtn = (g.isJoined && canPost)
+        ? `<button class="fd-btn fd-btn-join" onclick="openGroupPostModal('${esc(g.id)}')"><span class="msi" style="font-size:16px;vertical-align:middle;margin-right:4px;">edit</span>Create Post</button>`
+        : '';
     const leaveJoinBtn = g.isJoined
-        ? `<button class="fd-btn fd-btn-danger" onclick="sendToCS({action:'vrcLeaveGroup',groupId:'${esc(g.id)}'});document.getElementById('modalDetail').style.display='none';"><span class="msi" style="font-size:16px;">logout</span>Leave Group</button>`
-        : `<button class="fd-btn fd-btn-join" onclick="sendToCS({action:'vrcJoinGroup',groupId:'${esc(g.id)}'});document.getElementById('modalDetail').style.display='none';"><span class="msi" style="font-size:16px;">group_add</span>Join Group</button>`;
+        ? `<button class="fd-btn fd-btn-danger" onclick="sendToCS({action:'vrcLeaveGroup',groupId:'${esc(g.id)}'});document.getElementById('modalDetail').style.display='none';"><span class="msi" style="font-size:16px;vertical-align:middle;margin-right:4px;">logout</span>Leave Group</button>`
+        : `<button class="fd-btn fd-btn-join" onclick="sendToCS({action:'vrcJoinGroup',groupId:'${esc(g.id)}'});document.getElementById('modalDetail').style.display='none';"><span class="msi" style="font-size:16px;vertical-align:middle;margin-right:4px;">group_add</span>Join Group</button>`;
 
     // Tab: Info
     const descHtml = g.description ? `<div class="fd-section-label">Description</div><div class="fd-bio">${esc(g.description)}</div>` : '';
@@ -148,7 +152,7 @@ function renderGroupDetail(g) {
         <div id="gdTabInstances" style="display:none;">${instancesTab}</div>
         <div id="gdTabGallery" style="display:none;">${galleryTab}</div>
         <div id="gdTabMembers" style="display:none;">${membersTab}</div>
-        <div style="margin-top:10px;display:flex;justify-content:space-between;align-items:center;">${leaveJoinBtn}<button class="modal-btn modal-btn-cancel" onclick="document.getElementById('modalDetail').style.display='none'">Close</button></div>
+        <div style="margin-top:10px;display:flex;justify-content:space-between;align-items:center;"><div style="display:flex;gap:8px;">${createPostBtn}${leaveJoinBtn}</div><button class="fd-btn" onclick="document.getElementById('modalDetail').style.display='none'">Close</button></div>
     </div>`;
 }
 
@@ -186,4 +190,194 @@ function toggleGPost(i) {
         el.textContent = el.dataset.preview;
         link.textContent = 'Show more';
     }
+}
+
+/* === Group Post Modal === */
+let _groupPostGroupId = null;
+let _groupPostImageBase64 = null;
+let _groupPostSelectedFileId = null; // file_xxx from library picker
+
+function openGroupPostModal(groupId) {
+    _groupPostGroupId = groupId;
+    _groupPostImageBase64 = null;
+    _groupPostSelectedFileId = null;
+
+    let overlay = document.getElementById('groupPostOverlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'groupPostOverlay';
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:10002;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;';
+        document.body.appendChild(overlay);
+    }
+    overlay.innerHTML = `
+    <div class="gp-modal" role="dialog" aria-label="Create Group Post">
+        <div class="gp-modal-header">
+            <span class="msi" style="font-size:20px;color:var(--accent);">edit</span>
+            <span>Create Group Post</span>
+            <button class="fd-btn" onclick="closeGroupPostModal()" style="padding:4px 8px;" title="Close"><span class="msi" style="font-size:18px;">close</span></button>
+        </div>
+        <div class="gp-modal-body">
+            <label class="gp-label">Title</label>
+            <input id="gpTitle" class="gp-input" type="text" placeholder="Post title..." maxlength="200">
+            <label class="gp-label" style="margin-top:12px;">Content</label>
+            <textarea id="gpText" class="gp-textarea" placeholder="What's on your mind?" rows="5" maxlength="2000"></textarea>
+            <div style="display:flex;gap:12px;margin-top:12px;flex-wrap:wrap;">
+                <div style="flex:1;min-width:130px;">
+                    <label class="gp-label">Visibility</label>
+                    <select id="gpVisibility" class="gp-select">
+                        <option value="group">Group only</option>
+                        <option value="public">Public</option>
+                    </select>
+                </div>
+                <div style="flex:1;min-width:130px;">
+                    <label class="gp-label">Notification</label>
+                    <select id="gpNotify" class="gp-select">
+                        <option value="0">No notification</option>
+                        <option value="1">Send notification</option>
+                    </select>
+                </div>
+            </div>
+            <label class="gp-label" style="margin-top:12px;">Image <span style="color:var(--tx3);font-weight:400;">(optional)</span></label>
+            <div style="display:flex;gap:6px;margin-bottom:8px;">
+                <button class="fd-btn active" id="gpSrcUploadBtn" onclick="gpSetImgSource('upload')" style="flex:1;font-size:11px;"><span class="msi" style="font-size:14px;vertical-align:middle;">upload_file</span> Upload</button>
+                <button class="fd-btn" id="gpSrcLibraryBtn" onclick="gpSetImgSource('library')" style="flex:1;font-size:11px;"><span class="msi" style="font-size:14px;vertical-align:middle;">photo_library</span> From Library</button>
+            </div>
+            <div id="gpUploadArea">
+                <div class="gp-img-area" id="gpImgArea" onclick="document.getElementById('gpFileInput').click()">
+                    <span class="msi" style="font-size:28px;color:var(--tx3);">image</span>
+                    <span id="gpImgLabel" style="font-size:11px;color:var(--tx3);">Click to select image</span>
+                    <input id="gpFileInput" type="file" accept="image/png,image/jpeg,image/gif,image/webp" style="display:none;" onchange="onGroupPostImageSelected(event)">
+                </div>
+                <img id="gpImgPreview" style="display:none;width:100%;max-height:180px;object-fit:contain;border-radius:8px;margin-top:8px;">
+            </div>
+            <div id="gpLibraryArea" style="display:none;">
+                <div id="gpLibraryGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:6px;max-height:180px;overflow-y:auto;padding:4px 0;">
+                    <div style="grid-column:1/-1;text-align:center;padding:20px;font-size:11px;color:var(--tx3);">Loading photos...</div>
+                </div>
+            </div>
+            <div id="gpError" style="display:none;margin-top:8px;padding:8px 10px;background:rgba(255,80,80,.12);border-radius:8px;color:var(--err);font-size:12px;"></div>
+        </div>
+        <div class="gp-modal-footer">
+            <button class="fd-btn" onclick="closeGroupPostModal()">Cancel</button>
+            <button class="fd-btn fd-btn-join" id="gpSubmitBtn" onclick="submitGroupPost()"><span class="msi" style="font-size:16px;vertical-align:middle;margin-right:4px;">send</span>Post</button>
+        </div>
+    </div>`;
+    overlay.style.display = 'flex';
+    setTimeout(() => document.getElementById('gpTitle')?.focus(), 50);
+}
+
+function gpSetImgSource(src) {
+    const uploadArea = document.getElementById('gpUploadArea');
+    const libraryArea = document.getElementById('gpLibraryArea');
+    const uploadBtn = document.getElementById('gpSrcUploadBtn');
+    const libraryBtn = document.getElementById('gpSrcLibraryBtn');
+    if (!uploadArea || !libraryArea) return;
+    if (src === 'library') {
+        uploadArea.style.display = 'none';
+        libraryArea.style.display = '';
+        uploadBtn?.classList.remove('active');
+        libraryBtn?.classList.add('active');
+        _groupPostImageBase64 = null;
+        // Render cached photos or request fresh
+        const cached = invFilesCache['gallery'];
+        if (cached && cached.length > 0) {
+            renderGpLibraryPhotos(cached);
+        } else {
+            sendToCS({ action: 'invGetFiles', tag: 'gallery' });
+        }
+    } else {
+        uploadArea.style.display = '';
+        libraryArea.style.display = 'none';
+        uploadBtn?.classList.add('active');
+        libraryBtn?.classList.remove('active');
+        _groupPostSelectedFileId = null;
+    }
+}
+
+function renderGpLibraryPhotos(files) {
+    const grid = document.getElementById('gpLibraryGrid');
+    if (!grid) return;
+    if (!files || files.length === 0) {
+        grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:20px;font-size:11px;color:var(--tx3);">No photos in library.<br>Upload photos via the Inventory tab.</div>';
+        return;
+    }
+    grid.innerHTML = files.map(f => {
+        const url = f.fileUrl || '';
+        const fid = (f.id || '').replace(/'/g, "\\'");
+        const fname = esc(f.name || f.id || '');
+        return `<img src="${url}" title="${fname}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:6px;cursor:pointer;opacity:0.85;transition:opacity .15s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.85" onclick="gpSelectLibraryPhoto('${fid}','${url}','${fname}')" onerror="this.parentElement?.remove()">`;
+    }).join('');
+}
+
+function gpSelectLibraryPhoto(fileId, url, name) {
+    _groupPostSelectedFileId = fileId;
+    _groupPostImageBase64 = null;
+    document.querySelectorAll('#gpLibraryGrid img').forEach(el => el.style.outline = 'none');
+    event.target.style.outline = '2px solid var(--accent)';
+}
+
+// Called from messages.js when gallery photos load, to refresh picker if open
+function onGroupPostGalleryLoaded(files) {
+    const libraryArea = document.getElementById('gpLibraryArea');
+    if (!libraryArea || libraryArea.style.display === 'none') return;
+    renderGpLibraryPhotos(files);
+}
+
+function closeGroupPostModal() {
+    const overlay = document.getElementById('groupPostOverlay');
+    if (overlay) overlay.style.display = 'none';
+    _groupPostGroupId = null;
+    _groupPostImageBase64 = null;
+    _groupPostSelectedFileId = null;
+}
+
+function onGroupPostImageSelected(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+        document.getElementById('gpError').textContent = 'Image too large (max 10 MB, max 2048×2048 px)';
+        document.getElementById('gpError').style.display = '';
+        return;
+    }
+    document.getElementById('gpError').style.display = 'none';
+    const reader = new FileReader();
+    reader.onload = e => {
+        _groupPostImageBase64 = e.target.result;
+        _groupPostSelectedFileId = null;
+        const preview = document.getElementById('gpImgPreview');
+        if (preview) { preview.src = _groupPostImageBase64; preview.style.display = ''; }
+        const label = document.getElementById('gpImgLabel');
+        if (label) label.textContent = file.name;
+    };
+    reader.readAsDataURL(file);
+}
+
+function submitGroupPost() {
+    if (!_groupPostGroupId) return;
+    const title = document.getElementById('gpTitle')?.value.trim() || '';
+    const text = document.getElementById('gpText')?.value.trim() || '';
+    const visibility = document.getElementById('gpVisibility')?.value || 'group';
+    const sendNotification = document.getElementById('gpNotify')?.value === '1';
+    const errEl = document.getElementById('gpError');
+
+    if (!title) { if (errEl) { errEl.textContent = 'Title is required.'; errEl.style.display = ''; } return; }
+    if (!text) { if (errEl) { errEl.textContent = 'Content is required.'; errEl.style.display = ''; } return; }
+    if (errEl) errEl.style.display = 'none';
+
+    const btn = document.getElementById('gpSubmitBtn');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="msi" style="font-size:16px;vertical-align:middle;margin-right:4px;">hourglass_empty</span>Posting...'; }
+
+    const payload = {
+        action: 'vrcCreateGroupPost',
+        groupId: _groupPostGroupId,
+        title,
+        text,
+        visibility,
+        sendNotification,
+    };
+    if (_groupPostSelectedFileId) payload.imageFileId = _groupPostSelectedFileId;
+    else if (_groupPostImageBase64) payload.imageBase64 = _groupPostImageBase64;
+
+    sendToCS(payload);
+    closeGroupPostModal();
 }

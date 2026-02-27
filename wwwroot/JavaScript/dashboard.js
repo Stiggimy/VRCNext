@@ -95,10 +95,12 @@ function renderDashWorlds() {
                 thumb: cached?.thumbnailImageUrl || cached?.imageUrl || '',
                 instanceType: instanceType,
                 friends: [],
-                location: f.location
+                location: f.location,
+                instances: new Set()
             };
         }
         worlds[worldId].friends.push(f);
+        worlds[worldId].instances.add(f.location);
     });
 
     const worldList = Object.values(worlds);
@@ -124,7 +126,7 @@ function renderDashWorlds() {
                 <div class="dash-world-info">
                     <div class="dash-world-name" style="color:var(--tx3)">Loading world...</div>
                     <div class="dash-world-friends-row">${friendAvatars}${extra}</div>
-                    <div class="dash-world-meta"><span class="dash-world-count">${w.friends.length} friend${w.friends.length !== 1 ? 's' : ''} here</span></div>
+                    <div class="dash-world-meta"><span class="dash-world-count">${w.friends.length} friend${w.friends.length !== 1 ? 's' : ''} in world</span></div>
                 </div>
             </div>`;
         }).join('');
@@ -142,13 +144,20 @@ function renderDashWorlds() {
         const thumbStyle = w.thumb ? `background-image:url('${w.thumb}')` : '';
         const wid = (w.worldId || '').replace(/'/g, "\\'");
         const displayName = w.name || w.worldId;
+        const instCount = w.instances ? w.instances.size : 1;
+        const countLabel = instCount > 1
+            ? `${w.friends.length} friend${w.friends.length !== 1 ? 's' : ''} in world`
+            : `${w.friends.length} friend${w.friends.length !== 1 ? 's' : ''} here`;
         const { cls: dwInstCls, label: dwInstLabel } = getInstanceBadge(w.instanceType);
+        const instBadge = instCount > 1
+            ? `<span style="font-size:9px;color:var(--tx3);margin-left:auto;">${instCount} instances</span>`
+            : `<span class="fd-instance-badge ${dwInstCls}" style="font-size:9px;margin-left:auto;">${dwInstLabel}</span>`;
         return `<div class="dash-world-card" onclick="openWorldDetail('${wid}')">
             <div class="dash-world-thumb" style="${thumbStyle}"><div class="dash-world-thumb-overlay"></div></div>
             <div class="dash-world-info">
                 <div class="dash-world-name">${esc(displayName)}</div>
                 <div class="dash-world-friends-row">${friendAvatars}${extra}</div>
-                <div class="dash-world-meta"><span class="dash-world-count">${w.friends.length} friend${w.friends.length !== 1 ? 's' : ''} here</span><span class="fd-instance-badge ${dwInstCls}" style="font-size:9px;margin-left:auto;">${dwInstLabel}</span></div>
+                <div class="dash-world-meta"><span class="dash-world-count">${countLabel}</span>${instBadge}</div>
             </div>
         </div>`;
     }).join('');

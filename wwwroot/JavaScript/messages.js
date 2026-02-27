@@ -100,9 +100,12 @@ if (window.chrome?.webview) {
             case 'vrcFavoriteFriends': renderFavFriends(payload); break;
             case 'vrcFavoriteFriendToggled': handleFavFriendToggled(payload); break;
             case 'vrcFriendDetailError':
-                document.getElementById('friendDetailContent').innerHTML = `<div class="fd-loading" style="color:var(--err);">${esc(payload.error || 'Error loading profile')}</div><div style="margin-top:10px;text-align:right;"><button class="modal-btn modal-btn-cancel" onclick="closeFriendDetail()">Close</button></div>`;
+                document.getElementById('friendDetailContent').innerHTML = `<div class="fd-loading" style="color:var(--err);">${esc(payload.error || 'Error loading profile')}</div><div style="margin-top:10px;text-align:right;"><button class="fd-btn" onclick="closeFriendDetail()">Close</button></div>`;
                 break;
-            case 'vrcActionResult': showFriendActionToast(payload.success, payload.message); break;
+            case 'vrcActionResult':
+                if (payload.action === 'createGroupPost') showInvToast(payload.success, payload.message);
+                else showFriendActionToast(payload.success, payload.message);
+                break;
             case 'vrcProfileUpdated':
                 if (payload.success) {
                     renderMyProfileContent();
@@ -146,7 +149,7 @@ if (window.chrome?.webview) {
                 renderGroupDetail(payload);
                 break;
             case 'vrcGroupDetailError':
-                document.getElementById('detailModalContent').innerHTML = `<div style="padding:30px;text-align:center;color:var(--err);">${esc(payload.error || 'Error loading group')}</div><div style="text-align:center;margin-top:10px;"><button class="modal-btn modal-btn-cancel" onclick="document.getElementById('modalDetail').style.display='none'">Close</button></div>`;
+                document.getElementById('detailModalContent').innerHTML = `<div style="padding:30px;text-align:center;color:var(--err);">${esc(payload.error || 'Error loading group')}</div><div style="text-align:center;margin-top:10px;"><button class="fd-btn" onclick="document.getElementById('modalDetail').style.display='none'">Close</button></div>`;
                 break;
             case 'vrcGroupMembersPage':
                 {
@@ -175,7 +178,7 @@ if (window.chrome?.webview) {
                 onWorldsResolved(payload);
                 break;
             case 'vrcWorldDetailError':
-                document.getElementById('detailModalContent').innerHTML = `<div style="padding:30px;text-align:center;color:var(--err);">${esc(payload.error || 'Error loading world')}</div><div style="text-align:center;margin-top:10px;"><button class="modal-btn modal-btn-cancel" onclick="document.getElementById('modalDetail').style.display='none'">Close</button></div>`;
+                document.getElementById('detailModalContent').innerHTML = `<div style="padding:30px;text-align:center;color:var(--err);">${esc(payload.error || 'Error loading world')}</div><div style="text-align:center;margin-top:10px;"><button class="fd-btn" onclick="document.getElementById('modalDetail').style.display='none'">Close</button></div>`;
                 break;
             case 'vrcNotifications':
                 renderNotifications(payload);
@@ -226,8 +229,11 @@ if (window.chrome?.webview) {
             case 'friendTimelineData':  renderFriendTimeline(payload); break;
             case 'friendTimelineEvent': handleFriendTimelineEvent(payload); break;
             case 'invFiles':
-                if (!payload.error) renderInvFiles(payload.files || [], activeInvTab);
-                else {
+                if (!payload.error) {
+                    renderInvFiles(payload.files || [], activeInvTab);
+                    if (payload.tag === 'gallery' && typeof onGroupPostGalleryLoaded === 'function')
+                        onGroupPostGalleryLoaded(payload.files || []);
+                } else {
                     const g = document.getElementById('invGrid');
                     if (g) g.innerHTML = `<div class="empty-msg" style="color:var(--err);">Error: ${esc(payload.error)}<br><span style="font-size:11px;color:var(--tx3);">This feature may require VRC+ or a VRChat login.</span></div>`;
                 }

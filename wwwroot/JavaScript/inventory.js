@@ -303,9 +303,9 @@ function showInvDeleteModal(type, id, versionId, name) {
     o.className = 'modal-overlay';
     o.id = 'invDeleteModal';
     o.onclick = e => { if (e.target === o) closeInvDeleteModal(); };
-    o.innerHTML = `<div class="modal-box"><div class="modal-icon danger"><span class="msi" style="font-size:22px;">delete</span></div><div class="modal-title">Delete Item</div><div class="modal-msg">Permanently delete from VRChat:<br><span class="modal-fname">${esc(name)}</span><br><span style="font-size:11px;color:var(--tx3);">This cannot be undone.</span></div><div class="modal-btns"><button class="modal-btn modal-btn-cancel" onclick="closeInvDeleteModal()">Cancel</button><button class="modal-btn modal-btn-delete" onclick="confirmInvDelete()">Delete</button></div></div>`;
+    o.innerHTML = `<div class="modal-box"><div class="modal-icon danger"><span class="msi" style="font-size:22px;">delete</span></div><div class="modal-title">Delete Item</div><div class="modal-msg">Permanently delete from VRChat:<br><span class="modal-fname">${esc(name)}</span><br><span style="font-size:11px;color:var(--tx3);">This cannot be undone.</span></div><div class="modal-btns"><button id="invDelCancelBtn" class="fd-btn" onclick="closeInvDeleteModal()">Cancel</button><button class="fd-btn fd-btn-danger" onclick="confirmInvDelete()">Delete</button></div></div>`;
     document.body.appendChild(o);
-    o.querySelector('.modal-btn-cancel').focus();
+    o.querySelector('#invDelCancelBtn').focus();
     const handler = e => {
         if (e.key === 'Escape') { closeInvDeleteModal(); document.removeEventListener('keydown', handler); }
         if (e.key === 'Enter')  { confirmInvDelete();    document.removeEventListener('keydown', handler); }

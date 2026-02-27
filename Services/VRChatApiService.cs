@@ -956,6 +956,85 @@ public class VRChatApiService
         return new JArray();
     }
 
+    public async Task<bool> CreateGroupPostAsync(string groupId, string title, string text, string visibility, bool sendNotification, string? imageId)
+    {
+        if (!IsLoggedIn) return false;
+        try
+        {
+            var body = new JObject
+            {
+                ["title"] = title,
+                ["text"] = text,
+                ["visibility"] = visibility,
+                ["sendNotification"] = sendNotification,
+            };
+            if (!string.IsNullOrEmpty(imageId)) body["imageId"] = imageId;
+            var resp = await _http.PostAsync($"{BASE}/groups/{groupId}/posts",
+                new StringContent(body.ToString(Newtonsoft.Json.Formatting.None), Encoding.UTF8, "application/json"));
+            Log($"CreateGroupPost({groupId}): {(int)resp.StatusCode}");
+            if (!resp.IsSuccessStatusCode)
+                Log($"CreateGroupPost body: {await resp.Content.ReadAsStringAsync()}");
+            return resp.IsSuccessStatusCode;
+        }
+        catch (Exception ex) { Log($"CreateGroupPost exception: {ex.Message}"); return false; }
+    }
+
+    /// <summary>Upload an image to VRChat via POST /file/image multipart. Returns fileId or null on failure.</summary>
+    public async Task<string?> UploadImageAsync(byte[] imageBytes, string mimeType = "image/png", string ext = ".png")
+    {
+        if (!IsLoggedIn) return null;
+        try
+        {
+            using var form = new System.Net.Http.MultipartFormDataContent();
+            form.Add(new StringContent("gallery"), "tag");
+            var fileContent = new System.Net.Http.ByteArrayContent(imageBytes);
+            fileContent.Headers.ContentType = System.Net.Http.Headers.MediaTypeHeaderValue.Parse(mimeType);
+            form.Add(fileContent, "file", "image" + ext);
+
+            Log($"UploadImage mimeType={mimeType} size={imageBytes.Length}");
+            var resp = await _http.PostAsync($"{BASE}/file/image", form);
+            var body = await resp.Content.ReadAsStringAsync();
+            Log($"UploadImage response: {(int)resp.StatusCode} preview={body[..Math.Min(200, body.Length)]}");
+            if (!resp.IsSuccessStatusCode) return null;
+
+            var fileObj = JObject.Parse(body);
+            return fileObj["id"]?.ToString();
+        }
+        catch (Exception ex) { Log($"UploadImage exception: {ex.Message}"); return null; }
+    }
+
+    /// <summary>Create a group instance via POST /instances and return the location string.</summary>
+    public async Task<string?> CreateGroupInstanceAsync(string worldId, string groupId, string groupAccessType, string region)
+    {
+        if (!IsLoggedIn) return null;
+        try
+        {
+            var body = new JObject
+            {
+                ["worldId"] = worldId,
+                ["type"] = "group",
+                ["ownerId"] = groupId,
+                ["groupAccessType"] = groupAccessType,
+                ["region"] = region
+            };
+            var resp = await _http.PostAsync($"{BASE}/instances",
+                new StringContent(body.ToString(Newtonsoft.Json.Formatting.None), Encoding.UTF8, "application/json"));
+            var respBody = await resp.Content.ReadAsStringAsync();
+            Log($"CreateGroupInstance: {(int)resp.StatusCode} {respBody[..Math.Min(300, respBody.Length)]}");
+            if (resp.IsSuccessStatusCode)
+            {
+                var obj = JObject.Parse(respBody);
+                var location = obj["location"]?.ToString();
+                if (!string.IsNullOrEmpty(location)) return location;
+                // Build location from worldId + instanceId if needed
+                var instanceId = obj["instanceId"]?.ToString() ?? obj["id"]?.ToString();
+                if (!string.IsNullOrEmpty(instanceId)) return $"{worldId}:{instanceId}";
+            }
+        }
+        catch (Exception ex) { Log($"CreateGroupInstance exception: {ex.Message}"); }
+        return null;
+    }
+
     // Friend requests
     public async Task<bool> SendFriendRequestAsync(string userId)
     {

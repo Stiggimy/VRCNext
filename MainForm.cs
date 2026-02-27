@@ -1110,6 +1110,10 @@ public class MainForm : Form
                                     }
                                 }
 
+                                var myMember = g["myMember"] as JObject;
+                                var myPerms = myMember?["permissions"] as JArray ?? new JArray();
+                                var canPost = myPerms.Any(p => p.ToString() == "*" || p.ToString() == "group-posts-manage");
+
                                 Invoke(() => SendToJS("vrcGroupDetail", new {
                                     id = g["id"]?.ToString() ?? "", name = g["name"]?.ToString() ?? "",
                                     shortCode = g["shortCode"]?.ToString() ?? "", description = g["description"]?.ToString() ?? "",
@@ -1117,6 +1121,7 @@ public class MainForm : Form
                                     memberCount = g["memberCount"]?.Value<int>() ?? 0, privacy = g["privacy"]?.ToString() ?? "",
                                     rules = g["rules"]?.ToString() ?? "",
                                     isJoined = g["myMember"] != null && g["myMember"].Type != JTokenType.Null,
+                                    canPost,
                                     posts = posts.Select(p => new {
                                         title = p["title"]?.ToString() ?? "",
                                         text = p["text"]?.ToString() ?? "",
@@ -1203,6 +1208,109 @@ public class MainForm : Form
                         });
                     }
                     break;
+
+                case "vrcCreateGroupPost":
+                {
+                    var cpGroupId = msg["groupId"]?.ToString() ?? "";
+                    var cpTitle = msg["title"]?.ToString() ?? "";
+                    var cpText = msg["text"]?.ToString() ?? "";
+                    var cpVisibility = msg["visibility"]?.ToString() ?? "group";
+                    var cpNotify = msg["sendNotification"]?.Value<bool>() ?? false;
+                    var cpImageBase64 = msg["imageBase64"]?.ToString();
+                    var cpImageFileId = msg["imageFileId"]?.ToString(); // direct file_xxx from library picker
+                    if (!string.IsNullOrEmpty(cpGroupId) && !string.IsNullOrEmpty(cpTitle))
+                    {
+                        _ = Task.Run(async () =>
+                        {
+                            string? imageId = null;
+                            if (!string.IsNullOrEmpty(cpImageFileId))
+                            {
+                                // Using an existing gallery photo — no upload needed
+                                imageId = cpImageFileId;
+                                Invoke(() => SendToJS("log", new { msg = $"[GroupPost] Using library image: {imageId}", color = "sec" }));
+                            }
+                            else if (!string.IsNullOrEmpty(cpImageBase64))
+                            {
+                                try
+                                {
+                                    // Extract MIME type and strip data URL prefix (e.g. "data:image/jpeg;base64,...")
+                                    var b64 = cpImageBase64;
+                                    string imgMime = "image/png";
+                                    string imgExt = ".png";
+                                    if (b64.StartsWith("data:"))
+                                    {
+                                        var semi = b64.IndexOf(';');
+                                        if (semi > 5) imgMime = b64[5..semi];
+                                        imgExt = imgMime switch
+                                        {
+                                            "image/jpeg" => ".jpg",
+                                            "image/gif"  => ".gif",
+                                            "image/webp" => ".webp",
+                                            _            => ".png"
+                                        };
+                                    }
+                                    var commaIdx = b64.IndexOf(',');
+                                    if (commaIdx >= 0) b64 = b64[(commaIdx + 1)..];
+                                    var imgBytes = Convert.FromBase64String(b64);
+                                    Invoke(() => SendToJS("log", new { msg = $"[GroupPost] Uploading image {imgMime} {imgBytes.Length / 1024} KB", color = "sec" }));
+                                    imageId = await _vrcApi.UploadImageAsync(imgBytes, imgMime, imgExt);
+                                    if (imageId == null)
+                                        Invoke(() => SendToJS("log", new { msg = "[GroupPost] Image upload failed, posting without image", color = "warn" }));
+                                    else
+                                        Invoke(() => SendToJS("log", new { msg = $"[GroupPost] Image uploaded: {imageId}", color = "sec" }));
+                                }
+                                catch (Exception ex)
+                                {
+                                    Invoke(() => SendToJS("log", new { msg = $"[GroupPost] Image parse error: {ex.Message}", color = "err" }));
+                                }
+                            }
+                            var ok = await _vrcApi.CreateGroupPostAsync(cpGroupId, cpTitle, cpText, cpVisibility, cpNotify, imageId);
+                            Invoke(() => SendToJS("vrcActionResult", new
+                            {
+                                action = "createGroupPost",
+                                success = ok,
+                                message = ok ? "Post created!" : "Failed to create post"
+                            }));
+                        });
+                    }
+                    break;
+                }
+
+                case "vrcCreateGroupInstance":
+                {
+                    var cgiWorldId = msg["worldId"]?.ToString() ?? "";
+                    var cgiGroupId = msg["groupId"]?.ToString() ?? "";
+                    var cgiAccessType = msg["groupAccessType"]?.ToString() ?? "members";
+                    var cgiRegion = msg["region"]?.ToString() ?? "eu";
+                    if (!string.IsNullOrEmpty(cgiWorldId) && !string.IsNullOrEmpty(cgiGroupId))
+                    {
+                        _ = Task.Run(async () =>
+                        {
+                            var location = await _vrcApi.CreateGroupInstanceAsync(cgiWorldId, cgiGroupId, cgiAccessType, cgiRegion);
+                            if (!string.IsNullOrEmpty(location))
+                            {
+                                var ok = await _vrcApi.InviteSelfAsync(location);
+                                Invoke(() => SendToJS("vrcActionResult", new
+                                {
+                                    action = "createInstance",
+                                    success = ok,
+                                    message = ok ? "Group instance created! Self-invite sent." : "Instance created but invite failed.",
+                                    location
+                                }));
+                            }
+                            else
+                            {
+                                Invoke(() => SendToJS("vrcActionResult", new
+                                {
+                                    action = "createInstance",
+                                    success = false,
+                                    message = "Failed to create group instance."
+                                }));
+                            }
+                        });
+                    }
+                    break;
+                }
 
                 // Custom Chatbox OSC
                 case "chatboxConfig":

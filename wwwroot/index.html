@@ -519,7 +519,7 @@
             <div class="modal-msg" id="modal2FAMsg">Enter the 6-digit code from your email or authenticator app.</div>
             <div style="margin:16px 0;"><input type="text" id="modal2FACode" maxlength="6" placeholder="000000" autocomplete="one-time-code" style="width:100%;text-align:center;font-size:24px;letter-spacing:8px;font-weight:700;padding:12px;background:var(--bg-input);border:none;border-radius:8px;color:var(--tx0);outline:none;font-family:inherit;" onkeydown="if(event.key==='Enter')modal2FASubmit()"></div>
             <div id="modal2FAError" style="font-size:11px;color:var(--err);margin-bottom:8px;min-height:16px;"></div>
-            <div class="modal-btns"><button class="modal-btn modal-btn-cancel" onclick="document.getElementById('modal2FA').style.display='none'">Cancel</button><button class="modal-btn modal-btn-accent" onclick="modal2FASubmit()">Verify</button></div>
+            <div class="modal-btns"><button class="fd-btn" onclick="document.getElementById('modal2FA').style.display='none'">Cancel</button><button class="fd-btn fd-btn-join" onclick="modal2FASubmit()">Verify</button></div>
         </div>
     </div>
 
@@ -530,7 +530,7 @@
             <div id="statusOptions"></div>
             <textarea class="status-desc-input" id="statusDescInput" rows="2" maxlength="64" placeholder="Status message..."></textarea>
             <div style="font-size:10px;color:var(--tx3);margin-top:4px;margin-bottom:14px;text-align:right;" id="statusDescCount">0/64</div>
-            <div class="modal-btns"><button class="modal-btn modal-btn-cancel" onclick="document.getElementById('modalStatus').style.display='none'">Cancel</button><button class="modal-btn modal-btn-accent" onclick="submitStatusChange()">Update</button></div>
+            <div class="modal-btns"><button class="fd-btn" onclick="document.getElementById('modalStatus').style.display='none'">Cancel</button><button class="fd-btn fd-btn-join" onclick="submitStatusChange()">Update</button></div>
         </div>
     </div>
 

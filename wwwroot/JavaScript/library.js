@@ -238,7 +238,7 @@ function openPhotoDetail(idx) {
     el.innerHTML = `${bannerHtml}<div class="fd-content${imgUrl ? ' fd-has-banner' : ''}" style="padding:20px;">
         <h2 style="margin:0 0 12px;color:var(--tx0);font-size:16px;">${esc(x.name)}</h2>
         ${metaHtml}${playersHtml}
-        <div style="margin-top:14px;text-align:right;"><button class="modal-btn modal-btn-cancel" onclick="document.getElementById('modalDetail').style.display='none'">Close</button></div>
+        <div style="margin-top:14px;text-align:right;"><button class="fd-btn" onclick="document.getElementById('modalDetail').style.display='none'">Close</button></div>
     </div>`;
     document.getElementById('modalDetail').style.display = 'flex';
 }
@@ -273,9 +273,9 @@ function showDeleteModal(fp, fn) {
     o.className = 'modal-overlay';
     o.id = 'deleteModal';
     o.onclick = e => { if (e.target === o) closeDeleteModal(); };
-    o.innerHTML = `<div class="modal-box"><div class="modal-icon danger"><span class="msi" style="font-size:22px;">delete</span></div><div class="modal-title">Delete File</div><div class="modal-msg">Permanently delete from disk:<br><span class="modal-fname">${esc(fn)}</span></div><div class="modal-btns"><button class="modal-btn modal-btn-cancel" onclick="closeDeleteModal()">Cancel</button><button class="modal-btn modal-btn-delete" onclick="confirmDelete()">Delete</button></div></div>`;
+    o.innerHTML = `<div class="modal-box"><div class="modal-icon danger"><span class="msi" style="font-size:22px;">delete</span></div><div class="modal-title">Delete File</div><div class="modal-msg">Permanently delete from disk:<br><span class="modal-fname">${esc(fn)}</span></div><div class="modal-btns"><button id="libDelCancelBtn" class="fd-btn" onclick="closeDeleteModal()">Cancel</button><button class="fd-btn fd-btn-danger" onclick="confirmDelete()">Delete</button></div></div>`;
     document.body.appendChild(o);
-    o.querySelector('.modal-btn-cancel').focus();
+    o.querySelector('#libDelCancelBtn').focus();
     const ok = e => {
         if (e.key === 'Escape') { closeDeleteModal(); document.removeEventListener('keydown', ok); }
         if (e.key === 'Enter') { confirmDelete(); document.removeEventListener('keydown', ok); }
@@ -305,7 +305,7 @@ function showDeleteAllModal() {
     o.className = 'modal-overlay';
     o.id = 'deleteModal';
     o.onclick = e => { if (e.target === o) closeDeleteModal(); };
-    o.innerHTML = `<div class="modal-box"><div class="modal-icon danger"><span class="msi" style="font-size:22px;">delete</span></div><div class="modal-title">Delete All Posts</div><div class="modal-msg">Delete all <strong>${postedFiles.length}</strong> post(s) from Discord?</div><div class="modal-btns"><button class="modal-btn modal-btn-cancel" onclick="closeDeleteModal()">Cancel</button><button class="modal-btn modal-btn-delete" onclick="confirmDeleteAll()">Delete All</button></div></div>`;
+    o.innerHTML = `<div class="modal-box"><div class="modal-icon danger"><span class="msi" style="font-size:22px;">delete</span></div><div class="modal-title">Delete All Posts</div><div class="modal-msg">Delete all <strong>${postedFiles.length}</strong> post(s) from Discord?</div><div class="modal-btns"><button class="fd-btn" onclick="closeDeleteModal()">Cancel</button><button class="fd-btn fd-btn-danger" onclick="confirmDeleteAll()">Delete All</button></div></div>`;
     document.body.appendChild(o);
 }
 

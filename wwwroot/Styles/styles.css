@@ -1633,44 +1633,6 @@ body {
     justify-content: flex-end;
 }
 
-.modal-btn {
-    padding: 9px 22px;
-    border-radius: 8px;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    font-family: inherit;
-    transition: all .15s;
-    border: none;
-}
-
-.modal-btn-cancel {
-    background: var(--bg-hover);
-    color: var(--tx1);
-}
-
-.modal-btn-cancel:hover {
-    background: var(--brd);
-}
-
-.modal-btn-delete {
-    background: var(--err);
-    color: #fff;
-}
-
-.modal-btn-delete:hover {
-    opacity: .85;
-}
-
-.modal-btn-accent {
-    background: var(--accent);
-    color: #fff;
-}
-
-.modal-btn-accent:hover {
-    background: var(--accent-lt);
-}
-
 /* === RIGHT SIDEBAR === */
 .rsidebar {
     width: 260px;
@@ -2189,6 +2151,11 @@ body {
     cursor: not-allowed;
 }
 
+.fd-btn.active {
+    background: var(--accent);
+    color: #fff;
+}
+
 .fd-meta-row {
     font-size: 11px;
     color: var(--tx3);
@@ -2677,6 +2644,15 @@ body {
     margin-bottom: 16px;
     max-height: 240px;
     overflow-y: auto;
+}
+
+.wd-instance-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 0 4px;
+    border-top: 1px solid var(--border);
+    margin-top: 4px;
 }
 
 .wd-friend-row {
@@ -3189,6 +3165,115 @@ body {
     opacity: .8;
 }
 
+/* === Group Post Modal === */
+.gp-modal {
+    background: var(--bg-card);
+    border-radius: 16px;
+    width: 480px;
+    max-width: calc(100vw - 32px);
+    max-height: calc(100vh - 48px);
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 24px 80px rgba(0,0,0,.55);
+    overflow: hidden;
+}
+
+.gp-modal-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 16px 20px 14px;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--tx0);
+    flex-shrink: 0;
+}
+
+.gp-modal-header > span:last-of-type { flex: 1; }
+
+
+.gp-modal-body {
+    padding: 16px 20px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.gp-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--tx2);
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    margin-bottom: 6px;
+}
+
+.gp-input {
+    width: 100%;
+    background: var(--bg-input);
+    border: none;
+    border-radius: 8px;
+    color: var(--tx0);
+    font-size: 13px;
+    font-family: inherit;
+    padding: 9px 12px;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.gp-textarea {
+    width: 100%;
+    background: var(--bg-input);
+    border: none;
+    border-radius: 8px;
+    color: var(--tx0);
+    font-size: 13px;
+    font-family: inherit;
+    padding: 9px 12px;
+    outline: none;
+    box-sizing: border-box;
+    resize: vertical;
+    min-height: 90px;
+    max-height: 200px;
+    line-height: 1.5;
+}
+
+.gp-select {
+    width: 100%;
+    background: var(--bg-input);
+    border: none;
+    border-radius: 8px;
+    color: var(--tx0);
+    font-size: 12px;
+    font-family: inherit;
+    padding: 8px 10px;
+    outline: none;
+    cursor: pointer;
+}
+
+.gp-img-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 18px 12px;
+    background: var(--bg-input);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background .15s;
+}
+.gp-img-area:hover {
+    background: var(--bg-hover);
+}
+
+.gp-modal-footer {
+    padding: 14px 20px;
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    flex-shrink: 0;
+}
+
 /* Add friend accent button — inherits theme from .fd-btn */
 
 .fd-btn-danger:hover {
@@ -3349,7 +3434,7 @@ body {
     position: absolute;
     top: 50px;
     right: 16px;
-    width: 360px;
+    width: 420px;
     max-height: 420px;
     background: var(--bg-card);
     border: 1px solid var(--border);

@@ -96,11 +96,15 @@ function renderWorldSearchDetail(w) {
     // Create instance UI
     const createHtml = `<div class="wd-section-label" style="margin-top:6px;">CREATE INSTANCE</div>
         <div class="wd-create-row">
-            <select id="ciType" class="wd-create-select">
+            <select id="ciType" class="wd-create-select" onchange="onCiTypeChange()">
                 <option value="public">Public</option>
                 <option value="friends">Friends</option>
                 <option value="hidden">Friends+</option>
                 <option value="private">Invite</option>
+                <optgroup label="─────────"></optgroup>
+                <option value="group_public">Group Public</option>
+                <option value="group_members">Group</option>
+                <option value="group_plus">Group+</option>
             </select>
             <select id="ciRegion" class="wd-create-select">
                 <option value="eu">Europe</option>
@@ -109,6 +113,12 @@ function renderWorldSearchDetail(w) {
                 <option value="jp">Japan</option>
             </select>
             <button class="btn-p" id="ciBtn" onclick="createWorldInstance('${esc(w.id)}')" style="padding:6px 14px;font-size:11px;"><span class="msi" style="font-size:14px;">add</span> Create & Join</button>
+        </div>
+        <div id="ciGroupRow" style="display:none;margin-top:8px;">
+            <div style="font-size:11px;color:var(--tx3);margin-bottom:4px;">Select group for this instance:</div>
+            <select id="ciGroupId" class="wd-create-select" style="width:100%;">
+                ${(myGroups.length ? myGroups : []).map(g => `<option value="${esc(g.id)}">${esc(g.name)}</option>`).join('') || '<option value="">No groups found</option>'}
+            </select>
         </div>`;
 
     el.innerHTML = `${thumb ? `<div class="fd-banner"><img src="${thumb}" onerror="this.parentElement.style.display='none'"><div class="fd-banner-fade"></div></div>` : ''}
@@ -129,16 +139,18 @@ function renderWorldSearchDetail(w) {
         </div>
         ${instancesHtml}
         ${createHtml}
-        <div style="margin-top:14px;text-align:right;"><button class="modal-btn modal-btn-cancel" onclick="document.getElementById('modalDetail').style.display='none'">Close</button></div>
+        <div style="margin-top:14px;text-align:right;"><button class="fd-btn" onclick="document.getElementById('modalDetail').style.display='none'">Close</button></div>
         </div>`;
 }
 
+function onCiTypeChange() {
+    const type = document.getElementById('ciType')?.value || '';
+    const groupRow = document.getElementById('ciGroupRow');
+    if (groupRow) groupRow.style.display = type.startsWith('group_') ? '' : 'none';
+}
+
 function createInstance(worldId) {
-    const type = document.getElementById('ciType').value;
-    const region = document.getElementById('ciRegion').value;
-    const btn = document.getElementById('ciBtn');
-    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="msi" style="font-size:14px;">hourglass_empty</span> Creating...'; }
-    sendToCS({ action: 'vrcCreateInstance', worldId, type, region });
+    createWorldInstance(worldId);
 }
 
 function createWorldInstance(worldId) {
@@ -146,7 +158,19 @@ function createWorldInstance(worldId) {
     const region = document.getElementById('ciRegion').value;
     const btn = document.getElementById('ciBtn');
     if (btn) { btn.disabled = true; btn.innerHTML = '<span class="msi" style="font-size:14px;">hourglass_empty</span> Creating...'; }
-    sendToCS({ action: 'vrcCreateInstance', worldId, type, region });
+
+    if (type.startsWith('group_')) {
+        const groupId = document.getElementById('ciGroupId')?.value || '';
+        if (!groupId) {
+            if (btn) { btn.disabled = false; btn.innerHTML = '<span class="msi" style="font-size:14px;">add</span> Create & Join'; }
+            return;
+        }
+        // group_public → "public", group_members → "members", group_plus → "plus"
+        const accessType = type === 'group_public' ? 'public' : type === 'group_plus' ? 'plus' : 'members';
+        sendToCS({ action: 'vrcCreateGroupInstance', worldId, groupId, groupAccessType: accessType, region });
+    } else {
+        sendToCS({ action: 'vrcCreateInstance', worldId, type, region });
+    }
 }
 
 /* === World Detail Modal === */
@@ -165,51 +189,70 @@ function openWorldDetail(worldId) {
     const worldName = cached?.name || worldId;
     const thumb = cached?.thumbnailImageUrl || cached?.imageUrl || '';
 
-    // Find a location string from any friend in this world (for join)
-    const anyLoc = friends.length > 0 ? friends[0].location : '';
-
-    // Detect instance type from location
-    let instanceType = 'public';
-    if (anyLoc) {
-        const parsed = parseFriendLocation(anyLoc);
-        instanceType = parsed.instanceType;
-    }
-    const { cls: instClass, label: instLabel } = getInstanceBadge(instanceType);
+    // Group friends by instance (full location string)
+    const instanceMap = {};
+    friends.forEach(f => {
+        const loc = f.location;
+        if (!instanceMap[loc]) {
+            const { instanceType: iType } = parseFriendLocation(loc);
+            const numMatch = loc.match(/:(\d+)/);
+            instanceMap[loc] = { location: loc, instanceType: iType, instanceNum: numMatch ? numMatch[1] : '', friends: [] };
+        }
+        instanceMap[loc].friends.push(f);
+    });
+    const instanceList = Object.values(instanceMap);
+    const multiInstance = instanceList.length > 1;
 
     // Build header with banner fade (matching profiles/groups)
     const bannerHtml = thumb
         ? `<div class="fd-banner"><img src="${thumb}" onerror="this.parentElement.style.display='none'"><div class="fd-banner-fade"></div></div>`
         : '';
 
-    // Build friends list
-    let friendsHtml = '<div class="wd-friends-label">FRIENDS IN THIS WORLD</div><div class="wd-friends-list">';
-    friends.forEach(f => {
-        const img = f.image || '';
-        const imgTag = img
-            ? `<img class="wd-friend-avatar" src="${img}" onerror="this.style.display='none'">`
-            : `<div class="wd-friend-avatar" style="display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--tx3)">${esc((f.displayName||'?')[0])}</div>`;
-        const fid = (f.id || '').replace(/'/g, "\\'");
-        friendsHtml += `<div class="wd-friend-row" onclick="closeWorldDetail();openFriendDetail('${fid}')">
-            ${imgTag}
-            <div class="wd-friend-info">
-                <div class="wd-friend-name"><span class="vrc-status-dot ${statusDotClass(f.status)}" style="width:7px;height:7px;"></span>${esc(f.displayName)}</div>
-                <div class="wd-friend-status">${esc(f.statusDescription || statusLabel(f.status))}</div>
-            </div>
-        </div>`;
+    // Build friends list grouped by instance
+    let friendsHtml = `<div class="wd-friends-label">${multiInstance ? `FRIENDS IN THIS WORLD (${instanceList.length} instances)` : 'FRIENDS IN THIS INSTANCE'}</div>`;
+    instanceList.forEach(inst => {
+        const { cls: iCls, label: iLabel } = getInstanceBadge(inst.instanceType);
+        const canJoinInst = inst.instanceType !== 'private';
+        const instLoc = inst.location.replace(/'/g, "\\'");
+        if (multiInstance) {
+            friendsHtml += `<div class="wd-instance-header">
+                <span class="fd-instance-badge ${iCls}" style="font-size:9px;">${iLabel}</span>
+                ${inst.instanceNum ? `<span style="font-size:10px;color:var(--tx3);">#${inst.instanceNum}</span>` : ''}
+                ${canJoinInst ? `<button class="fd-btn fd-btn-join" style="padding:2px 10px;font-size:10px;margin-left:auto;" onclick="worldJoinAction('${instLoc}')">Join</button>` : ''}
+            </div>`;
+        }
+        friendsHtml += '<div class="wd-friends-list">';
+        inst.friends.forEach(f => {
+            const img = f.image || '';
+            const imgTag = img
+                ? `<img class="wd-friend-avatar" src="${img}" onerror="this.style.display='none'">`
+                : `<div class="wd-friend-avatar" style="display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--tx3)">${esc((f.displayName||'?')[0])}</div>`;
+            const fid = (f.id || '').replace(/'/g, "\\'");
+            friendsHtml += `<div class="wd-friend-row" onclick="closeWorldDetail();openFriendDetail('${fid}')">
+                ${imgTag}
+                <div class="wd-friend-info">
+                    <div class="wd-friend-name"><span class="vrc-status-dot ${statusDotClass(f.status)}" style="width:7px;height:7px;"></span>${esc(f.displayName)}</div>
+                    <div class="wd-friend-status">${esc(f.statusDescription || statusLabel(f.status))}</div>
+                </div>
+            </div>`;
+        });
+        friendsHtml += '</div>';
     });
-    friendsHtml += '</div>';
 
-    // Actions
+    // Actions — single instance: show Join World button; multi-instance: join buttons are per-instance above
+    const anyLoc = instanceList.length > 0 ? instanceList[0].location : '';
+    const anyInstType = instanceList.length > 0 ? instanceList[0].instanceType : 'public';
+    const { cls: instClass, label: instLabel } = getInstanceBadge(anyInstType);
     const loc = anyLoc.replace(/'/g, "\\'");
-    const canJoin = anyLoc && instanceType !== 'private';
+    const canJoin = !multiInstance && anyLoc && anyInstType !== 'private';
     let actionsHtml = '<div class="fd-actions">';
-    if (canJoin) actionsHtml += `<button class="modal-btn modal-btn-cancel" onclick="worldJoinAction('${loc}')">Join World</button>`;
-    actionsHtml += `<button class="modal-btn modal-btn-cancel" onclick="closeWorldDetail()">Close</button>`;
+    if (canJoin) actionsHtml += `<button class="fd-btn fd-btn-join" onclick="worldJoinAction('${loc}')">Join World</button>`;
+    actionsHtml += `<button class="fd-btn" onclick="closeWorldDetail()">Close</button>`;
     actionsHtml += '</div>';
 
     c.innerHTML = `${bannerHtml}<div class="fd-content${thumb ? ' fd-has-banner' : ''}" style="padding:16px;">
         <h2 style="margin:0 0 4px;color:var(--tx0);font-size:18px;">${esc(worldName)}</h2>
-        <div class="fd-badges-row"><span class="fd-instance-badge ${instClass}">${instLabel}</span></div>
+        <div class="fd-badges-row">${multiInstance ? '' : `<span class="fd-instance-badge ${instClass}">${instLabel}</span>`}</div>
         ${friendsHtml}${actionsHtml}</div>`;
     m.style.display = 'flex';
 }

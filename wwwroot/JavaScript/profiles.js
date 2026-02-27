@@ -206,7 +206,7 @@ function renderMyProfileContent() {
             </div>
 
             <div style="text-align:right;padding-top:12px;">
-                <button class="modal-btn modal-btn-cancel" onclick="closeMyProfile()">Close</button>
+                <button class="fd-btn" onclick="closeMyProfile()">Close</button>
             </div>
         </div>`;
 
@@ -880,7 +880,7 @@ function renderFriendDetail(d) {
         tabsHtml += `</div>`;
     }
 
-    c.innerHTML = `${bannerHtml}<div class="fd-content${bannerSrc ? ' fd-has-banner' : ''}"><div class="fd-header">${imgTag}<div><div class="fd-name">${esc(d.displayName)}</div>${pronounsHtml}<div class="fd-status"><span class="${fdDotClass} ${statusDotClass(d.status)}" style="width:8px;height:8px;"></span>${statusLabel(d.status)}${fdIsWeb ? ' (Web)' : ''}${d.statusDescription ? ' — ' + esc(d.statusDescription) : ''}</div></div></div>${badgesHtml}${actionsHtml}${tabsHtml}<div id="fdTabInfo">${infoContent}</div><div id="fdTabGroups" style="display:none;">${groupsContent}</div><div id="fdTabMutuals" style="display:none;">${mutualsContent}</div><div style="margin-top:10px;text-align:right;"><button class="modal-btn modal-btn-cancel" onclick="closeFriendDetail()">Close</button></div></div>`;
+    c.innerHTML = `${bannerHtml}<div class="fd-content${bannerSrc ? ' fd-has-banner' : ''}"><div class="fd-header">${imgTag}<div><div class="fd-name">${esc(d.displayName)}</div>${pronounsHtml}<div class="fd-status"><span class="${fdDotClass} ${statusDotClass(d.status)}" style="width:8px;height:8px;"></span>${statusLabel(d.status)}${fdIsWeb ? ' (Web)' : ''}${d.statusDescription ? ' — ' + esc(d.statusDescription) : ''}</div></div></div>${badgesHtml}${actionsHtml}${tabsHtml}<div id="fdTabInfo">${infoContent}</div><div id="fdTabGroups" style="display:none;">${groupsContent}</div><div id="fdTabMutuals" style="display:none;">${mutualsContent}</div><div style="margin-top:10px;text-align:right;"><button class="fd-btn" onclick="closeFriendDetail()">Close</button></div></div>`;
 
     // Live ticker - only when friend is confirmed in same instance
     if (_fdLiveTimer) { clearInterval(_fdLiveTimer); _fdLiveTimer = null; }
