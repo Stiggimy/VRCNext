@@ -670,7 +670,12 @@ function renderFtCard(ev) {
         case 'friend_bio':     body = renderFtBioBody(ev);     break;
     }
 
-    return `<div class="tl-card" data-ftid="${esc(ev.id)}" onclick="openFtDetail('${ei}')">${header}${body}</div>`;
+    // GPS cards open the dashboard world modal directly — no intermediate detail modal
+    const clickAction = (ev.type === 'friend_gps' && ev.worldId)
+        ? `openWorldDetail('${jsq(ev.worldId)}')`
+        : `openFtDetail('${ei}')`;
+
+    return `<div class="tl-card" data-ftid="${esc(ev.id)}" onclick="${clickAction}">${header}${body}</div>`;
 }
 
 // Card bodies
@@ -787,7 +792,7 @@ function renderFtDetailGps(ev, el) {
         : '';
     const wname = ev.worldName || ev.worldId || 'Unknown World';
     const worldClick = ev.worldId
-        ? ` style="cursor:pointer;" onclick="document.getElementById('modalDetail').style.display='none';openWorldSearchDetail('${esc(ev.worldId)}')"` : '';
+        ? ` style="cursor:pointer;" onclick="document.getElementById('modalDetail').style.display='none';openWorldDetail('${esc(ev.worldId)}')"` : '';
 
     el.innerHTML = `${banner}<div class="fd-content${banner ? ' fd-has-banner' : ''}" style="padding:20px;">
         ${ftDetailAvRow(ev)}
@@ -797,7 +802,7 @@ function renderFtDetailGps(ev, el) {
             <div class="fd-meta-row"${worldClick}><span class="fd-meta-label">World</span><span style="color:var(--accent-lt);">${esc(wname)}</span></div>
         </div>
         <div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end;">
-            ${ev.worldId ? `<button class="modal-btn modal-btn-accent" onclick="document.getElementById('modalDetail').style.display='none';openWorldSearchDetail('${esc(ev.worldId)}')"><span class="msi" style="font-size:14px;">travel_explore</span> Open World</button>` : ''}
+            ${ev.worldId ? `<button class="modal-btn modal-btn-accent" onclick="document.getElementById('modalDetail').style.display='none';openWorldDetail('${esc(ev.worldId)}')"><span class="msi" style="font-size:14px;">travel_explore</span> Open World</button>` : ''}
             ${ftDetailViewProfile(ev)}
             ${ftDetailClose()}
         </div>

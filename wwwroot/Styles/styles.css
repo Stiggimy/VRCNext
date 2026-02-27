@@ -863,6 +863,32 @@ body {
     max-width: 620px;
 }
 
+.set-desc {
+    font-size: 11px;
+    color: var(--tx3);
+    line-height: 1.6;
+    margin-bottom: 14px;
+}
+
+.set-input {
+    flex: 1;
+    width: 100%;
+    background: var(--bg-input);
+    border: none;
+    border-radius: 6px;
+    padding: 8px 12px;
+    color: var(--tx1);
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+    transition: box-shadow .15s;
+    box-sizing: border-box;
+}
+
+.set-input:focus {
+    box-shadow: 0 0 0 2px var(--accent);
+}
+
 .sect-label {
     font-size: 10px;
     font-weight: 700;

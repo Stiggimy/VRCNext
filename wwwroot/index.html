@@ -241,28 +241,80 @@
             </div>
             <!-- Tab 9: Settings -->
             <div class="tab" id="tab9">
-                <div class="settings-inner">
-                    <div class="sect-label">WATCH FOLDERS</div>
-                    <div class="folder-list" id="folderList"><div class="folder-empty">No folders</div></div>
-                    <div class="folder-btns"><button class="btn-f" onclick="addFolder()"><span class="msi" style="font-size:16px;">create_new_folder</span> Add Folder</button><button class="btn-f" onclick="removeFolder()"><span class="msi" style="font-size:16px;">folder_delete</span> Remove</button></div>
-                    <div class="sect-label">VRCHAT &amp; LAUNCH</div>
-                    <div class="input-row"><label>VRChat Path</label><input type="text" id="setVrcPath" placeholder="C:\...\VRChat.exe"><button class="btn-f" onclick="browseExe('vrchat')" style="margin-left:8px"><span class="msi" style="font-size:16px;">folder_open</span> Browse</button></div>
-                    <div style="font-size:11px;color:var(--tx3);margin-bottom:8px;">Additional apps to launch with VRChat:</div>
-                    <div class="exe-list" id="extraExeList"><div class="folder-empty">None</div></div>
-                    <div class="folder-btns"><button class="btn-f" onclick="browseExe('extra')"><span class="msi" style="font-size:16px;">add</span> Add App</button></div>
-                    <div class="sect-label">VRCHAT API LOGIN</div>
-                    <div class="input-row"><label>Username</label><input type="text" id="setVrcUser" placeholder="VRChat username"></div>
-                    <div class="input-row"><label>Password</label><input type="password" id="setVrcPass" placeholder="VRChat password" style="flex:1;background:var(--bg-input);border:none;border-radius:6px;padding:8px 12px;color:var(--tx1);font-size:13px;font-family:inherit;outline:none;"></div>
-                    <div style="display:flex;gap:8px;margin-bottom:4px;"><button class="btn-f" onclick="vrcLoginFromSettings()" id="btnVrcLogin"><span class="msi" style="font-size:16px;">login</span> Connect</button><button class="btn-f" onclick="vrcLogout()" style="display:none;" id="btnVrcLogout"><span class="msi" style="font-size:16px;">logout</span> Disconnect</button></div>
-                    <div id="vrcLoginStatus" style="font-size:11px;color:var(--tx3);margin-bottom:8px;"></div>
-                    <div class="sect-label">DASHBOARD BACKGROUND</div>
-                    <div class="input-row"><label>Background</label><button class="btn-f" onclick="browseDashBg()" style="margin-right:8px"><span class="msi" style="font-size:16px;">image</span> Choose Image</button><span id="dashBgName" style="font-size:11px;color:var(--tx3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span></div>
-                    <div class="input-row"><label>Overlay Opacity</label><input type="range" id="setDashOpacity" min="0" max="100" value="40" style="flex:1;accent-color:var(--accent);" oninput="document.getElementById('dashOpacityVal').textContent=this.value+'%'"><span id="dashOpacityVal" style="font-size:12px;color:var(--tx2);margin-left:8px;min-width:35px;">40%</span></div>
-                    <label class="opts-row"><input type="checkbox" id="setRandomBg"> Pick random background from watch folders on each launch</label>
-                    <div class="sect-label">DESIGN / THEME</div>
-                    <div class="theme-grid" id="themeGrid"></div>
-                    <div class="sect-label">DEBUG</div>
-                    <button class="btn-f" onclick="sendToCS({action:'resetSetup'})"><span class="msi" style="font-size:16px;">restart_alt</span> Redo Setup Wizard</button>
+                <div class="settings-inner sf-layout">
+
+                    <!-- WATCH FOLDERS -->
+                    <div class="sf-card">
+                        <div class="sf-card-header"><span class="msi">folder_open</span> Watch Folders</div>
+                        <div class="set-desc">Watch folders monitor for new images you create. Add your VRChat screenshot folder here. You can also add folders from apps like VHF (VR Hands Frame) to track world location and friends list for those images too.</div>
+                        <div class="folder-list" id="folderList"><div class="folder-empty">No folders added</div></div>
+                        <div class="folder-btns" style="margin-top:10px;">
+                            <button class="btn-f" onclick="addFolder()"><span class="msi" style="font-size:16px;">create_new_folder</span> Add Folder</button>
+                            <button class="btn-f" onclick="removeFolder()"><span class="msi" style="font-size:16px;">folder_delete</span> Remove</button>
+                        </div>
+                    </div>
+
+                    <!-- VRCHAT LAUNCH OPTIONS -->
+                    <div class="sf-card">
+                        <div class="sf-card-header"><span class="msi">rocket_launch</span> VRChat Launch Options</div>
+                        <div class="sf-section-label">VRChat Path</div>
+                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+                            <input type="text" id="setVrcPath" class="set-input" placeholder="C:\...\VRChat.exe" oninput="autoSave()">
+                            <button class="btn-f" onclick="browseExe('vrchat')"><span class="msi" style="font-size:16px;">folder_open</span> Browse</button>
+                        </div>
+                        <div class="sf-section-label">Additional Apps</div>
+                        <div class="set-desc" style="margin-bottom:8px;">Apps to launch alongside VRChat when you click "Play VRChat". Useful for OVR Advanced Settings, SlimeVR, VRCFaceTracking, and similar tools.</div>
+                        <div class="exe-list" id="extraExeList"><div class="folder-empty">None</div></div>
+                        <div class="folder-btns" style="margin-top:10px;">
+                            <button class="btn-f" onclick="browseExe('extra')"><span class="msi" style="font-size:16px;">add</span> Add App</button>
+                        </div>
+                        <div style="height:12px;"></div>
+                        <div class="sf-toggle-row"><span>Auto-start VRCNext with Windows</span><label class="toggle"><input type="checkbox" id="setAutoStart" onchange="autoSave()"><div class="toggle-track"><div class="toggle-knob"></div></div></label></div>
+                    </div>
+
+                    <!-- VRCHAT API LOGIN -->
+                    <div class="sf-card">
+                        <div class="sf-card-header"><span class="msi">person</span> VRChat API Login</div>
+                        <div class="set-desc" style="margin-bottom:12px;">Your credentials are stored locally and only used to connect to the VRChat API. VRCNext never shares them with third parties.</div>
+                        <div class="sf-section-label">Credentials</div>
+                        <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px;">
+                            <input type="text" id="setVrcUser" class="set-input" placeholder="VRChat username" oninput="autoSave()">
+                            <input type="password" id="setVrcPass" class="set-input" placeholder="VRChat password" oninput="autoSave()">
+                        </div>
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <button class="btn-f" onclick="vrcLoginFromSettings()" id="btnVrcLogin"><span class="msi" style="font-size:16px;">login</span> Connect</button>
+                            <button class="btn-f" onclick="vrcLogout()" style="display:none;" id="btnVrcLogout"><span class="msi" style="font-size:16px;">logout</span> Disconnect</button>
+                            <span id="vrcLoginStatus" style="font-size:11px;color:var(--tx3);"></span>
+                        </div>
+                    </div>
+
+                    <!-- DESIGN -->
+                    <div class="sf-card">
+                        <div class="sf-card-header"><span class="msi">palette</span> Design</div>
+                        <div class="sf-section-label">Dashboard Background</div>
+                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+                            <button class="btn-f" onclick="browseDashBg()"><span class="msi" style="font-size:16px;">image</span> Choose Image</button>
+                            <span id="dashBgName" style="font-size:11px;color:var(--tx3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;"></span>
+                        </div>
+                        <div class="sf-row" style="margin-bottom:6px;">
+                            <label style="font-size:12px;color:var(--tx2);">Overlay Opacity</label>
+                            <input type="range" id="setDashOpacity" min="0" max="100" value="40" style="flex:1;accent-color:var(--accent);" oninput="document.getElementById('dashOpacityVal').textContent=this.value+'%';autoSave()">
+                            <span id="dashOpacityVal" style="font-size:12px;color:var(--tx2);margin-left:8px;min-width:35px;text-align:right;">40%</span>
+                        </div>
+                        <div class="sf-toggle-row"><span>Random background from watch folders on launch</span><label class="toggle"><input type="checkbox" id="setRandomBg" onchange="autoSave()"><div class="toggle-track"><div class="toggle-knob"></div></div></label></div>
+                        <div style="height:4px;"></div>
+                        <div class="sf-toggle-row"><span>Notification sound</span><label class="toggle"><input type="checkbox" id="setNotifySound" onchange="autoSave()"><div class="toggle-track"><div class="toggle-knob"></div></div></label></div>
+                        <div class="sf-section-label" style="margin-top:16px;">Theme</div>
+                        <div class="theme-grid" id="themeGrid"></div>
+                    </div>
+
+                    <!-- DEBUGGING -->
+                    <div class="sf-card">
+                        <div class="sf-card-header"><span class="msi">bug_report</span> Debugging</div>
+                        <div class="set-desc" style="margin-bottom:12px;">Use these options if something isn't working correctly or you want to reconfigure VRCNext from scratch.</div>
+                        <button class="btn-f" onclick="sendToCS({action:'resetSetup'})"><span class="msi" style="font-size:16px;">restart_alt</span> Redo Setup Wizard</button>
+                    </div>
+
                 </div>
             </div>
             <!-- Tab 10: Space Flight -->

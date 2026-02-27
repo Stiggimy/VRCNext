@@ -3295,14 +3295,24 @@ public class MainForm : Form
                     : _friendNameImg.GetValueOrDefault(e.UserId).image ?? ""
             );
 
-        var newLoc  = e.Location;
-        var worldId = e.WorldId;
+        var newLoc = e.Location;
 
-        // Only log if moved to a real world (not private/traveling/offline)
+        // Derive worldId exclusively from the location string itself.
+        // VRChat can send friend-location with location="traveling" but worldId="wrld_xxx"
+        // (destination announced before the user has actually loaded in).
+        // Using e.WorldId would cause a GPS entry during traveling — we only want one
+        // entry after the friend has truly arrived.
+        var worldId = newLoc.Contains(':') ? newLoc.Split(':')[0] : newLoc;
+
+        // Only log when the location string itself confirms a real world
         if (!worldId.StartsWith("wrld_")) { _friendLastLoc[e.UserId] = newLoc; return; }
 
-        var oldLoc = _friendLastLoc.GetValueOrDefault(e.UserId, "");
-        if (oldLoc == newLoc) return; // no change
+        var oldLoc     = _friendLastLoc.GetValueOrDefault(e.UserId, "");
+        var oldWorldId = oldLoc.Contains(':') ? oldLoc.Split(':')[0] : oldLoc;
+
+        // Skip if no world change — VRChat fires a second friend-location event once
+        // the instance is fully loaded (same wrld_ but with full instance params appended).
+        if (oldLoc == newLoc || oldWorldId == worldId) { _friendLastLoc[e.UserId] = newLoc; return; }
 
         _friendLastLoc[e.UserId] = newLoc;
 
@@ -3383,7 +3393,12 @@ public class MainForm : Form
             (fname, fimg) = _friendNameImg.GetValueOrDefault(e.UserId, ("", ""));
         }
 
-        _friendLastLoc[e.UserId] = e.Location;
+        // Guard: don't let an empty/non-world online event overwrite a world location
+        // that a friend-location event may have already written.
+        var onlineLoc = e.Location ?? "";
+        var curLoc    = _friendLastLoc.GetValueOrDefault(e.UserId, "");
+        _friendLastLoc[e.UserId] = (string.IsNullOrEmpty(onlineLoc) && curLoc.StartsWith("wrld_"))
+            ? curLoc : onlineLoc;
 
         var fev = new TimelineService.FriendTimelineEvent
         {
