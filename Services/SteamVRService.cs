@@ -251,7 +251,7 @@ namespace VRCNext.Services
             _running = false;
         }
 
-        private ulong GetDragMask() => UseGripButton ? GRIP_MASK : (STICK_CLICK_MASK | A_BUTTON_MASK);
+        private ulong GetDragMask() => UseGripButton ? GRIP_MASK : STICK_CLICK_MASK;
 
         private void ProcessFrame()
         {

@@ -1023,45 +1023,51 @@ public class MainForm : Form
                 case "vrcGetMyGroups":
                     _ = Task.Run(async () =>
                     {
+                        // Step 1: get group IDs from list endpoint (fast, no permissions here)
                         var groups = await _vrcApi.GetUserGroupsAsync();
-                        // API returns GroupMember objects; extract groupId, enrich if name missing
-                        var rawList = groups.Cast<JObject>().Select(g => new {
-                            id = g["groupId"]?.ToString() ?? g["id"]?.ToString() ?? "",
-                            name = g["name"]?.ToString() ?? "",
-                            shortCode = g["shortCode"]?.ToString() ?? "",
-                            description = g["description"]?.ToString() ?? "",
-                            iconUrl = g["iconUrl"]?.ToString() ?? "",
-                            bannerUrl = g["bannerUrl"]?.ToString() ?? "",
-                            memberCount = g["memberCount"]?.Value<int>() ?? 0,
-                            privacy = g["privacy"]?.ToString() ?? "",
-                        }).Where(g => !string.IsNullOrEmpty(g.id)).ToList();
+                        var ids = groups.Cast<JObject>()
+                            .Select(g => g["groupId"]?.ToString() ?? g["id"]?.ToString() ?? "")
+                            .Where(id => !string.IsNullOrEmpty(id))
+                            .Distinct()
+                            .ToList();
 
-                        // Enrich groups that have no name (API returned minimal GroupMember data)
+                        // Step 2: fetch each group's full data in parallel
+                        // GET /groups/{groupId} includes myMember.permissions — the list endpoint does NOT
+                        var fullGroups = await Task.WhenAll(ids.Select(id => _vrcApi.GetGroupAsync(id)));
+
                         var enriched = new List<object>();
-                        foreach (var g in rawList)
+                        for (int i = 0; i < ids.Count; i++)
                         {
-                            if (string.IsNullOrEmpty(g.name) && !string.IsNullOrEmpty(g.id))
-                            {
-                                var full = await _vrcApi.GetGroupAsync(g.id);
-                                if (full != null)
-                                {
-                                    enriched.Add(new {
-                                        id = g.id,
-                                        name = full["name"]?.ToString() ?? "",
-                                        shortCode = full["shortCode"]?.ToString() ?? "",
-                                        description = full["description"]?.ToString() ?? "",
-                                        iconUrl = full["iconUrl"]?.ToString() ?? "",
-                                        bannerUrl = full["bannerUrl"]?.ToString() ?? "",
-                                        memberCount = full["memberCount"]?.Value<int>() ?? 0,
-                                        privacy = full["privacy"]?.ToString() ?? "",
-                                    });
-                                    continue;
-                                }
-                            }
-                            enriched.Add(g);
+                            var full = fullGroups[i];
+                            if (full == null) continue;
+
+                            var myMember = full["myMember"] as JObject;
+                            var perms = myMember?["permissions"]?.ToObject<List<string>>();
+                            var name = full["name"]?.ToString() ?? "";
+                            if (string.IsNullOrEmpty(name)) continue;
+
+                            // "*" = owner/admin; actual create strings confirmed from live API:
+                            var canCreate = perms == null
+                                || perms.Contains("*")
+                                || perms.Contains("group-instance-open-create")
+                                || perms.Contains("group-instance-plus-create")
+                                || perms.Contains("group-instance-public-create")
+                                || perms.Contains("group-instance-restricted-create");
+
+                            enriched.Add(new {
+                                id = full["id"]?.ToString() ?? ids[i],
+                                name,
+                                shortCode = full["shortCode"]?.ToString() ?? "",
+                                description = full["description"]?.ToString() ?? "",
+                                iconUrl = full["iconUrl"]?.ToString() ?? "",
+                                bannerUrl = full["bannerUrl"]?.ToString() ?? "",
+                                memberCount = full["memberCount"]?.Value<int>() ?? 0,
+                                privacy = full["privacy"]?.ToString() ?? "",
+                                canCreateInstance = canCreate,
+                            });
                         }
                         Invoke(() => {
-                            SendToJS("log", new { msg = $"[GROUPS] My groups: {enriched.Count} loaded (raw: {rawList.Count})", color = "sec" });
+                            SendToJS("log", new { msg = $"[GROUPS] {enriched.Count} loaded", color = "sec" });
                             SendToJS("vrcMyGroups", enriched);
                         });
                     });

@@ -3083,6 +3083,19 @@ body {
     margin-bottom: 12px;
 }
 
+.ci-group-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+.fd-group-card.ci-group-selected {
+    background: color-mix(in srgb, var(--accent) 12%, var(--bg-input));
+    outline: 1.5px solid var(--accent);
+}
+
 .fd-group-card.fd-group-rep:hover {
     background: color-mix(in srgb, var(--accent) 14%, var(--bg-input));
 }

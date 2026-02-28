@@ -162,10 +162,9 @@ function renderWorldSearchDetail(w) {
             <button class="btn-p" id="ciBtn" onclick="createWorldInstance('${esc(w.id)}')" style="padding:6px 14px;font-size:11px;"><span class="msi" style="font-size:14px;">add</span> Create & Join</button>
         </div>
         <div id="ciGroupRow" style="display:none;margin-top:8px;">
-            <div style="font-size:11px;color:var(--tx3);margin-bottom:4px;">Select group for this instance:</div>
-            <select id="ciGroupId" class="wd-create-select" style="width:100%;">
-                ${(myGroups.length ? myGroups : []).map(g => `<option value="${esc(g.id)}">${esc(g.name)}</option>`).join('') || '<option value="">No groups found</option>'}
-            </select>
+            <div style="font-size:11px;color:var(--tx3);margin-bottom:6px;">Select group for this instance:</div>
+            <input type="hidden" id="ciGroupId" value="">
+            <div class="ci-group-list" id="ciGroupList"></div>
         </div>`;
 
     el.innerHTML = `${thumb ? `<div class="fd-banner"><img src="${thumb}" onerror="this.parentElement.style.display='none'"><div class="fd-banner-fade"></div></div>` : ''}
@@ -193,7 +192,48 @@ function renderWorldSearchDetail(w) {
 function onCiTypeChange() {
     const type = document.getElementById('ciType')?.value || '';
     const groupRow = document.getElementById('ciGroupRow');
-    if (groupRow) groupRow.style.display = type.startsWith('group_') ? '' : 'none';
+    if (!groupRow) return;
+    const isGroup = type.startsWith('group_');
+    groupRow.style.display = isGroup ? '' : 'none';
+    const hidden = document.getElementById('ciGroupId');
+    if (hidden) hidden.value = '';
+    if (isGroup) {
+        if (!myGroupsLoaded) {
+            renderCiGroupPicker(null); // show loading state
+            loadMyGroups();            // triggers vrcMyGroups → renderCiGroupPicker via messages.js
+        } else {
+            renderCiGroupPicker(myGroups);
+        }
+    }
+}
+
+function renderCiGroupPicker(groups) {
+    const el = document.getElementById('ciGroupList');
+    if (!el) return;
+    if (groups === null) { el.innerHTML = '<div style="font-size:11px;color:var(--tx3);padding:6px 0;">Loading groups...</div>'; return; }
+    const validGroups = groups.filter(g => g.canCreateInstance !== false);
+    if (!validGroups.length) {
+        el.innerHTML = '<div style="font-size:11px;color:var(--tx3);padding:6px 0;">No groups with instance creation rights</div>';
+        return;
+    }
+    el.innerHTML = validGroups.map(g => {
+        const icon = g.iconUrl
+            ? `<img class="fd-group-icon" src="${esc(g.iconUrl)}" onerror="this.style.display='none'">`
+            : `<div class="fd-group-icon fd-group-icon-empty"><span class="msi" style="font-size:18px;">group</span></div>`;
+        return `<div class="fd-group-card ci-group-card" data-gid="${esc(g.id)}" onclick="ciSelectGroup('${esc(g.id)}',this)">
+            ${icon}
+            <div class="fd-group-card-info">
+                <div class="fd-group-card-name">${esc(g.name)}</div>
+                <div class="fd-group-card-meta">${esc(g.shortCode || '')} · ${g.memberCount || 0} members</div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function ciSelectGroup(groupId, el) {
+    document.getElementById('ciGroupId').value = groupId;
+    document.querySelectorAll('.ci-group-card').forEach(c => c.classList.remove('ci-group-selected'));
+    el.classList.add('ci-group-selected');
 }
 
 function createInstance(worldId) {

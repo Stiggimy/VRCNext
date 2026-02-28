@@ -144,6 +144,8 @@ if (window.chrome?.webview) {
                 break;
             case 'vrcMyGroups':
                 renderMyGroups(payload);
+                if (document.getElementById('ciGroupRow')?.style.display !== 'none')
+                    renderCiGroupPicker(myGroups);
                 break;
             case 'vrcGroupDetail':
                 renderGroupDetail(payload);
