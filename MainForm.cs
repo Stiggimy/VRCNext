@@ -1015,23 +1015,75 @@ public class MainForm : Form
                     {
                         try
                         {
-                            var worlds = await _vrcApi.GetFavoriteWorldsAsync(100);
-                            var list = worlds.Select(w => new
+                            // ── 1. Send disk cache immediately so UI shows instantly ──────────
+                            if (File.Exists(FavWorldsCachePath))
                             {
-                                id = w["id"]?.ToString() ?? "",
-                                name = w["name"]?.ToString() ?? "",
-                                imageUrl = w["imageUrl"]?.ToString() ?? "",
-                                thumbnailImageUrl = w["thumbnailImageUrl"]?.ToString() ?? "",
-                                authorName = w["authorName"]?.ToString() ?? "",
-                                occupants = w["occupants"]?.Value<int>() ?? 0,
-                                capacity = w["capacity"]?.Value<int>() ?? 0,
-                                favorites = w["favorites"]?.Value<int>() ?? 0,
-                                visits = w["visits"]?.Value<int>() ?? 0,
-                                tags = w["tags"]?.ToObject<List<string>>() ?? new(),
-                                worldTimeSeconds = _worldTimeTracker.GetWorldStats(w["id"]?.ToString() ?? "").totalSeconds,
-                                worldVisitCount = _worldTimeTracker.GetWorldStats(w["id"]?.ToString() ?? "").visitCount,
-                            }).ToList();
-                            Invoke(() => SendToJS("vrcFavoriteWorlds", list));
+                                try
+                                {
+                                    var cached = JsonConvert.DeserializeObject(File.ReadAllText(FavWorldsCachePath));
+                                    Invoke(() => SendToJS("vrcFavoriteWorlds", cached));
+                                }
+                                catch { /* corrupt cache – ignore, fresh data comes next */ }
+                            }
+
+                            // ── 2. Fetch groups ───────────────────────────────────────────────
+                            var groups = await _vrcApi.GetFavoriteGroupsAsync();
+                            var worldTypes = new HashSet<string> { "world", "vrcPlusWorld" };
+                            var groupList = groups
+                                .Where(g => worldTypes.Contains(g["type"]?.ToString() ?? ""))
+                                .Select(g => new WFavGroup {
+                                    name        = g["name"]?.ToString() ?? "",
+                                    displayName = g["displayName"]?.ToString() ?? "",
+                                    type        = g["type"]?.ToString() ?? "world"
+                                })
+                                .Where(g => !string.IsNullOrEmpty(g.name))
+                                .ToList();
+                            groupList = FillMissingWorldSlots(groupList);
+
+                            // ── 3. Fetch all groups in parallel (max 4 concurrent) ────────────
+                            var sem = new SemaphoreSlim(4, 4);
+                            var perGroup = new System.Collections.Concurrent.ConcurrentDictionary<string, List<JObject>>();
+                            await Task.WhenAll(groupList.Select(async g =>
+                            {
+                                await sem.WaitAsync();
+                                try { perGroup[g.name] = await _vrcApi.GetFavoriteWorldsByGroupAsync(g.name, 100); }
+                                finally { sem.Release(); }
+                            }));
+
+                            // ── 4. Build world list (sequential – safe tracker access) ────────
+                            var allWorlds = new List<object>();
+                            foreach (var g in groupList)
+                            {
+                                if (!perGroup.TryGetValue(g.name, out var groupWorlds)) continue;
+                                foreach (var w in groupWorlds)
+                                {
+                                    var wid = w["id"]?.ToString() ?? "";
+                                    var stats = _worldTimeTracker.GetWorldStats(wid);
+                                    allWorlds.Add(new
+                                    {
+                                        id                = wid,
+                                        name              = w["name"]?.ToString() ?? "",
+                                        imageUrl          = w["imageUrl"]?.ToString() ?? "",
+                                        thumbnailImageUrl = w["thumbnailImageUrl"]?.ToString() ?? "",
+                                        authorName        = w["authorName"]?.ToString() ?? "",
+                                        occupants         = w["occupants"]?.Value<int>()  ?? 0,
+                                        capacity          = w["capacity"]?.Value<int>()   ?? 0,
+                                        favorites         = w["favorites"]?.Value<int>()  ?? 0,
+                                        visits            = w["visits"]?.Value<int>()     ?? 0,
+                                        tags              = w["tags"]?.ToObject<List<string>>() ?? new List<string>(),
+                                        favoriteGroup     = g.name,
+                                        favoriteId        = w["favoriteId"]?.ToString() ?? "",
+                                        worldTimeSeconds  = stats.totalSeconds,
+                                        worldVisitCount   = stats.visitCount,
+                                    });
+                                }
+                            }
+
+                            // ── 5. Save fresh data to cache & send to JS ──────────────────────
+                            var payload = new { worlds = allWorlds, groups = groupList };
+                            try { File.WriteAllText(FavWorldsCachePath, JsonConvert.SerializeObject(payload)); }
+                            catch { /* non-critical */ }
+                            Invoke(() => SendToJS("vrcFavoriteWorlds", payload));
                         }
                         catch (Exception ex)
                         {
@@ -1039,6 +1091,61 @@ public class MainForm : Form
                         }
                     });
                     break;
+
+                case "vrcUpdateFavoriteGroup":
+                    _ = Task.Run(async () =>
+                    {
+                        var groupType = msg["groupType"]?.ToString() ?? "world";
+                        var groupName = msg["groupName"]?.ToString() ?? "";
+                        var displayName = msg["displayName"]?.ToString() ?? "";
+                        var ok = await _vrcApi.UpdateFavoriteGroupAsync(groupType, groupName, displayName);
+                        Invoke(() => SendToJS("vrcFavoriteGroupUpdated", new { ok, groupName, displayName }));
+                    });
+                    break;
+
+                case "vrcGetWorldFavGroups":
+                    _ = Task.Run(async () =>
+                    {
+                        var groups = await _vrcApi.GetFavoriteGroupsAsync();
+                        var worldTypes = new HashSet<string> { "world", "vrcPlusWorld" };
+                        var groupList = groups
+                            .Where(g => worldTypes.Contains(g["type"]?.ToString() ?? ""))
+                            .Select(g => new WFavGroup {
+                                name        = g["name"]?.ToString() ?? "",
+                                displayName = g["displayName"]?.ToString() ?? "",
+                                type        = g["type"]?.ToString() ?? "world"
+                            })
+                            .Where(g => !string.IsNullOrEmpty(g.name))
+                            .ToList();
+                        groupList = FillMissingWorldSlots(groupList);
+                        Invoke(() => SendToJS("vrcWorldFavGroups", groupList));
+                    });
+                    break;
+
+                case "vrcAddWorldFavorite":
+                    _ = Task.Run(async () =>
+                    {
+                        var worldId   = msg["worldId"]?.ToString() ?? "";
+                        var groupName = msg["groupName"]?.ToString() ?? "";
+                        var groupType = msg["groupType"]?.ToString() ?? "world";
+                        var oldFvrtId = msg["oldFvrtId"]?.ToString();
+                        var (ok, resultData) = await _vrcApi.AddWorldFavoriteAsync(worldId, groupName, groupType, oldFvrtId);
+                        // resultData = new fvrt ID on success, error message on failure
+                        Invoke(() => SendToJS("vrcWorldFavoriteResult", new { ok, worldId, groupName, newFvrtId = ok ? resultData : "", error = ok ? "" : resultData }));
+                    });
+                    break;
+
+                case "vrcRemoveWorldFavorite":
+                {
+                    var worldId = msg["worldId"]?.ToString() ?? "";
+                    var fvrtId  = msg["fvrtId"]?.ToString() ?? "";
+                    _ = Task.Run(async () =>
+                    {
+                        var ok = await _vrcApi.RemoveFavoriteFriendAsync(fvrtId);
+                        Invoke(() => SendToJS("vrcWorldUnfavoriteResult", new { ok, worldId }));
+                    });
+                    break;
+                }
 
                 case "vrcGetMyGroups":
                     _ = Task.Run(async () =>
@@ -2050,6 +2157,47 @@ public class MainForm : Form
         }
     }
 
+    private class WFavGroup
+    {
+        public string name        { get; set; } = "";
+        public string displayName { get; set; } = "";
+        public string type        { get; set; } = "";
+    }
+
+    /// <summary>
+    /// VRChat API only returns world favorite groups that have at least one world in them.
+    /// This fills in the standard empty slots so all 8 (or 4) groups are always visible.
+    /// </summary>
+    private static List<WFavGroup> FillMissingWorldSlots(List<WFavGroup> groupList)
+    {
+        var existing = new HashSet<string>(groupList.Select(g => g.name));
+
+        var regularSlots = new[] {
+            ("worlds1", "Worlds 1", "world"), ("worlds2", "Worlds 2", "world"),
+            ("worlds3", "Worlds 3", "world"), ("worlds4", "Worlds 4", "world")
+        };
+        foreach (var (sName, sDisplay, sType) in regularSlots)
+            if (!existing.Contains(sName))
+                groupList.Add(new WFavGroup { name = sName, displayName = sDisplay, type = sType });
+
+        bool hasVrcPlus = groupList.Any(g => g.type == "vrcPlusWorld");
+        if (hasVrcPlus)
+        {
+            var vrcPlusSlots = new[] {
+                ("vrcPlusWorlds1", "VRC+ Worlds 1", "vrcPlusWorld"), ("vrcPlusWorlds2", "VRC+ Worlds 2", "vrcPlusWorld"),
+                ("vrcPlusWorlds3", "VRC+ Worlds 3", "vrcPlusWorld"), ("vrcPlusWorlds4", "VRC+ Worlds 4", "vrcPlusWorld")
+            };
+            foreach (var (sName, sDisplay, sType) in vrcPlusSlots)
+                if (!existing.Contains(sName))
+                    groupList.Add(new WFavGroup { name = sName, displayName = sDisplay, type = sType });
+        }
+
+        return groupList
+            .OrderBy(g => g.type == "vrcPlusWorld" ? 1 : 0)
+            .ThenBy(g => g.name)
+            .ToList();
+    }
+
     // C# to JS messaging
     private void SendToJS(string type, object? payload = null)
     {
@@ -2099,6 +2247,11 @@ public class MainForm : Form
         SendToJS("relayState", new { running = false, streams = 0 });
         SendToJS("log", new { msg = "Relay stopped", color = "warn" });
     }
+
+    // Favorite worlds disk cache
+    private static readonly string FavWorldsCachePath = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+        "VRCNext", "fav_worlds_cache.json");
 
     // VRCVideoCacher
     private static readonly string VcExePath = Path.Combine(

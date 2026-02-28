@@ -1,5 +1,15 @@
 /* === Search (Worlds, Groups, People) === */
 /* === World Tab: Favorites / Search filter === */
+let _favRefreshTimer = null;
+function _scheduleBgFavRefresh() {
+    clearTimeout(_favRefreshTimer);
+    _favRefreshTimer = setTimeout(() => sendToCS({ action: 'vrcGetFavoriteWorlds' }), 2000);
+}
+function refreshFavWorlds() {
+    const btn = document.getElementById('favWorldsRefreshBtn');
+    if (btn) { btn.disabled = true; btn.querySelector('.msi').textContent = 'hourglass_empty'; }
+    sendToCS({ action: 'vrcGetFavoriteWorlds' });
+}
 function setWorldFilter(filter) {
     worldFilter = filter;
     document.getElementById('worldFilterFav').classList.toggle('active', filter === 'favorites');
@@ -11,13 +21,99 @@ function setWorldFilter(filter) {
     }
 }
 
-function renderFavWorlds(list) {
-    favWorldsData = list || [];
+function renderFavWorlds(payload) {
+    // Reset refresh button if it was spinning
+    const refreshBtn = document.getElementById('favWorldsRefreshBtn');
+    if (refreshBtn) { refreshBtn.disabled = false; const ico = refreshBtn.querySelector('.msi'); if (ico) ico.textContent = 'refresh'; }
+    // payload is { worlds: [...], groups: [...] }
+    const worlds = payload?.worlds || payload || [];
+    const groups = payload?.groups || [];
+    favWorldsData = worlds;
+    favWorldGroups = groups;
     // Populate world info cache for library badges
     favWorldsData.forEach(w => {
         if (w.id) worldInfoCache[w.id] = { id: w.id, name: w.name, thumbnailImageUrl: w.thumbnailImageUrl || w.imageUrl };
     });
+    // Populate group dropdown
+    const sel = document.getElementById('favWorldGroupFilter');
+    if (sel) {
+        const prev = favWorldGroupFilter;
+        sel.innerHTML = '<option value="">All Favorites</option>' +
+            groups.map(g => `<option value="${esc(g.name)}">${esc(g.displayName || g.name)}</option>`).join('');
+        const stillValid = groups.some(g => g.name === prev);
+        favWorldGroupFilter = stillValid ? prev : '';
+        sel.value = favWorldGroupFilter;
+    }
+    updateFavWorldGroupHeader();
     filterFavWorlds();
+}
+
+function setFavWorldGroup(val) {
+    favWorldGroupFilter = val;
+    cancelEditWorldGroupName();
+    updateFavWorldGroupHeader();
+    filterFavWorlds();
+}
+
+function updateFavWorldGroupHeader() {
+    const label = document.getElementById('favWorldGroupLabel');
+    const editBtn = document.getElementById('favWorldGroupEditBtn');
+    const badge = document.getElementById('favWorldGroupVrcPlusBadge');
+    if (!label) return;
+    if (!favWorldGroupFilter) {
+        label.textContent = 'All Favorites';
+        if (editBtn) editBtn.style.display = 'none';
+        if (badge) badge.style.display = 'none';
+    } else {
+        const g = favWorldGroups.find(x => x.name === favWorldGroupFilter);
+        label.textContent = g ? (g.displayName || g.name) : favWorldGroupFilter;
+        if (editBtn) editBtn.style.display = '';
+        if (badge) badge.style.display = (g?.type === 'vrcPlusWorld') ? '' : 'none';
+    }
+}
+
+function startEditWorldGroupName() {
+    const g = favWorldGroups.find(x => x.name === favWorldGroupFilter);
+    if (!g) return;
+    const input = document.getElementById('favWorldGroupNameInput');
+    if (input) input.value = g.displayName || g.name;
+    document.getElementById('favWorldGroupHeader').style.display = 'none';
+    const row = document.getElementById('favWorldGroupRenameRow');
+    if (row) { row.style.display = 'flex'; }
+    if (input) input.focus();
+}
+
+function cancelEditWorldGroupName() {
+    document.getElementById('favWorldGroupHeader').style.display = 'flex';
+    const row = document.getElementById('favWorldGroupRenameRow');
+    if (row) row.style.display = 'none';
+    const saveBtn = document.querySelector('#favWorldGroupRenameRow .myp-save-btn');
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save'; }
+}
+
+function saveWorldGroupName() {
+    const g = favWorldGroups.find(x => x.name === favWorldGroupFilter);
+    if (!g) return;
+    const input = document.getElementById('favWorldGroupNameInput');
+    const newName = (input?.value || '').trim();
+    if (!newName) return;
+    const saveBtn = document.querySelector('#favWorldGroupRenameRow .myp-save-btn');
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving...'; }
+    sendToCS({ action: 'vrcUpdateFavoriteGroup', groupType: g.type, groupName: g.name, displayName: newName });
+}
+
+function onFavoriteGroupUpdated(data) {
+    if (!data.ok) { cancelEditWorldGroupName(); return; }
+    const g = favWorldGroups.find(x => x.name === data.groupName);
+    if (g) g.displayName = data.displayName;
+    // Update dropdown option
+    const sel = document.getElementById('favWorldGroupFilter');
+    if (sel) {
+        const opt = [...sel.options].find(o => o.value === data.groupName);
+        if (opt) opt.textContent = data.displayName;
+    }
+    cancelEditWorldGroupName();
+    updateFavWorldGroupHeader();
 }
 
 /* === Shared world card renderer (search + favorites) === */
@@ -39,10 +135,12 @@ function renderWorldCard(w) {
 
 function filterFavWorlds() {
     const q = (document.getElementById('favWorldSearchInput')?.value || '').toLowerCase();
-    const filtered = q ? favWorldsData.filter(w => (w.name||'').toLowerCase().includes(q) || (w.authorName||'').toLowerCase().includes(q)) : favWorldsData;
+    let filtered = favWorldsData;
+    if (favWorldGroupFilter) filtered = filtered.filter(w => w.favoriteGroup === favWorldGroupFilter);
+    if (q) filtered = filtered.filter(w => (w.name||'').toLowerCase().includes(q) || (w.authorName||'').toLowerCase().includes(q));
     const el = document.getElementById('favWorldsGrid');
     if (!filtered.length) {
-        el.innerHTML = `<div class="empty-msg">${q ? 'No favorites match your search' : 'No favorite worlds found'}</div>`;
+        el.innerHTML = `<div class="empty-msg">${q || favWorldGroupFilter ? 'No favorites match your filter' : 'No favorite worlds found'}</div>`;
         return;
     }
     el.innerHTML = filtered.map(w => renderWorldCard(w)).join('');
@@ -57,9 +155,12 @@ function openWorldSearchDetail(id) {
 }
 
 function renderWorldSearchDetail(w) {
+    // Cache full world data so favorites grid can render it immediately after favoriting
+    if (w.id) worldInfoCache[w.id] = w;
     const el = document.getElementById('detailModalContent');
     const thumb = w.thumbnailImageUrl || w.imageUrl || '';
     const desc = w.description || '';
+    const wid = w.id || '';
     const authorTags = (w.tags || []).filter(t => t.startsWith('author_tag_')).map(t => t.replace('author_tag_', ''));
     const systemTags = (w.tags || []).filter(t => !t.startsWith('author_tag_') && !t.startsWith('system_') && !t.startsWith('admin_'));
 
@@ -167,6 +268,11 @@ function renderWorldSearchDetail(w) {
             <div class="ci-group-list" id="ciGroupList"></div>
         </div>`;
 
+    const isFavWorld = favWorldsData.some(fw => fw.id === w.id);
+    const favBtnLabel = isFavWorld
+        ? '<span class="msi" style="font-size:16px;">star</span>Unfavorite'
+        : '<span class="msi" style="font-size:16px;">star_outline</span>Favorite';
+
     el.innerHTML = `${thumb ? `<div class="fd-banner"><img src="${thumb}" onerror="this.parentElement.style.display='none'"><div class="fd-banner-fade"></div></div>` : ''}
         <div class="fd-content${thumb ? ' fd-has-banner' : ''}" style="padding:20px;">
         <h2 style="margin:0 0 4px;color:var(--tx0);font-size:18px;">${esc(w.name)}</h2>
@@ -175,6 +281,13 @@ function renderWorldSearchDetail(w) {
             <span class="fd-badge"><span class="msi" style="font-size:11px;">person</span> ${w.occupants} Active</span>
             <span class="fd-badge"><span class="msi" style="font-size:11px;">star</span> ${w.favorites}</span>
             <span class="fd-badge"><span class="msi" style="font-size:11px;">visibility</span> ${w.visits}</span>
+        </div>
+        <div style="margin:10px 0 6px;">
+            <button class="fd-btn fd-btn-fav${isFavWorld ? ' active' : ''}" id="wdFavBtn" onclick="toggleWorldFavPicker('${wid}')">${favBtnLabel}</button>
+        </div>
+        <div id="wdFavPicker" style="display:none;margin-bottom:14px;">
+            <div class="wd-section-label" style="margin-bottom:6px;">ADD TO FAVORITE GROUP</div>
+            <div class="ci-group-list" id="wdFavGroupList"><div style="font-size:11px;color:var(--tx3);padding:8px 0;">Loading groups…</div></div>
         </div>
         ${w.worldTimeSeconds > 0 ? `<div class="wd-your-time"><span class="msi" style="font-size:15px;">schedule</span><div><div style="font-size:12px;font-weight:600;color:var(--tx1);">Your Time Spent</div><div style="font-size:11px;color:var(--tx3);">${formatDuration(w.worldTimeSeconds)}${w.worldVisitCount > 0 ? ' · ' + w.worldVisitCount + ' visit' + (w.worldVisitCount > 1 ? 's' : '') : ''}</div></div></div>` : ''}
         ${desc ? `<div style="font-size:12px;color:var(--tx2);margin-bottom:14px;max-height:150px;overflow-y:auto;line-height:1.5;white-space:pre-wrap;">${esc(desc)}</div>` : ''}
@@ -187,6 +300,147 @@ function renderWorldSearchDetail(w) {
         ${createHtml}
         <div style="margin-top:14px;text-align:right;"><button class="fd-btn" onclick="document.getElementById('modalDetail').style.display='none'">Close</button></div>
         </div>`;
+}
+
+function toggleWorldFavPicker(worldId) {
+    const entry = favWorldsData.find(fw => fw.id === worldId);
+    if (entry) {
+        removeWorldFavorite(worldId, entry.favoriteId);
+        return;
+    }
+    const picker = document.getElementById('wdFavPicker');
+    if (!picker) return;
+    const open = picker.style.display !== 'none';
+    picker.style.display = open ? 'none' : '';
+    if (!open) renderWorldFavPicker(worldId);
+}
+
+function removeWorldFavorite(worldId, fvrtId) {
+    const btn = document.getElementById('wdFavBtn');
+    if (btn) btn.disabled = true;
+    sendToCS({ action: 'vrcRemoveWorldFavorite', worldId, fvrtId });
+}
+
+function onWorldUnfavoriteResult(data) {
+    const btn = document.getElementById('wdFavBtn');
+    if (data.ok) {
+        favWorldsData = favWorldsData.filter(fw => fw.id !== data.worldId);
+        if (btn) {
+            btn.disabled = false;
+            btn.classList.remove('active');
+            btn.innerHTML = '<span class="msi" style="font-size:16px;">star_outline</span>Favorite';
+        }
+        filterFavWorlds();
+        _scheduleBgFavRefresh();
+    } else {
+        if (btn) btn.disabled = false;
+    }
+}
+
+function renderWorldFavPicker(worldId) {
+    const list = document.getElementById('wdFavGroupList');
+    if (!list) return;
+    // If groups not loaded yet, request them
+    if (favWorldGroups.length === 0) {
+        list.innerHTML = '<div style="font-size:11px;color:var(--tx3);padding:8px 0;">Loading groups…</div>';
+        sendToCS({ action: 'vrcGetWorldFavGroups' });
+        // Store pending worldId so we can render when groups arrive
+        list.dataset.pendingWorldId = worldId;
+        return;
+    }
+    const currentEntry = favWorldsData.find(fw => fw.id === worldId);
+    const currentGroup = currentEntry?.favoriteGroup || '';
+    list.innerHTML = favWorldGroups.map(g => {
+        const count = favWorldsData.filter(fw => fw.favoriteGroup === g.name).length;
+        const isVrcPlus = g.type === 'vrcPlusWorld';
+        const isCurrent = g.name === currentGroup;
+        const vrcBadge = isVrcPlus
+            ? `<span style="font-size:8px;font-weight:700;color:#FFD700;background:#FFD70022;border:1px solid #FFD70055;border-radius:3px;padding:1px 5px;box-shadow:0 0 5px #FFD70066;letter-spacing:.3px;flex-shrink:0;">VRC+</span>`
+            : '';
+        const check = isCurrent
+            ? `<span class="msi" style="color:var(--accent);font-size:18px;flex-shrink:0;">check_circle</span>`
+            : '';
+        const gn = jsq(g.name), gt = jsq(g.type), wid = jsq(worldId);
+        const oldFvrt = isCurrent ? jsq(currentEntry?.favoriteId || '') : '';
+        return `<div class="fd-group-card ci-group-card${isCurrent ? ' ci-group-selected' : ''}"
+            onclick="addWorldToFavGroup('${wid}','${gn}','${gt}','${oldFvrt}',this)" style="cursor:pointer;">
+            <div style="flex:1;min-width:0;">
+                <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
+                    <span style="font-size:12px;font-weight:600;color:var(--tx1);">${esc(g.displayName || g.name)}</span>
+                    ${vrcBadge}
+                </div>
+                <div style="font-size:10px;color:var(--tx3);margin-top:1px;">${count}/100 worlds</div>
+            </div>
+            ${check}
+        </div>`;
+    }).join('');
+}
+
+function addWorldToFavGroup(worldId, groupName, groupType, oldFvrtId, rowEl) {
+    // Optimistic UI: mark as selected
+    document.querySelectorAll('#wdFavGroupList .ci-group-card').forEach(c => {
+        c.classList.remove('ci-group-selected');
+        const chk = c.querySelector('.msi');
+        if (chk && chk.textContent === 'check_circle') chk.remove();
+    });
+    rowEl.classList.add('ci-group-selected');
+    rowEl.insertAdjacentHTML('beforeend', '<span class="msi" style="color:var(--accent);font-size:18px;flex-shrink:0;">check_circle</span>');
+    sendToCS({ action: 'vrcAddWorldFavorite', worldId, groupName, groupType, oldFvrtId });
+}
+
+function onWorldFavoriteResult(data) {
+    if (data.ok) {
+        const cached = worldInfoCache[data.worldId] || {};
+        const existing = favWorldsData.find(w => w.id === data.worldId);
+        if (existing) {
+            existing.favoriteGroup = data.groupName;
+            existing.favoriteId   = data.newFvrtId;
+        } else {
+            favWorldsData.push({
+                id: data.worldId,
+                favoriteGroup:     data.groupName,
+                favoriteId:        data.newFvrtId,
+                name:              cached.name              || '',
+                thumbnailImageUrl: cached.thumbnailImageUrl || cached.imageUrl || '',
+                imageUrl:          cached.imageUrl          || '',
+                authorName:        cached.authorName        || '',
+                authorId:          cached.authorId          || '',
+                occupants:         cached.occupants         || 0,
+                favorites:         cached.favorites         || 0,
+                visits:            cached.visits            || 0,
+                capacity:          cached.capacity          || 0,
+                tags:              cached.tags              || [],
+                worldTimeSeconds:  cached.worldTimeSeconds  || 0,
+                worldVisitCount:   cached.worldVisitCount   || 0,
+            });
+        }
+        const btn = document.getElementById('wdFavBtn');
+        if (btn) {
+            btn.classList.add('active');
+            btn.innerHTML = '<span class="msi" style="font-size:16px;">star</span>Unfavorite';
+        }
+        const list = document.getElementById('wdFavGroupList');
+        if (list) renderWorldFavPicker(data.worldId);
+        filterFavWorlds();
+        _scheduleBgFavRefresh();
+    } else {
+        const list = document.getElementById('wdFavGroupList');
+        if (list) {
+            list.innerHTML = '<div style="font-size:11px;color:var(--err,#e55);padding:6px 0;">Failed to add to favorites. Try again.</div>';
+            setTimeout(() => { if (document.getElementById('wdFavGroupList')) renderWorldFavPicker(data.worldId); }, 1800);
+        }
+    }
+}
+
+function onWorldFavGroupsLoaded(groups) {
+    favWorldGroups = groups;
+    // Check if picker is open and waiting
+    const list = document.getElementById('wdFavGroupList');
+    if (list && list.dataset.pendingWorldId) {
+        const wid = list.dataset.pendingWorldId;
+        delete list.dataset.pendingWorldId;
+        renderWorldFavPicker(wid);
+    }
 }
 
 function onCiTypeChange() {

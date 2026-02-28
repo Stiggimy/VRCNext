@@ -392,47 +392,73 @@ public class VRChatApiService
         return null;
     }
 
-    // Get favorite worlds
-    public async Task<List<JObject>> GetFavoriteWorldsAsync(int count = 25)
+    // Get all favorite groups (world, vrcPlusWorld, avatar, friend)
+    // VRC+ world groups have type="vrcPlusWorld" and names like "vrcPlusWorlds1"
+    public async Task<List<JObject>> GetFavoriteGroupsAsync()
     {
         var all = new List<JObject>();
-        if (!IsLoggedIn) { Log("GetFavoriteWorlds: not logged in"); return all; }
+        if (!IsLoggedIn) { Log("GetFavoriteGroups: not logged in"); return all; }
+        try
+        {
+            var resp = await _http.GetAsync($"{BASE}/favorite/groups?n=100");
+            var body = await resp.Content.ReadAsStringAsync();
+            Log($"FavoriteGroups: {(int)resp.StatusCode} len={body.Length}");
+            if (resp.IsSuccessStatusCode)
+            {
+                var arr = JArray.Parse(body);
+                Log($"FavoriteGroups: {arr.Count} total groups returned");
+                foreach (var item in arr)
+                {
+                    Log($"  group: type={item["type"]} name={item["name"]} displayName={item["displayName"]}");
+                    all.Add((JObject)item);
+                }
+            }
+            else Log($"FavoriteGroups error: {body[..Math.Min(200, body.Length)]}");
+        }
+        catch (Exception ex) { Log($"FavoriteGroups exception: {ex.Message}"); }
+        return all;
+    }
+
+    // Update a favorite group's display name
+    // type: "world" or "vrcPlusWorld", name: "worlds1", "vrcPlusWorlds1", etc.
+    public async Task<bool> UpdateFavoriteGroupAsync(string type, string name, string displayName)
+    {
+        if (!IsLoggedIn || CurrentUserId == null) return false;
+        try
+        {
+            var body = JsonConvert.SerializeObject(new { displayName });
+            var content = new StringContent(body, System.Text.Encoding.UTF8, "application/json");
+            var resp = await _http.PutAsync($"{BASE}/favorite/group/{type}/{name}/{CurrentUserId}", content);
+            Log($"UpdateFavoriteGroup [{type}/{name}]: {(int)resp.StatusCode}");
+            return resp.IsSuccessStatusCode;
+        }
+        catch (Exception ex) { Log($"UpdateFavoriteGroup exception: {ex.Message}"); return false; }
+    }
+
+    // Get favorite worlds for a specific group tag (e.g. "worlds1", "vrcPlusWorlds1")
+    public async Task<List<JObject>> GetFavoriteWorldsByGroupAsync(string groupTag, int max = 100)
+    {
+        var all = new List<JObject>();
+        if (!IsLoggedIn) return all;
         try
         {
             int offset = 0;
-            while (all.Count < count)
+            while (all.Count < max)
             {
-                var n = Math.Min(count - all.Count, 50);
-                var url = $"{BASE}/worlds/favorites?n={n}&offset={offset}";
-                Log($"Fetching favorite worlds: offset={offset}");
+                var n = Math.Min(max - all.Count, 100);
+                var url = $"{BASE}/worlds/favorites?tag={Uri.EscapeDataString(groupTag)}&n={n}&offset={offset}";
                 var resp = await _http.GetAsync(url);
-                var body = await resp.Content.ReadAsStringAsync();
-                Log($"FavoriteWorlds response: {(int)resp.StatusCode} length={body.Length}");
-
-                if (!resp.IsSuccessStatusCode)
-                {
-                    Log($"FavoriteWorlds error: {body[..Math.Min(200, body.Length)]}");
-                    break;
-                }
-
-                var batch = JArray.Parse(body);
-                Log($"FavoriteWorlds batch: {batch.Count} items");
+                if (!resp.IsSuccessStatusCode) break;
+                var batch = JArray.Parse(await resp.Content.ReadAsStringAsync());
                 if (batch.Count == 0) break;
-
-                foreach (var item in batch)
-                    all.Add((JObject)item);
-
+                foreach (var item in batch) all.Add((JObject)item);
                 if (batch.Count < n) break;
                 offset += batch.Count;
-                await Task.Delay(1100);
+                await Task.Delay(200); // only for pagination >100, which never happens for favorites
             }
+            Log($"FavoriteWorlds [{groupTag}]: {all.Count} worlds");
         }
-        catch (Exception ex)
-        {
-            Log($"FavoriteWorlds exception: {ex.Message}");
-        }
-
-        Log($"Total favorite worlds: {all.Count}");
+        catch (Exception ex) { Log($"FavoriteWorldsByGroup exception [{groupTag}]: {ex.Message}"); }
         return all;
     }
 
@@ -1414,6 +1440,35 @@ public class VRChatApiService
             return JObject.Parse(body);
         }
         catch (Exception ex) { Log($"AddFavoriteFriend exception: {ex.Message}"); return null; }
+    }
+
+    /// <summary>Adds a world to a favorite group. If oldFvrtId is set, removes it first (move between groups).</summary>
+    public async Task<(bool ok, string error)> AddWorldFavoriteAsync(string worldId, string groupName, string groupType = "world", string? oldFvrtId = null)
+    {
+        if (!IsLoggedIn) return (false, "Not logged in");
+        try
+        {
+            // Remove from old group first if moving
+            if (!string.IsNullOrEmpty(oldFvrtId))
+            {
+                await _http.DeleteAsync($"{BASE}/favorites/{oldFvrtId}");
+                await Task.Delay(400);
+            }
+            var json = JsonConvert.SerializeObject(new { type = groupType, favoriteId = worldId, tags = new[] { groupName } });
+            var resp = await _http.PostAsync($"{BASE}/favorites",
+                new System.Net.Http.StringContent(json, System.Text.Encoding.UTF8, "application/json"));
+            var body = await resp.Content.ReadAsStringAsync();
+            if (!resp.IsSuccessStatusCode)
+            {
+                var msg = TryGetApiError(body) ?? $"HTTP {(int)resp.StatusCode}";
+                Log($"AddWorldFavorite error: {msg}");
+                return (false, msg);
+            }
+            var result = JObject.Parse(body);
+            var newFvrtId = result["id"]?.ToString() ?? "";
+            return (true, newFvrtId); // ok=true, error field used for new favoriteId
+        }
+        catch (Exception ex) { Log($"AddWorldFavorite exception: {ex.Message}"); return (false, ex.Message); }
     }
 
     /// <summary>Removes a favorite by its fvrt_xxx id.</summary>

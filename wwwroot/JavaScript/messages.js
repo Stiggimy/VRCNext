@@ -177,6 +177,18 @@ if (window.chrome?.webview) {
             case 'vrcFavoriteWorlds':
                 renderFavWorlds(payload);
                 break;
+            case 'vrcFavoriteGroupUpdated':
+                onFavoriteGroupUpdated(payload);
+                break;
+            case 'vrcWorldFavoriteResult':
+                onWorldFavoriteResult(payload);
+                break;
+            case 'vrcWorldUnfavoriteResult':
+                onWorldUnfavoriteResult(payload);
+                break;
+            case 'vrcWorldFavGroups':
+                onWorldFavGroupsLoaded(payload);
+                break;
             case 'vrcWorldsResolved':
                 onWorldsResolved(payload);
                 break;

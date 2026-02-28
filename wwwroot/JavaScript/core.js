@@ -34,6 +34,8 @@ let pendingDeletePath = null;
 /* === World Tab: Favorites / Search filter === */
 let worldFilter = 'favorites';
 let favWorldsData = [];
+let favWorldGroups = [];
+let favWorldGroupFilter = '';
 /* === People Tab: Favorites / Search filter === */
 let peopleFilter = 'favorites';
 let favFriendsData = []; // [{ fvrtId, favoriteId }]

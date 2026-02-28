@@ -81,7 +81,25 @@
                     <div id="searchWorldsResults" class="search-grid"><div class="empty-msg">Search for VRChat worlds</div></div>
                 </div>
                 <div id="worldFavArea">
-                    <div class="search-bar-row" style="margin-bottom:12px;"><span class="msi search-ico">search</span><input type="text" id="favWorldSearchInput" class="search-input" placeholder="Filter favorite worlds..." oninput="filterFavWorlds()"></div>
+                    <!-- Category label + inline rename -->
+                    <div id="favWorldGroupHeader" style="display:flex;align-items:center;gap:6px;margin-bottom:10px;min-height:24px;">
+                        <span id="favWorldGroupLabel" style="font-size:13px;font-weight:600;color:var(--tx1);">All Favorites</span>
+                        <span id="favWorldGroupVrcPlusBadge" style="display:none;font-size:9px;font-weight:700;color:#FFD700;background:#FFD70022;border:1px solid #FFD70055;border-radius:4px;padding:1px 6px;box-shadow:0 0 6px #FFD70066;letter-spacing:.4px;">VRC+</span>
+                        <button id="favWorldGroupEditBtn" class="myp-edit-btn" onclick="startEditWorldGroupName()" style="display:none;" title="Rename category"><span class="msi" style="font-size:14px;">edit</span></button>
+                    </div>
+                    <div id="favWorldGroupRenameRow" style="display:none;align-items:center;gap:6px;margin-bottom:10px;">
+                        <input type="text" id="favWorldGroupNameInput" class="myp-text-input" maxlength="64" style="flex:1;max-width:280px;">
+                        <button class="myp-save-btn" onclick="saveWorldGroupName()">Save</button>
+                        <button class="myp-cancel-btn" onclick="cancelEditWorldGroupName()">Cancel</button>
+                    </div>
+                    <!-- Dropdown + search -->
+                    <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap;">
+                        <select id="favWorldGroupFilter" class="wd-create-select" onchange="setFavWorldGroup(this.value)" style="min-width:160px;max-width:220px;">
+                            <option value="">All Favorites</option>
+                        </select>
+                        <div class="search-bar-row" style="margin-bottom:0;flex:1;min-width:140px;"><span class="msi search-ico">search</span><input type="text" id="favWorldSearchInput" class="search-input" placeholder="Filter favorite worlds..." oninput="filterFavWorlds()"></div>
+                        <button id="favWorldsRefreshBtn" class="myp-edit-btn" onclick="refreshFavWorlds()" title="Refresh favorites"><span class="msi" style="font-size:16px;">refresh</span></button>
+                    </div>
                     <div id="favWorldsGrid" class="search-grid"><div class="empty-msg">Loading favorite worlds...</div></div>
                 </div>
             </div>
