@@ -564,6 +564,8 @@ function switchFdTab(tab, btn) {
     document.getElementById('fdTabGroups').style.display = tab === 'groups' ? '' : 'none';
     const mutualsEl = document.getElementById('fdTabMutuals');
     if (mutualsEl) mutualsEl.style.display = tab === 'mutuals' ? '' : 'none';
+    const worldsEl = document.getElementById('fdTabWorlds');
+    if (worldsEl) worldsEl.style.display = tab === 'worlds' ? '' : 'none';
     document.querySelectorAll('.fd-tab').forEach(t => t.classList.remove('active'));
     if (btn) btn.classList.add('active');
 }
@@ -870,17 +872,34 @@ function renderFriendDetail(d) {
 
     const hasGroups = allGroups.length > 0 || repG;
     const hasMutuals = d.mutuals !== undefined;
-    const hasTabs = hasGroups || hasMutuals;
+    const allUserWorlds = d.userWorlds || [];
+    const hasWorlds = allUserWorlds.length > 0;
+    const hasTabs = hasGroups || hasMutuals || hasWorlds;
 
     let tabsHtml = '';
     if (hasTabs) {
         tabsHtml = `<div class="fd-tabs"><button class="fd-tab active" onclick="switchFdTab('info',this)">Info</button>`;
         if (hasGroups) tabsHtml += `<button class="fd-tab" onclick="switchFdTab('groups',this)">Groups${allGroups.length ? ' (' + allGroups.length + ')' : ''}</button>`;
         if (hasMutuals) tabsHtml += `<button class="fd-tab" onclick="switchFdTab('mutuals',this)">Mutuals${allMutuals.length ? ' (' + allMutuals.length + ')' : ''}</button>`;
+        if (hasWorlds) tabsHtml += `<button class="fd-tab" onclick="switchFdTab('worlds',this)">Worlds (${allUserWorlds.length})</button>`;
         tabsHtml += `</div>`;
     }
 
-    c.innerHTML = `${bannerHtml}<div class="fd-content${bannerSrc ? ' fd-has-banner' : ''}"><div class="fd-header">${imgTag}<div><div class="fd-name">${esc(d.displayName)}</div>${pronounsHtml}<div class="fd-status"><span class="${fdDotClass} ${statusDotClass(d.status)}" style="width:8px;height:8px;"></span>${statusLabel(d.status)}${fdIsWeb ? ' (Web)' : ''}${d.statusDescription ? ' — ' + esc(d.statusDescription) : ''}</div></div></div>${badgesHtml}${actionsHtml}${tabsHtml}<div id="fdTabInfo">${infoContent}</div><div id="fdTabGroups" style="display:none;">${groupsContent}</div><div id="fdTabMutuals" style="display:none;">${mutualsContent}</div><div style="margin-top:10px;text-align:right;"><button class="fd-btn" onclick="closeFriendDetail()">Close</button></div></div>`;
+    let worldsContent = `<div class="fd-worlds-grid">`;
+    allUserWorlds.forEach(w => {
+        const thumb = w.thumbnailImageUrl || '';
+        const wid = jsq(w.id);
+        worldsContent += `<div class="fd-world-card" onclick="closeFriendDetail();openWorldSearchDetail('${wid}')">
+            <div class="fd-world-thumb" style="${thumb ? 'background-image:url(\'' + thumb + '\')' : ''}"></div>
+            <div class="fd-world-info">
+                <div class="fd-world-name">${esc(w.name)}</div>
+                <div class="fd-world-meta"><span class="msi" style="font-size:11px;">person</span> ${w.occupants} &nbsp;<span class="msi" style="font-size:11px;">star</span> ${w.favorites}</div>
+            </div>
+        </div>`;
+    });
+    worldsContent += `</div>`;
+
+    c.innerHTML = `${bannerHtml}<div class="fd-content${bannerSrc ? ' fd-has-banner' : ''}"><div class="fd-header">${imgTag}<div><div class="fd-name">${esc(d.displayName)}</div>${pronounsHtml}<div class="fd-status"><span class="${fdDotClass} ${statusDotClass(d.status)}" style="width:8px;height:8px;"></span>${statusLabel(d.status)}${fdIsWeb ? ' (Web)' : ''}${d.statusDescription ? ' — ' + esc(d.statusDescription) : ''}</div></div></div>${badgesHtml}${actionsHtml}${tabsHtml}<div id="fdTabInfo">${infoContent}</div><div id="fdTabGroups" style="display:none;">${groupsContent}</div><div id="fdTabMutuals" style="display:none;">${mutualsContent}</div><div id="fdTabWorlds" style="display:none;">${worldsContent}</div><div style="margin-top:10px;text-align:right;"><button class="fd-btn" onclick="closeFriendDetail()">Close</button></div></div>`;
 
     // Live ticker - only when friend is confirmed in same instance
     if (_fdLiveTimer) { clearInterval(_fdLiveTimer); _fdLiveTimer = null; }

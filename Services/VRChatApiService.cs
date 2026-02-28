@@ -728,6 +728,18 @@ public class VRChatApiService
         return new JArray();
     }
 
+    public async Task<JArray> GetUserWorldsAsync(string userId)
+    {
+        if (!IsLoggedIn || string.IsNullOrEmpty(userId)) return new JArray();
+        try
+        {
+            var resp = await _http.GetAsync($"{BASE}/worlds?userId={Uri.EscapeDataString(userId)}&releaseStatus=public&n=100&sort=updated");
+            if (resp.IsSuccessStatusCode) return JArray.Parse(await resp.Content.ReadAsStringAsync());
+        }
+        catch (Exception ex) { Log($"GetUserWorlds exception: {ex.Message}"); }
+        return new JArray();
+    }
+
     public async Task<JArray> SearchWorldsAsync(string query, int n = 20, int offset = 0)
     {
         if (!IsLoggedIn || string.IsNullOrEmpty(query)) return new JArray();

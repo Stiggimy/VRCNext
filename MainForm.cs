@@ -3098,6 +3098,27 @@ public class MainForm : Form
         }
         catch { }
 
+        List<object> userWorlds = new();
+        try
+        {
+            var worlds = await _vrcApi.GetUserWorldsAsync(userId);
+            foreach (var w in worlds)
+            {
+                var wObj = w as Newtonsoft.Json.Linq.JObject;
+                if (wObj == null) continue;
+                userWorlds.Add(new
+                {
+                    id = wObj["id"]?.ToString() ?? "",
+                    name = wObj["name"]?.ToString() ?? "",
+                    thumbnailImageUrl = wObj["thumbnailImageUrl"]?.ToString() ?? "",
+                    occupants = wObj["occupants"]?.Value<int>() ?? 0,
+                    favorites = wObj["favorites"]?.Value<int>() ?? 0,
+                    visits = wObj["visits"]?.Value<int>() ?? 0,
+                });
+            }
+        }
+        catch { }
+
         List<object> mutualsList = new();
         bool mutualsOptedOut = false;
         try
@@ -3170,6 +3191,7 @@ public class MainForm : Form
             userGroups,
             mutuals = mutualsList,
             mutualsOptedOut,
+            userWorlds,
             bioLinks = user["bioLinks"]?.ToObject<List<string>>() ?? new List<string>(),
             isFavorited = _favoriteFriends.ContainsKey(userId),
             favFriendId = _favoriteFriends.GetValueOrDefault(userId, ""),

@@ -170,7 +170,7 @@ function renderWorldSearchDetail(w) {
     el.innerHTML = `${thumb ? `<div class="fd-banner"><img src="${thumb}" onerror="this.parentElement.style.display='none'"><div class="fd-banner-fade"></div></div>` : ''}
         <div class="fd-content${thumb ? ' fd-has-banner' : ''}" style="padding:20px;">
         <h2 style="margin:0 0 4px;color:var(--tx0);font-size:18px;">${esc(w.name)}</h2>
-        <div style="font-size:12px;color:var(--tx3);margin-bottom:12px;">by ${esc(w.authorName)}</div>
+        <div style="font-size:12px;color:var(--tx3);margin-bottom:12px;">by ${w.authorId ? `<span onclick="document.getElementById('modalDetail').style.display='none';openFriendDetail('${esc(w.authorId)}')" style="display:inline-flex;align-items:center;padding:1px 8px;border-radius:20px;background:var(--bg-hover);font-size:11px;font-weight:600;color:var(--tx1);cursor:pointer;line-height:1.8;">${esc(w.authorName)}</span>` : esc(w.authorName)}</div>
         <div class="fd-badges-row">
             <span class="fd-badge"><span class="msi" style="font-size:11px;">person</span> ${w.occupants} Active</span>
             <span class="fd-badge"><span class="msi" style="font-size:11px;">star</span> ${w.favorites}</span>
