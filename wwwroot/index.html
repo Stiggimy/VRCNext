@@ -40,6 +40,7 @@
         <div class="topbar" id="winDrag">
             <span class="topbar-title" id="pageTitle">Dashboard</span>
             <div style="display:flex;align-items:center;gap:8px;">
+                <div class="mini-badge vrcplus" id="badgeVrcPlus" style="display:none;"><span class="mini-badge-label">VRC+</span></div>
                 <div class="mini-badge offline" id="badgeRelay"><span class="msi mini-badge-icon">cell_tower</span><span class="mini-badge-label">Relay</span></div>
                 <div class="mini-badge offline" id="badgeChatbox"><span class="msi mini-badge-icon">chat</span><span class="mini-badge-label">Chatbox</span></div>
                 <div class="mini-badge offline" id="badgeSteamVR"><span class="msi mini-badge-icon">rocket_launch</span><span class="mini-badge-label">SteamVR</span></div>
@@ -157,15 +158,54 @@
             </div>
             <!-- Tab 4: Avatars -->
             <div class="tab" id="tab4">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
-                    <div><span style="font-size:14px;font-weight:700;color:var(--tx0);">My Avatars</span><span id="avatarCount" style="font-size:12px;color:var(--tx3);margin-left:10px;"></span></div>
-                    <div style="display:flex;gap:8px;align-items:center;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:10px;">
+                    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
                         <button class="btn-fav avatar-filter-btn active" id="avatarFilterOwn" onclick="setAvatarFilter('own')"><span class="msi" style="font-size:16px;">person</span> My Avatars</button>
                         <button class="btn-fav avatar-filter-btn" id="avatarFilterFav" onclick="setAvatarFilter('favorites')"><span class="msi" style="font-size:16px;">star</span> Favorites</button>
-                        <button class="btn-f" onclick="refreshAvatars()"><span class="msi" style="font-size:16px;">refresh</span> Refresh</button>
+                        <button class="btn-fav avatar-filter-btn" id="avatarFilterSearch" onclick="setAvatarFilter('search')"><span class="msi" style="font-size:16px;">search</span> Search</button>
                     </div>
+                    <span id="avatarCount" style="font-size:12px;color:var(--tx3);"></span>
                 </div>
-                <div id="avatarGrid" class="avatar-grid"><div class="empty-msg">Login to VRChat to see your avatars</div></div>
+                <!-- Own Avatars -->
+                <div id="avatarOwnArea">
+                    <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap;">
+                        <div class="search-bar-row" style="margin-bottom:0;flex:1;min-width:140px;"><span class="msi search-ico">search</span><input type="text" id="ownAvatarSearchInput" class="search-input" placeholder="Filter my avatars..." oninput="filterOwnAvatars()"></div>
+                        <button id="ownAvatarsRefreshBtn" class="myp-edit-btn" onclick="refreshAvatars()" title="Refresh"><span class="msi" style="font-size:16px;">refresh</span></button>
+                    </div>
+                    <div id="avatarGrid" class="avatar-grid"><div class="empty-msg">Login to VRChat to see your avatars</div></div>
+                </div>
+                <!-- Favorites with group dropdown -->
+                <div id="avatarFavArea" style="display:none;">
+                    <div id="favAvatarGroupHeader" style="display:flex;align-items:center;gap:6px;margin-bottom:10px;min-height:24px;">
+                        <span id="favAvatarGroupLabel" style="font-size:13px;font-weight:600;color:var(--tx1);">All Favorites</span>
+                        <span id="favAvatarGroupVrcPlusBadge" style="display:none;font-size:9px;font-weight:700;color:#FFD700;background:#FFD70022;border:1px solid #FFD70055;border-radius:4px;padding:1px 6px;box-shadow:0 0 6px #FFD70066;letter-spacing:.4px;">VRC+</span>
+                        <button id="favAvatarGroupEditBtn" class="myp-edit-btn" onclick="startEditAvatarGroupName()" style="display:none;" title="Rename category"><span class="msi" style="font-size:14px;">edit</span></button>
+                    </div>
+                    <div id="favAvatarGroupRenameRow" style="display:none;align-items:center;gap:6px;margin-bottom:10px;">
+                        <input type="text" id="favAvatarGroupNameInput" class="myp-text-input" maxlength="64" style="flex:1;max-width:280px;">
+                        <button class="myp-save-btn" onclick="saveAvatarGroupName()">Save</button>
+                        <button class="myp-cancel-btn" onclick="cancelEditAvatarGroupName()">Cancel</button>
+                    </div>
+                    <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap;">
+                        <select id="favAvatarGroupFilter" class="wd-create-select" onchange="setFavAvatarGroup(this.value)" style="min-width:160px;max-width:220px;">
+                            <option value="">All Favorites</option>
+                        </select>
+                        <div class="search-bar-row" style="margin-bottom:0;flex:1;min-width:140px;"><span class="msi search-ico">search</span><input type="text" id="favAvatarSearchInput" class="search-input" placeholder="Filter favorite avatars..." oninput="filterFavAvatars()"></div>
+                        <button id="favAvatarsRefreshBtn" class="myp-edit-btn" onclick="refreshFavAvatars()" title="Refresh favorites"><span class="msi" style="font-size:16px;">refresh</span></button>
+                    </div>
+                    <div id="favAvatarsGrid" class="avatar-grid"><div class="empty-msg">Loading favorite avatars...</div></div>
+                </div>
+                <!-- Search -->
+                <div id="avatarSearchArea" style="display:none;">
+                    <div class="search-bar-row" style="margin-bottom:14px;"><span class="msi search-ico">search</span><input type="text" id="avatarSearchInput" class="search-input" placeholder="Search public avatars..." onkeydown="if(event.key==='Enter')doAvatarSearch()"><button class="btn-f" onclick="doAvatarSearch()">Search</button></div>
+                    <div id="avatarSearchGrid" class="avatar-grid"><div class="empty-msg">Search for public avatars</div></div>
+                </div>
+                <!-- Favorite group picker popup (global, positioned by JS) -->
+                <div id="avFavPickerPanel" style="display:none;position:fixed;z-index:9999;background:var(--bg-card);border:1px solid var(--brd-lt);border-radius:10px;padding:10px;min-width:220px;max-width:280px;box-shadow:0 8px 32px #0008;">
+                    <div style="font-size:11px;font-weight:700;color:var(--tx3);margin-bottom:8px;letter-spacing:.5px;">ADD TO FAVORITE GROUP</div>
+                    <div id="avFavPickerList"></div>
+                    <div style="margin-top:8px;text-align:right;"><button class="myp-cancel-btn" onclick="closeAvFavPicker()">Cancel</button></div>
+                </div>
             </div>
             <!-- Tab 5: Custom Chatbox -->
             <div class="tab" id="tab5">

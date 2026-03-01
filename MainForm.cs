@@ -879,33 +879,7 @@ public class MainForm : Form
                     }
                     else
                     {
-                        _ = Task.Run(async () =>
-                        {
-                            try
-                            {
-                                var avatars = await _vrcApi.GetFavoriteAvatarsAsync();
-                                var list = avatars.Select(a => new
-                                {
-                                    id = a["id"]?.ToString() ?? "",
-                                    name = a["name"]?.ToString() ?? "",
-                                    imageUrl = a["imageUrl"]?.ToString() ?? "",
-                                    thumbnailImageUrl = a["thumbnailImageUrl"]?.ToString() ?? "",
-                                    authorName = a["authorName"]?.ToString() ?? "",
-                                    releaseStatus = a["releaseStatus"]?.ToString() ?? "private",
-                                    description = a["description"]?.ToString() ?? "",
-                                }).ToList();
-                                Invoke(() => SendToJS("vrcAvatars", new
-                                {
-                                    filter = "favorites",
-                                    avatars = list,
-                                    currentAvatarId = _vrcApi.CurrentAvatarId ?? ""
-                                }));
-                            }
-                            catch (Exception ex)
-                            {
-                                Invoke(() => SendToJS("log", new { msg = $"Avatar load error: {ex.Message}", color = "err" }));
-                            }
-                        });
+                        _ = Task.Run(FetchAndCacheFavAvatarsAsync);
                     }
                     break;
 
@@ -925,6 +899,42 @@ public class MainForm : Form
                                     color = ok5 ? "ok" : "err"
                                 });
                             });
+                        });
+                    }
+                    break;
+
+                case "vrcSearchAvatars":
+                    var avSearchQuery = msg["query"]?.ToString() ?? "";
+                    var avSearchPage  = msg["page"]?.Value<int>() ?? 0;
+                    if (!string.IsNullOrWhiteSpace(avSearchQuery))
+                    {
+                        _ = Task.Run(async () =>
+                        {
+                            try
+                            {
+                                const int avLimit = 20;
+                                var raw = await _vrcApi.SearchAvatarsAsync(avSearchQuery, avLimit, avSearchPage);
+                                var list = raw.Cast<JObject>().Select(a => new
+                                {
+                                    id               = a["vrc_id"]?.ToString() ?? a["id"]?.ToString() ?? "",
+                                    name             = a["name"]?.ToString() ?? "",
+                                    thumbnailImageUrl = a["image_url"]?.ToString() ?? a["thumbnailImageUrl"]?.ToString() ?? "",
+                                    imageUrl         = a["image_url"]?.ToString() ?? a["imageUrl"]?.ToString() ?? "",
+                                    authorName       = a["author"]?["name"]?.ToString() ?? a["authorName"]?.ToString() ?? "",
+                                    releaseStatus    = "public",
+                                    description      = a["description"]?.ToString() ?? "",
+                                }).ToList();
+                                Invoke(() => SendToJS("vrcAvatarSearchResults", new
+                                {
+                                    results = list,
+                                    page    = avSearchPage,
+                                    hasMore = list.Count >= avLimit,
+                                }));
+                            }
+                            catch (Exception ex)
+                            {
+                                Invoke(() => SendToJS("log", new { msg = $"Avatar search error: {ex.Message}", color = "err" }));
+                            }
                         });
                     }
                     break;
@@ -1146,6 +1156,51 @@ public class MainForm : Form
                     {
                         var ok = await _vrcApi.RemoveFavoriteFriendAsync(fvrtId);
                         Invoke(() => SendToJS("vrcWorldUnfavoriteResult", new { ok, worldId }));
+                    });
+                    break;
+                }
+
+                case "vrcGetAvatarFavGroups":
+                    _ = Task.Run(async () =>
+                    {
+                        var groups = await _vrcApi.GetFavoriteGroupsAsync();
+                        var avatarTypes = new HashSet<string> { "avatar" };
+                        var groupList = groups
+                            .Where(g => avatarTypes.Contains(g["type"]?.ToString() ?? ""))
+                            .Select(g => new WFavGroup {
+                                name        = g["name"]?.ToString() ?? "",
+                                displayName = g["displayName"]?.ToString() ?? "",
+                                type        = g["type"]?.ToString() ?? "avatar"
+                            })
+                            .Where(g => !string.IsNullOrEmpty(g.name))
+                            .ToList();
+                        groupList = FillMissingAvatarSlots(groupList);
+                        int avCap = _vrcApi.HasVrcPlus ? 50 : 25;
+                        foreach (var g in groupList) g.capacity = avCap;
+                        Invoke(() => SendToJS("vrcAvatarFavGroups", groupList));
+                    });
+                    break;
+
+                case "vrcAddAvatarFavorite":
+                    _ = Task.Run(async () =>
+                    {
+                        var avId      = msg["avatarId"]?.ToString() ?? "";
+                        var avGroup   = msg["groupName"]?.ToString() ?? "";
+                        var avType    = msg["groupType"]?.ToString() ?? "avatar";
+                        var avOldFvrt = msg["oldFvrtId"]?.ToString();
+                        var (avOk, avResult) = await _vrcApi.AddAvatarFavoriteAsync(avId, avGroup, avType, avOldFvrt);
+                        Invoke(() => SendToJS("vrcAvatarFavoriteResult", new { ok = avOk, avatarId = avId, groupName = avGroup, newFvrtId = avOk ? avResult : "", error = avOk ? "" : avResult }));
+                    });
+                    break;
+
+                case "vrcRemoveAvatarFavorite":
+                {
+                    var avRmId   = msg["avatarId"]?.ToString() ?? "";
+                    var avFvrtId = msg["fvrtId"]?.ToString() ?? "";
+                    _ = Task.Run(async () =>
+                    {
+                        var ok = await _vrcApi.RemoveFavoriteFriendAsync(avFvrtId);
+                        Invoke(() => SendToJS("vrcAvatarUnfavoriteResult", new { ok, avatarId = avRmId }));
                     });
                     break;
                 }
@@ -2220,6 +2275,7 @@ public class MainForm : Form
         public string name        { get; set; } = "";
         public string displayName { get; set; } = "";
         public string type        { get; set; } = "";
+        public int    capacity    { get; set; } = 25;
     }
 
     /// <summary>
@@ -2319,6 +2375,88 @@ public class MainForm : Form
         catch (Exception ex)
         {
             Invoke(() => SendToJS("log", new { msg = $"Favorite worlds error: {ex.Message}", color = "err" }));
+        }
+    }
+
+    private static List<WFavGroup> FillMissingAvatarSlots(List<WFavGroup> groupList)
+    {
+        var existing = new HashSet<string>(groupList.Select(g => g.name));
+
+        // VRChat has 6 avatar favorite groups (avatars1–avatars6), all with type "avatar".
+        // avatars1 is free; avatars2–6 require VRC+.
+        // The API only returns groups that have been renamed or contain items,
+        // so we fill in any missing slots so empty groups are still visible.
+        var slots = new[] {
+            ("avatars1", "Avatars 1", "avatar"),
+            ("avatars2", "Avatars 2", "avatar"),
+            ("avatars3", "Avatars 3", "avatar"),
+            ("avatars4", "Avatars 4", "avatar"),
+            ("avatars5", "Avatars 5", "avatar"),
+            ("avatars6", "Avatars 6", "avatar"),
+        };
+        foreach (var (sName, sDisplay, sType) in slots)
+            if (!existing.Contains(sName))
+                groupList.Add(new WFavGroup { name = sName, displayName = sDisplay, type = sType });
+
+        return groupList
+            .OrderBy(g => g.name)
+            .ToList();
+    }
+
+    private async Task FetchAndCacheFavAvatarsAsync()
+    {
+        try
+        {
+            var groups = await _vrcApi.GetFavoriteGroupsAsync();
+            var avatarTypes = new HashSet<string> { "avatar" };
+            var groupList = groups
+                .Where(g => avatarTypes.Contains(g["type"]?.ToString() ?? ""))
+                .Select(g => new WFavGroup {
+                    name        = g["name"]?.ToString() ?? "",
+                    displayName = g["displayName"]?.ToString() ?? "",
+                    type        = g["type"]?.ToString() ?? "avatar"
+                })
+                .Where(g => !string.IsNullOrEmpty(g.name))
+                .ToList();
+            groupList = FillMissingAvatarSlots(groupList);
+            int avCap = _vrcApi.HasVrcPlus ? 50 : 25;
+            foreach (var g in groupList) g.capacity = avCap;
+
+            var sem = new SemaphoreSlim(4, 4);
+            var perGroup = new System.Collections.Concurrent.ConcurrentDictionary<string, List<JObject>>();
+            await Task.WhenAll(groupList.Select(async g =>
+            {
+                await sem.WaitAsync();
+                try { perGroup[g.name] = await _vrcApi.GetFavoriteAvatarsByGroupAsync(g.name, 100); }
+                finally { sem.Release(); }
+            }));
+
+            var allAvatars = new List<object>();
+            foreach (var g in groupList)
+            {
+                if (!perGroup.TryGetValue(g.name, out var groupAvatars)) continue;
+                foreach (var a in groupAvatars)
+                {
+                    allAvatars.Add(new
+                    {
+                        id                = a["id"]?.ToString() ?? "",
+                        name              = a["name"]?.ToString() ?? "",
+                        imageUrl          = a["imageUrl"]?.ToString() ?? "",
+                        thumbnailImageUrl = a["thumbnailImageUrl"]?.ToString() ?? "",
+                        authorName        = a["authorName"]?.ToString() ?? "",
+                        releaseStatus     = a["releaseStatus"]?.ToString() ?? "private",
+                        favoriteGroup     = g.name,
+                        favoriteId        = a["favoriteId"]?.ToString() ?? "",
+                    });
+                }
+            }
+
+            var payload = new { avatars = allAvatars, groups = groupList };
+            Invoke(() => SendToJS("vrcFavoriteAvatars", payload));
+        }
+        catch (Exception ex)
+        {
+            Invoke(() => SendToJS("log", new { msg = $"Favorite avatars error: {ex.Message}", color = "err" }));
         }
     }
 

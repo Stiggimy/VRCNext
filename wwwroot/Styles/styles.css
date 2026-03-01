@@ -488,6 +488,7 @@ body {
     gap: 5px;
     padding: 3px 10px;
     border-radius: 14px;
+    border: 1px solid transparent;
     font-size: 11px;
     font-weight: 600;
     letter-spacing: .3px;
@@ -520,6 +521,20 @@ body {
 
 .mini-badge.online .mini-badge-label {
     color: var(--ok);
+}
+
+.mini-badge.vrcplus {
+    background: rgba(255,215,0,.08);
+    border-color: rgba(255,215,0,.55);
+}
+
+.mini-badge.vrcplus .mini-badge-icon {
+    font-size: 13px;
+    color: #FFD700;
+}
+
+.mini-badge.vrcplus .mini-badge-label {
+    color: #FFD700;
 }
 
 @keyframes pulse {
@@ -2869,6 +2884,7 @@ body {
     background: rgba(0,214,143,.2);
     color: var(--ok);
 }
+
 
 .av-info {
     padding: 10px 12px 12px;

@@ -16,6 +16,7 @@ public class VRChatApiService
     public JObject? CurrentUserRaw { get; private set; }
     public string? CurrentUserId => CurrentUserRaw?["id"]?.ToString();
     public string? CurrentAvatarId => CurrentUserRaw?["currentAvatar"]?.ToString();
+    public bool HasVrcPlus => CurrentUserRaw?["tags"] is JArray tags && tags.Any(t => t.ToString() == "system_supporter");
 
     public event Action<string>? DebugLog;
     private void Log(string msg) => DebugLog?.Invoke(msg);
@@ -624,60 +625,97 @@ public class VRChatApiService
         return all;
     }
 
-    public async Task<JArray> SearchAvatarsAsync(string query, int n = 20, int offset = 0)
+    public async Task<List<JObject>> GetFavoriteAvatarsByGroupAsync(string groupTag, int max = 100)
+    {
+        var all = new List<JObject>();
+        if (!IsLoggedIn) return all;
+        try
+        {
+            int offset = 0;
+            while (all.Count < max)
+            {
+                var n = Math.Min(max - all.Count, 100);
+                var url = $"{BASE}/avatars/favorites?tag={Uri.EscapeDataString(groupTag)}&n={n}&offset={offset}";
+                var resp = await _http.GetAsync(url);
+                if (!resp.IsSuccessStatusCode) break;
+                var batch = JArray.Parse(await resp.Content.ReadAsStringAsync());
+                if (batch.Count == 0) break;
+                foreach (var item in batch) all.Add((JObject)item);
+                if (batch.Count < n) break;
+                offset += batch.Count;
+                await Task.Delay(200);
+            }
+            Log($"FavoriteAvatars [{groupTag}]: {all.Count} avatars");
+        }
+        catch (Exception ex) { Log($"FavoriteAvatarsByGroup exception [{groupTag}]: {ex.Message}"); }
+        return all;
+    }
+
+    /// <summary>Adds an avatar to a favorite group. If oldFvrtId is set, removes it first (move between groups).</summary>
+    public async Task<(bool ok, string result)> AddAvatarFavoriteAsync(string avatarId, string groupName, string groupType = "avatar", string? oldFvrtId = null)
+    {
+        if (!IsLoggedIn) return (false, "Not logged in");
+        try
+        {
+            if (!string.IsNullOrEmpty(oldFvrtId))
+            {
+                await _http.DeleteAsync($"{BASE}/favorites/{oldFvrtId}");
+                await Task.Delay(400);
+            }
+            var json = JsonConvert.SerializeObject(new { type = groupType, favoriteId = avatarId, tags = new[] { groupName } });
+            var resp = await _http.PostAsync($"{BASE}/favorites",
+                new System.Net.Http.StringContent(json, System.Text.Encoding.UTF8, "application/json"));
+            var body = await resp.Content.ReadAsStringAsync();
+            if (!resp.IsSuccessStatusCode)
+            {
+                var errMsg = TryGetApiError(body) ?? $"HTTP {(int)resp.StatusCode}";
+                Log($"AddAvatarFavorite error: {errMsg}");
+                return (false, errMsg);
+            }
+            var result = JObject.Parse(body);
+            var newFvrtId = result["id"]?.ToString() ?? "";
+            return (true, newFvrtId);
+        }
+        catch (Exception ex) { Log($"AddAvatarFavorite exception: {ex.Message}"); return (false, ex.Message); }
+    }
+
+    public async Task<JArray> SearchAvatarsAsync(string query, int n = 20, int page = 0)
     {
         // VRChat's official API has NO text search for avatars.
-        // We use third-party avatar databases like VRCX does.
-        var providers = new[]
-        {
-            $"https://avtrdb.com/vrcx_search.php?search={Uri.EscapeDataString(query)}&n={n}&offset={offset}",
-            $"https://avtr.just-h.party/vrcx_search.php?search={Uri.EscapeDataString(query)}&n={n}&offset={offset}",
-        };
+        // We use avtrdb.com which provides a public avatar search API.
+        var url = $"https://api.avtrdb.com/v2/avatar/search?query={Uri.EscapeDataString(query)}&limit={n}&page={page}";
 
         using var client = new HttpClient();
         client.Timeout = TimeSpan.FromSeconds(15);
-        client.DefaultRequestHeaders.UserAgent.ParseAdd("VRCNext/2026.1.0 contact@vrcnext.app");
+        client.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", UA);
         client.DefaultRequestHeaders.Accept.ParseAdd("application/json");
 
-        foreach (var url in providers)
+        try
         {
-            try
+            Log($"SearchAvatars: {url}");
+            var resp = await client.GetAsync(url);
+            var body = await resp.Content.ReadAsStringAsync();
+            Log($"SearchAvatars [{(int)resp.StatusCode}] len={body.Length}");
+
+            if (!resp.IsSuccessStatusCode || string.IsNullOrWhiteSpace(body)) return new JArray();
+
+            var parsed = Newtonsoft.Json.Linq.JToken.Parse(body);
+            if (parsed is JObject obj && obj["avatars"] is JArray arr)
             {
-                Log($"SearchAvatars trying: {url}");
-                var resp = await client.GetAsync(url);
-                var body = await resp.Content.ReadAsStringAsync();
-                var preview = body.Length > 300 ? body[..300] : body;
-                Log($"SearchAvatars [{(int)resp.StatusCode}] len={body.Length} preview={preview}");
-
-                if (!resp.IsSuccessStatusCode) continue;
-                if (string.IsNullOrWhiteSpace(body) || body == "null" || body == "[]") continue;
-                if (body.TrimStart().StartsWith("<")) { Log("SearchAvatars: got HTML, skipping"); continue; }
-
-                var parsed = Newtonsoft.Json.Linq.JToken.Parse(body);
-                JArray results = null;
-
-                if (parsed is JArray arr && arr.Count > 0) results = arr;
-                else if (parsed is JObject obj)
-                {
-                    results = (obj["avatars"] ?? obj["data"] ?? obj["results"] ?? obj["items"]) as JArray;
-                    if (results == null || results.Count == 0)
-                        if (obj["id"] != null) results = new JArray(obj);
-                }
-
-                if (results != null && results.Count > 0)
-                {
-                    Log($"SearchAvatars: found {results.Count} results from {url}");
-                    return results;
-                }
-                Log($"SearchAvatars: parsed OK but empty from {url}");
+                Log($"SearchAvatars: found {arr.Count} results");
+                return arr;
             }
-            catch (Exception ex)
+            if (parsed is JArray directArr)
             {
-                Log($"SearchAvatars exception for {url}: {ex.Message}");
+                Log($"SearchAvatars: found {directArr.Count} results");
+                return directArr;
             }
         }
+        catch (Exception ex)
+        {
+            Log($"SearchAvatars exception: {ex.Message}");
+        }
 
-        Log("SearchAvatars: all providers returned no results");
         return new JArray();
     }
 

@@ -67,6 +67,8 @@ if (window.chrome?.webview) {
                 renderDashboard();
                 requestInstanceInfo();
                 refreshNotifications();
+                { const vp = document.getElementById('badgeVrcPlus');
+                  if (vp) { const isVrcPlus = Array.isArray(payload.tags) && payload.tags.includes('system_supporter'); vp.style.display = isVrcPlus ? '' : 'none'; } }
                 break;
             case 'vrcFriends':
                 vrcFriendsLoaded = true;
@@ -91,6 +93,7 @@ if (window.chrome?.webview) {
                 renderVrcProfile(null);
                 document.getElementById('vrcFriendsList').innerHTML = '';
                 document.getElementById('vrcLoginPrompt') && (document.getElementById('vrcLoginPrompt').style.display = '');
+                { const vp = document.getElementById('badgeVrcPlus'); if (vp) vp.style.display = 'none'; }
                 break;
             case 'vrcPrefillLogin':
                 if (payload.username) {
@@ -174,16 +177,37 @@ if (window.chrome?.webview) {
                 break;
             }
             case 'vrcAvatars':
-                if (payload.filter === 'own') avatarsData = payload.avatars || [];
-                else avatarFavData = payload.avatars || [];
+                if (payload.filter === 'own') {
+                    avatarsData = payload.avatars || [];
+                    if (payload.currentAvatarId) currentAvatarId = payload.currentAvatarId;
+                    avatarsLoaded = true;
+                    if (avatarFilter === 'own') renderAvatarGrid();
+                }
+                break;
+            case 'vrcFavoriteAvatars':
                 avatarsLoaded = true;
-                if (payload.currentAvatarId) currentAvatarId = payload.currentAvatarId;
-                renderAvatarGrid();
+                renderFavAvatars(payload);
+                break;
+            case 'vrcAvatarFavoriteResult':
+                onAvatarFavoriteResult(payload);
+                break;
+            case 'vrcAvatarUnfavoriteResult':
+                onAvatarUnfavoriteResult(payload);
+                break;
+            case 'vrcAvatarFavGroups':
+                onAvatarFavGroupsLoaded(payload);
                 break;
             case 'vrcAvatarSelected':
                 if (payload.avatarId) currentAvatarId = payload.avatarId;
                 document.querySelectorAll('.av-card').forEach(c => { c.style.pointerEvents = ''; c.style.opacity = ''; });
-                renderAvatarGrid();
+                if (avatarFilter === 'own') renderAvatarGrid();
+                else if (avatarFilter === 'favorites') filterFavAvatars();
+                break;
+            case 'vrcAvatarSearchResults':
+                if (payload.page === 0) avatarSearchResults = payload.results || [];
+                else avatarSearchResults = [...avatarSearchResults, ...(payload.results || [])];
+                avatarSearchHasMore = payload.hasMore || false;
+                renderSearchGrid();
                 break;
             case 'vrcSearchResults':
                 renderSearchResults(payload.type, payload.results, payload.offset || 0, payload.hasMore || false);
@@ -224,6 +248,7 @@ if (window.chrome?.webview) {
                 break;
             case 'vrcFavoriteGroupUpdated':
                 onFavoriteGroupUpdated(payload);
+                onAvatarFavoriteGroupUpdated(payload);
                 break;
             case 'vrcWorldFavoriteResult':
                 onWorldFavoriteResult(payload);

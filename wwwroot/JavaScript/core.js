@@ -18,6 +18,8 @@ let dashBgPath = '', dashBgDataUri = '', dashOpacity = 40;
 let dashWorldCache = {};
 let vrcFriendsLoaded = false;
 let avatarsData = [], avatarFavData = [], avatarFilter = 'own', avatarsLoaded = false, currentAvatarId = '';
+let avatarSearchResults = [], avatarSearchPage = 0, avatarSearchQuery = '', avatarSearchHasMore = false;
+let favAvatarsData = [], favAvatarGroups = [], favAvatarGroupFilter = '';
 let notifications = [], notifPanelOpen = false, myGroups = [], myGroupsLoaded = false;
 let currentInstanceData = null;
 // Pagination state for search
@@ -467,6 +469,10 @@ function initVnSelect(el) {
         return /vrcplus/i.test(value) || /vrc\+/i.test(text);
     }
 
+    function cleanText(text) {
+        return text.replace(/\s*\[VRC\+\]/gi, '').trim();
+    }
+
     function buildPanel() {
         panel.innerHTML = '';
         for (let i = 0; i < el.options.length; i++) {
@@ -475,7 +481,7 @@ function initVnSelect(el) {
             item.className = 'vn-select-option' + (i === el.selectedIndex ? ' vn-active' : '');
 
             const span = document.createElement('span');
-            span.textContent = opt.text;
+            span.textContent = cleanText(opt.text);
             item.appendChild(span);
 
             if (isVrcPlus(opt.value, opt.text)) {
@@ -497,7 +503,7 @@ function initVnSelect(el) {
 
     function syncLabel() {
         const opt = el.options[el.selectedIndex];
-        label.textContent = opt ? opt.text : '';
+        label.textContent = opt ? cleanText(opt.text) : '';
         panel.querySelectorAll('.vn-select-option').forEach((item, i) => {
             item.classList.toggle('vn-active', i === el.selectedIndex);
         });
