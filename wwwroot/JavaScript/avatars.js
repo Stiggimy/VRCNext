@@ -106,12 +106,28 @@ function renderSearchGrid() {
     el.innerHTML = html;
 }
 
+function _avPlatformBadges(a) {
+    let hasPC, hasQuest;
+    if (a.compatibility && a.compatibility.length > 0) {
+        // avtrdb.com search results: compatibility = ["pc", "android", "ios"]
+        hasPC    = a.compatibility.includes('pc');
+        hasQuest = a.compatibility.includes('android');
+    } else {
+        // Own / favorite avatars: use unityPackages, exclude auto-generated impostors
+        const real = (a.unityPackages || []).filter(p => p.variant !== 'impostor');
+        hasPC    = real.some(p => p.platform === 'standalonewindows');
+        hasQuest = real.some(p => p.platform === 'android');
+    }
+    if (!hasPC && !hasQuest) return '';
+    return `<div style="display:flex;gap:3px;">${hasPC ? '<span class="av-badge platform-pc">PC</span>' : ''}${hasQuest ? '<span class="av-badge platform-quest">Quest</span>' : ''}</div>`;
+}
+
 function renderAvatarCard(a, context) {
     const thumb = a.thumbnailImageUrl || a.imageUrl || '';
     const isActive = a.id === currentAvatarId;
     const isPublic = context === 'search' || a.releaseStatus === 'public';
     const isFav = favAvatarsData.some(f => f.id === a.id);
-    const badge = isPublic
+    const statusBadge = isPublic
         ? '<span class="av-badge public"><span class="msi" style="font-size:10px;">public</span> Public</span>'
         : '<span class="av-badge private"><span class="msi" style="font-size:10px;">lock</span> Private</span>';
     const activeBadge = isActive ? '<span class="av-badge current">Current</span>' : '';
@@ -120,7 +136,8 @@ function renderAvatarCard(a, context) {
     return `<div class="av-card ${isActive ? 'av-active' : ''}" onclick="selectAvatar('${aid}')">
         <div class="av-thumb" style="${thumbStyle}">
             <div class="av-thumb-overlay"></div>
-            <div class="av-badges">${activeBadge}${badge}</div>
+            <div class="av-badges-top">${activeBadge}</div>
+            <div class="av-badges-bottom">${statusBadge}${_avPlatformBadges(a)}</div>
         </div>
         <div class="av-info" style="display:flex;align-items:center;gap:6px;">
             <div style="flex:1;min-width:0;">
@@ -261,10 +278,15 @@ function filterFavAvatars() {
         const aid = jsq(a.id || '');
         const fid = jsq(a.favoriteId || '');
         const activeBadge = isActive ? '<span class="av-badge current">Current</span>' : '';
+        const isPublic = a.releaseStatus === 'public';
+        const statusBadge = isPublic
+            ? '<span class="av-badge public"><span class="msi" style="font-size:10px;">public</span> Public</span>'
+            : '<span class="av-badge private"><span class="msi" style="font-size:10px;">lock</span> Private</span>';
         return `<div class="av-card ${isActive ? 'av-active' : ''}" onclick="selectAvatar('${aid}')">
             <div class="av-thumb" style="${thumbStyle}">
                 <div class="av-thumb-overlay"></div>
-                <div class="av-badges">${activeBadge}</div>
+                <div class="av-badges-top">${activeBadge}</div>
+                <div class="av-badges-bottom">${statusBadge}${_avPlatformBadges(a)}</div>
             </div>
             <div class="av-info" style="display:flex;align-items:center;gap:6px;">
                 <div style="flex:1;min-width:0;">

@@ -2850,11 +2850,23 @@ body {
     background: linear-gradient(to top, var(--bg-card) 0%, transparent 50%);
 }
 
-.av-badges {
+.av-badges-top {
     position: absolute;
     top: 8px;
+    left: 8px;
+    display: flex;
+    gap: 4px;
+    z-index: 1;
+}
+
+.av-badges-bottom {
+    position: absolute;
+    bottom: 8px;
+    left: 8px;
     right: 8px;
     display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
     gap: 4px;
     z-index: 1;
 }
@@ -2883,6 +2895,16 @@ body {
 .av-badge.current {
     background: rgba(0,214,143,.2);
     color: var(--ok);
+}
+
+.av-badge.platform-pc {
+    background: rgba(100,170,255,.18);
+    color: #64aaff;
+}
+
+.av-badge.platform-quest {
+    background: rgba(56,220,120,.18);
+    color: #38dc78;
 }
 
 

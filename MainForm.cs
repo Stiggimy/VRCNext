@@ -923,6 +923,8 @@ public class MainForm : Form
                                     authorName       = a["author"]?["name"]?.ToString() ?? a["authorName"]?.ToString() ?? "",
                                     releaseStatus    = "public",
                                     description      = a["description"]?.ToString() ?? "",
+                                    unityPackages    = a["unityPackages"] as JArray ?? new JArray(),
+                                    compatibility    = a["compatibility"] as JArray ?? new JArray(),
                                 }).ToList();
                                 Invoke(() => SendToJS("vrcAvatarSearchResults", new
                                 {
@@ -2447,6 +2449,7 @@ public class MainForm : Form
                         releaseStatus     = a["releaseStatus"]?.ToString() ?? "private",
                         favoriteGroup     = g.name,
                         favoriteId        = a["favoriteId"]?.ToString() ?? "",
+                        unityPackages     = a["unityPackages"] as JArray ?? new JArray(),
                     });
                 }
             }
@@ -2465,7 +2468,7 @@ public class MainForm : Form
         try
         {
             var avatars = await _vrcApi.GetOwnAvatarsAsync();
-            var list = avatars.Select(a => new
+var list = avatars.Select(a => new
             {
                 id                = a["id"]?.ToString() ?? "",
                 name              = a["name"]?.ToString() ?? "",
@@ -2474,6 +2477,7 @@ public class MainForm : Form
                 authorName        = a["authorName"]?.ToString() ?? "",
                 releaseStatus     = a["releaseStatus"]?.ToString() ?? "private",
                 description       = a["description"]?.ToString() ?? "",
+                unityPackages     = a["unityPackages"] as JArray ?? new JArray(),
             }).ToList();
             var payload = new { filter = "own", avatars = list, currentAvatarId = _vrcApi.CurrentAvatarId ?? "" };
             if (_settings.FfcEnabled) _cache.Save(CacheHandler.KeyAvatars, payload);
