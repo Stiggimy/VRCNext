@@ -136,17 +136,23 @@ if %ERRORLEVEL% NEQ 0 (
     pause & exit /b 1
 )
 
-:: Set release notes via GitHub API
-if exist "%~dp0RELEASE_NOTES.md" (
-    echo  Setting release notes...
-    powershell -NoProfile -Command ^
-        "$notes = [System.IO.File]::ReadAllText('%~dp0RELEASE_NOTES.md');" ^
-        "$body = @{ body = $notes } | ConvertTo-Json;" ^
-        "$headers = @{ Authorization = 'Bearer %GITHUB_TOKEN%'; 'Content-Type' = 'application/json' };" ^
-        "$rel = Invoke-RestMethod -Uri 'https://api.github.com/repos/shinyflvre/VRCNext/releases/tags/v%VERSION%' -Headers $headers;" ^
-        "Invoke-RestMethod -Method Patch -Uri $rel.url -Headers $headers -Body $body | Out-Null;" ^
-        "Write-Host ' [OK] Release notes set.'"
-)
+:: Set release notes + upload InnoSetup installer via GitHub API
+powershell -NoProfile -Command ^
+    "$headers = @{ Authorization = 'Bearer %GITHUB_TOKEN%'; 'Content-Type' = 'application/json' };" ^
+    "$rel = Invoke-RestMethod -Uri 'https://api.github.com/repos/shinyflvre/VRCNext/releases/tags/v%VERSION%' -Headers $headers;" ^
+    "if (Test-Path '%~dp0RELEASE_NOTES.md') {" ^
+    "  $notes = [System.IO.File]::ReadAllText('%~dp0RELEASE_NOTES.md');" ^
+    "  $body = @{ body = $notes } | ConvertTo-Json;" ^
+    "  Invoke-RestMethod -Method Patch -Uri $rel.url -Headers $headers -Body $body | Out-Null;" ^
+    "  Write-Host ' [OK] Release notes set.';" ^
+    "};" ^
+    "$installer = '%~dp0installer\VRCNext_Setup_%VERSION%_x64.exe';" ^
+    "if (Test-Path $installer) {" ^
+    "  $uploadUrl = $rel.upload_url -replace '\{.*\}', '';" ^
+    "  $upHeaders = @{ Authorization = 'Bearer %GITHUB_TOKEN%'; 'Content-Type' = 'application/octet-stream' };" ^
+    "  Invoke-RestMethod -Method Post -Uri \"${uploadUrl}?name=VRCNext_Setup_%VERSION%_x64.exe\" -Headers $upHeaders -InFile $installer | Out-Null;" ^
+    "  Write-Host ' [OK] Installer uploaded.';" ^
+    "}"
 
 echo.
 echo  [OK] Uploaded to GitHub Releases.
