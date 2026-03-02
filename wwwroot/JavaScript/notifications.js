@@ -38,11 +38,35 @@ function renderNotifications(list) {
         const time = n.created_at ? new Date(n.created_at).toLocaleString() : '';
         const canAccept = ['friendRequest','invite','requestInvite','group.invite','group.joinRequest'].includes(n.type);
         const nid = esc(n.id);
+        const senderLink = n.senderUserId
+            ? `<strong style="cursor:pointer;" onclick="toggleNotifPanel();openFriendDetail('${esc(n.senderUserId)}')">${esc(n.senderUsername)}</strong>`
+            : `<strong>${esc(n.senderUsername)}</strong>`;
+        // VRChat REST API sends `details` as a stringified JSON string — parse it
+        const det = typeof n.details === 'string' ? (() => { try { return JSON.parse(n.details); } catch { return {}; } })() : (n.details || {});
+        let titleHtml, bodyHtml = '';
+        if (n.type === 'invite') {
+            const worldName = det.worldName ? esc(det.worldName) : 'unknown world';
+            const wid = det.worldId ? det.worldId.split(':')[0] : '';
+            const worldLink = wid
+                ? `<strong style="cursor:pointer;" onclick="toggleNotifPanel();openWorldDetail('${esc(wid)}')">${worldName}</strong>`
+                : `<strong>${worldName}</strong>`;
+            // invite message is in details.inviteMessage (not top-level message)
+            const msg = det.inviteMessage || '';
+            titleHtml = `${senderLink} <span style="color:var(--tx2);font-weight:400;">invited you to</span> ${worldLink}`;
+            if (msg) bodyHtml = `<div class="notif-msg">${esc(msg)}</div>`;
+        } else if (n.type === 'requestInvite') {
+            const msg = det.requestMessage || '';
+            titleHtml = `${senderLink} <span style="color:var(--tx2);font-weight:400;">wants an invite</span>`;
+            if (msg) bodyHtml = `<div class="notif-msg">${esc(msg)}</div>`;
+        } else {
+            titleHtml = `${esc(label)} from ${senderLink}`;
+            if (n.message) bodyHtml = `<div class="notif-msg">${esc(n.message)}</div>`;
+        }
         return `<div class="notif-item ${n.seen && !canAccept ? 'notif-seen' : ''}">
             <span class="msi notif-icon" style="font-size:18px;">${icon}</span>
             <div class="notif-body">
-                <div class="notif-title" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">${esc(label)} from ${n.senderUserId ? `<span onclick="toggleNotifPanel();openFriendDetail('${esc(n.senderUserId)}')" style="display:inline-flex;align-items:center;padding:1px 7px;border-radius:20px;background:var(--bg-hover);font-size:11px;font-weight:600;cursor:pointer;line-height:1.6;">${esc(n.senderUsername)}</span>` : `<strong>${esc(n.senderUsername)}</strong>`}</div>
-                ${n.message ? `<div class="notif-msg">${esc(n.message)}</div>` : ''}
+                <div class="notif-title" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">${titleHtml}</div>
+                ${bodyHtml}
                 <div class="notif-time">${time}</div>
             </div>
             <div class="notif-actions">
@@ -56,7 +80,8 @@ function renderNotifications(list) {
 function acceptNotif(notifId, btn) {
     if (btn) { btn.disabled = true; btn.textContent = '...'; }
     const n = notifications.find(x => x.id === notifId);
-    sendToCS({ action: 'vrcAcceptNotification', notifId, type: n?.type, details: n?.details });
+    const det = typeof n?.details === 'string' ? (() => { try { return JSON.parse(n.details); } catch { return {}; } })() : (n?.details || {});
+    sendToCS({ action: 'vrcAcceptNotification', notifId, type: n?.type, details: det });
     if (n) n.seen = true;
     setTimeout(() => refreshNotifications(), 800);
 }
