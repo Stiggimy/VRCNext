@@ -343,6 +343,24 @@ public class MainForm : Form
                     SendMessage(Handle, 0x0112, 0xF012, 0);
                     break;
 
+                case "windowResizeStart":
+                    if (WindowState != FormWindowState.Maximized)
+                    {
+                        var htCode = msg["direction"]?.ToString() switch {
+                            "w"  => 10, // HTLEFT
+                            "e"  => 11, // HTRIGHT
+                            "n"  => 12, // HTTOP
+                            "nw" => 13, // HTTOPLEFT
+                            "ne" => 14, // HTTOPRIGHT
+                            "s"  => 15, // HTBOTTOM
+                            "sw" => 16, // HTBOTTOMLEFT
+                            "se" => 17, // HTBOTTOMRIGHT
+                            _    => 0
+                        };
+                        if (htCode != 0) { ReleaseCapture(); SendMessage(Handle, 0x00A1, htCode, 0); }
+                    }
+                    break;
+
                 case "startRelay":
                     StartRelay();
                     break;
@@ -666,7 +684,10 @@ public class MainForm : Form
                     break;
 
                 case "playVRChat":
-                    LaunchVRChat();
+                    if (IsVrcRunning())
+                        SendToJS("log", new { msg = "VRChat is already running.", color = "ok" });
+                    else
+                        SendToJS("vrcLaunchNeeded", new { location = "", steamVr = IsSteamVrRunning() });
                     break;
 
                 case "vrcLogin":
@@ -763,35 +784,42 @@ public class MainForm : Form
                     var joinLoc = msg["location"]?.ToString();
                     if (!string.IsNullOrEmpty(joinLoc))
                     {
-                        // Try API self-invite first
-                        var ok2 = await _vrcApi.InviteSelfAsync(joinLoc);
-                        if (ok2)
+                        if (IsVrcRunning())
                         {
-                            SendToJS("vrcActionResult", new { action = "join", success = true,
-                                message = "Self-invite sent! Check VRChat." });
+                            // VRC running — try API self-invite first
+                            var ok2 = await _vrcApi.InviteSelfAsync(joinLoc);
+                            if (ok2)
+                            {
+                                SendToJS("vrcActionResult", new { action = "join", success = true,
+                                    message = "Self-invite sent! Check VRChat." });
+                            }
+                            else
+                            {
+                                // Fallback: launch via vrchat:// protocol URI
+                                try
+                                {
+                                    var launchUri = VRChatApiService.BuildLaunchUri(joinLoc);
+                                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                                    {
+                                        FileName = launchUri,
+                                        UseShellExecute = true
+                                    });
+                                    SendToJS("vrcActionResult", new { action = "join", success = true,
+                                        message = "Launching VRChat to join world..." });
+                                    SendToJS("log", new { msg = $"Launched via vrchat:// protocol", color = "ok" });
+                                }
+                                catch (Exception ex)
+                                {
+                                    SendToJS("vrcActionResult", new { action = "join", success = false,
+                                        message = "Failed to join. Is VRChat running?" });
+                                    SendToJS("log", new { msg = $"Launch fallback failed: {ex.Message}", color = "err" });
+                                }
+                            }
                         }
                         else
                         {
-                            // Fallback: launch via vrchat:// protocol URI
-                            // This is how vrchat.com website does it
-                            try
-                            {
-                                var launchUri = VRChatApiService.BuildLaunchUri(joinLoc);
-                                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-                                {
-                                    FileName = launchUri,
-                                    UseShellExecute = true
-                                });
-                                SendToJS("vrcActionResult", new { action = "join", success = true,
-                                    message = "Launching VRChat to join world..." });
-                                SendToJS("log", new { msg = $"Launched via vrchat:// protocol", color = "ok" });
-                            }
-                            catch (Exception ex)
-                            {
-                                SendToJS("vrcActionResult", new { action = "join", success = false,
-                                    message = "Failed to join. Is VRChat running?" });
-                                SendToJS("log", new { msg = $"Launch fallback failed: {ex.Message}", color = "err" });
-                            }
+                            // VRC not running — ask VR or Desktop
+                            Invoke(() => SendToJS("vrcLaunchNeeded", new { location = joinLoc, steamVr = IsSteamVrRunning() }));
                         }
                     }
                     break;
@@ -1765,16 +1793,106 @@ public class MainForm : Form
                     break;
 
                 case "vrcAcceptNotification":
-                    var anId = msg["notifId"]?.ToString();
+                    var anId   = msg["notifId"]?.ToString();
+                    var anType = msg["type"]?.ToString();
+                    // details can be a nested JObject or a JSON-encoded string — handle both
+                    JObject? anDet = null;
+                    {
+                        var rawDet = msg["details"];
+                        if (rawDet is JObject detObj) anDet = detObj;
+                        else if (rawDet?.Type == JTokenType.String)
+                            try { anDet = JObject.Parse(rawDet.ToString()); } catch { }
+                    }
+                    SendToJS("log", new { msg = $"AcceptNotif: type={anType} vrcRunning={IsVrcRunning()} details={anDet?.ToString(Newtonsoft.Json.Formatting.None) ?? "null"}", color = "ok" });
                     if (!string.IsNullOrEmpty(anId))
                     {
+                        if (anType == "invite" && anDet != null)
+                        {
+                            // VRChat API puts the full location string in details.worldId
+                            // e.g. "wrld_xxx:instanceId~modifiers" — no separate instanceId field
+                            var invLoc = anDet["worldId"]?.ToString();
+                            if (!string.IsNullOrEmpty(invLoc) && invLoc.Contains(":"))
+                            {
+                                if (IsVrcRunning())
+                                {
+                                    // Self-invite to actually join; also accept to dismiss the notification
+                                    _ = Task.Run(async () => {
+                                        var ok = await _vrcApi.InviteSelfAsync(invLoc);
+                                        await _vrcApi.AcceptNotificationAsync(anId);
+                                        Invoke(() => SendToJS("vrcActionResult", new { action = "acceptNotif", success = ok,
+                                            message = ok ? "Joining world... Check VRChat." : "Failed to join." }));
+                                    });
+                                }
+                                else
+                                {
+                                    Invoke(() => SendToJS("vrcLaunchNeeded", new { location = invLoc, steamVr = IsSteamVrRunning() }));
+                                }
+                                break;
+                            }
+                        }
+                        // Non-invite or no location details — just accept/dismiss
                         _ = Task.Run(async () => {
                             var ok = await _vrcApi.AcceptNotificationAsync(anId);
-                            Invoke(() => {
-                                SendToJS("vrcActionResult", new { action = "acceptNotif", success = ok,
-                                    message = ok ? "Accepted!" : "Failed" });
-                            });
+                            Invoke(() => SendToJS("vrcActionResult", new { action = "acceptNotif", success = ok,
+                                message = ok ? "Accepted!" : "Failed" }));
                         });
+                    }
+                    break;
+
+                case "vrcLaunchAndJoin":
+                    var llLoc = msg["location"]?.ToString() ?? "";
+                    var llVr  = msg["vr"]?.Value<bool>() ?? false;
+                    {
+                        var vrcExe = _settings.VrcPath;
+                        if (!string.IsNullOrWhiteSpace(vrcExe) && File.Exists(vrcExe))
+                        {
+                            string llArgs;
+                            if (!string.IsNullOrEmpty(llLoc))
+                            {
+                                var joinUri = VRChatApiService.BuildLaunchUri(llLoc);
+                                llArgs = llVr ? $"\"{joinUri}\"" : $"--no-vr \"{joinUri}\"";
+                            }
+                            else
+                            {
+                                llArgs = llVr ? "" : "--no-vr";
+                            }
+                            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                            {
+                                FileName = vrcExe, Arguments = llArgs,
+                                WorkingDirectory = Path.GetDirectoryName(vrcExe) ?? "",
+                                UseShellExecute = false
+                            });
+                        }
+                        else if (!string.IsNullOrEmpty(llLoc))
+                        {
+                            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                            {
+                                FileName = VRChatApiService.BuildLaunchUri(llLoc), UseShellExecute = true
+                            });
+                        }
+                        else
+                        {
+                            SendToJS("log", new { msg = "VRChat path not configured. Set it in Settings.", color = "err" });
+                            break;
+                        }
+                        foreach (var exe in _settings.ExtraExe)
+                        {
+                            try
+                            {
+                                if (File.Exists(exe))
+                                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                                    {
+                                        FileName = exe,
+                                        WorkingDirectory = Path.GetDirectoryName(exe) ?? "",
+                                        UseShellExecute = true
+                                    });
+                            }
+                            catch { }
+                        }
+                        var modeLabel = llVr ? "VR" : "Desktop";
+                        var locLabel  = !string.IsNullOrEmpty(llLoc) ? $" → {llLoc}" : "";
+                        SendToJS("vrcActionResult", new { action = "join", success = true, message = $"Launching VRChat ({modeLabel})..." });
+                        SendToJS("log", new { msg = $"Launched VRChat [{modeLabel}]{locLabel}", color = "ok" });
                     }
                     break;
 
@@ -2920,6 +3038,12 @@ var list = avatars.Select(a => new
         }
     }
 
+    private static bool IsVrcRunning() =>
+        Process.GetProcessesByName("VRChat").Any(p => { try { return !p.HasExited; } catch { return false; } });
+
+    private static bool IsSteamVrRunning() =>
+        Process.GetProcessesByName("vrserver").Any(p => { try { return !p.HasExited; } catch { return false; } });
+
     // VRChat API
     private string _pending2faType = "totp";
     private bool _vrcDebugSetup;
@@ -3066,6 +3190,7 @@ var list = avatars.Select(a => new
                                ? n["created_at"]!.Value<DateTime>().ToString("o")
                                : n["created_at"]?.ToString() ?? "",
             seen           = n["seen"]?.Value<bool>() ?? false,
+            details        = n["details"],
         }).ToList();
 
         var newNotifEvs = new List<object>();

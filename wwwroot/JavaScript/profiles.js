@@ -757,15 +757,15 @@ function renderFriendDetail(d) {
         if (d.canJoin) actionsHtml += `<button class="fd-btn fd-btn-join" onclick="friendAction('join','${loc}','${uid}')">Join</button>`;
         if (d.canRequestInvite) actionsHtml += `<button class="fd-btn" onclick="friendAction('requestInvite','${loc}','${uid}')">Request Invite</button>`;
         const myInInstance = currentInstanceData && currentInstanceData.location && !currentInstanceData.empty && !currentInstanceData.error;
-        if (myInInstance) actionsHtml += `<button class="fd-btn" onclick="friendAction('invite','${loc}','${uid}')">Invite Here</button>`;
-        actionsHtml += `<button class="fd-btn fd-btn-danger" id="fdUnfriend" onclick="confirmUnfriend('${uid}','${esc(d.displayName).replace(/'/g, "\\'")}')">Unfriend</button>`;
+        if (myInInstance) actionsHtml += `<button class="fd-btn" onclick="friendAction('invite','${loc}','${uid}')">Invite</button>`;
         const favFid = (d.favFriendId || '').replace(/'/g, "\\'");
-        actionsHtml += `<button class="fd-btn fd-btn-fav${d.isFavorited ? ' active' : ''}" id="fdFavBtn" onclick="toggleFavFriend('${uid}','${favFid}',this)"><span class="msi" style="font-size:16px;">${d.isFavorited ? 'star' : 'star_outline'}</span>${d.isFavorited ? 'Unfavorite' : 'Favorite'}</button>`;
+        actionsHtml += `<button class="fd-btn fd-btn-fav${d.isFavorited ? ' active' : ''}" id="fdFavBtn" onclick="toggleFavFriend('${uid}','${favFid}',this)" title="${d.isFavorited ? 'Unfavorite' : 'Favorite'}"><span class="msi" style="font-size:16px;">${d.isFavorited ? 'star' : 'star_outline'}</span></button>`;
     } else {
         actionsHtml += `<button class="fd-btn fd-btn-accent" id="fdAddFriend" onclick="sendToCS({action:'vrcSendFriendRequest',userId:'${uid}'});this.disabled=true;this.textContent='Request Sent';">Add Friend</button>`;
     }
     actionsHtml += `<button class="fd-btn fd-btn-mod${isMuted ? ' active' : ''}" id="fdMuteBtn" onclick="toggleMod('${uid}','mute',this)" title="${isMuted ? 'Unmute' : 'Mute'}"><span class="msi" style="font-size:16px;">mic${isMuted ? '_off' : ''}</span></button>`;
     actionsHtml += `<button class="fd-btn fd-btn-mod${isBlocked ? ' active' : ''}" id="fdBlockBtn" onclick="toggleMod('${uid}','block',this)" title="${isBlocked ? 'Unblock' : 'Block'}"><span class="msi" style="font-size:16px;">${isBlocked ? 'block' : 'shield'}</span></button>`;
+    if (d.isFriend) actionsHtml += `<button class="fd-btn fd-btn-mod" id="fdUnfriend" onclick="confirmUnfriend('${uid}','${esc(d.displayName).replace(/'/g, "\\'")}') " title="Unfriend"><span class="msi" style="font-size:16px;">person_remove</span></button>`;
     actionsHtml += '</div>';
 
     // Badges
@@ -949,15 +949,15 @@ function confirmUnfriend(userId, displayName) {
     if (!btn) return;
     if (btn.dataset.confirm) {
         btn.disabled = true;
-        btn.textContent = 'Removing...';
+        btn.innerHTML = '<span class="msi" style="font-size:14px;">hourglass_empty</span>';
         sendToCS({ action: 'vrcUnfriend', userId: userId });
     } else {
         btn.dataset.confirm = '1';
-        btn.textContent = 'Confirm?';
+        btn.innerHTML = '<span style="font-size:11px;font-weight:600;">Confirm?</span>';
         setTimeout(() => {
             if (btn && !btn.disabled) {
                 delete btn.dataset.confirm;
-                btn.textContent = 'Unfriend';
+                btn.innerHTML = '<span class="msi" style="font-size:16px;">person_remove</span>';
             }
         }, 4000);
     }
@@ -998,7 +998,8 @@ function handleFavFriendToggled(payload) {
     if (btn) {
         btn.disabled = false;
         btn.classList.toggle('active', isFavorited);
-        btn.innerHTML = `<span class="msi" style="font-size:16px;">${isFavorited ? 'star' : 'star_outline'}</span>${isFavorited ? 'Unfavorite' : 'Favorite'}`;
+        btn.title = isFavorited ? 'Unfavorite' : 'Favorite';
+        btn.innerHTML = `<span class="msi" style="font-size:16px;">${isFavorited ? 'star' : 'star_outline'}</span>`;
     }
     // Refresh favorites grid if visible
     filterFavFriends();

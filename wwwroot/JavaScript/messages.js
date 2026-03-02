@@ -116,7 +116,8 @@ if (window.chrome?.webview) {
                 document.getElementById('friendDetailContent').innerHTML = `<div class="fd-loading" style="color:var(--err);">${esc(payload.error || 'Error loading profile')}</div><div style="margin-top:10px;text-align:right;"><button class="fd-btn" onclick="closeFriendDetail()">Close</button></div>`;
                 break;
             case 'vrcActionResult':
-                if (payload.action === 'createGroupPost') showInvToast(payload.success, payload.message);
+                if (payload.action === 'createGroupPost' || payload.action === 'acceptNotif' || payload.action === 'join')
+                    showInvToast(payload.success, payload.message);
                 else showFriendActionToast(payload.success, payload.message);
                 break;
             case 'vrcProfileUpdated':
@@ -278,6 +279,9 @@ if (window.chrome?.webview) {
                 break;
             case 'vrcNotifications':
                 renderNotifications(payload);
+                break;
+            case 'vrcLaunchNeeded':
+                showLaunchModal(payload.location, payload.steamVr);
                 break;
             case 'updateAvailable':   showUpdateAvailable(payload.version); break;
             case 'updateProgress':    onUpdateProgress(payload); break;

@@ -55,10 +55,47 @@ function renderNotifications(list) {
 
 function acceptNotif(notifId, btn) {
     if (btn) { btn.disabled = true; btn.textContent = '...'; }
-    sendToCS({ action: 'vrcAcceptNotification', notifId });
     const n = notifications.find(x => x.id === notifId);
+    sendToCS({ action: 'vrcAcceptNotification', notifId, type: n?.type, details: n?.details });
     if (n) n.seen = true;
     setTimeout(() => refreshNotifications(), 800);
+}
+
+function showLaunchModal(location, steamVrOpen) {
+    closeLaunchModal();
+    const el = document.createElement('div');
+    el.className = 'launch-modal-overlay';
+    el.innerHTML = `
+        <div class="launch-modal">
+            <div class="launch-modal-title">VRChat is not open</div>
+            <div class="launch-modal-sub">How do you want to play?</div>
+            <div class="launch-modal-btns">
+                <button class="launch-btn${steamVrOpen ? ' launch-btn-primary' : ''}" onclick="launchAndJoin('${location}',true)">
+                    <span class="msi">visibility</span> Play in VR
+                </button>
+                <button class="launch-btn${!steamVrOpen ? ' launch-btn-primary' : ''}" onclick="launchAndJoin('${location}',false)">
+                    <span class="msi">desktop_windows</span> Play on Desktop
+                </button>
+            </div>
+            <button class="launch-modal-cancel" onclick="closeLaunchModal()">Cancel</button>
+        </div>`;
+    el.addEventListener('click', e => { if (e.target === el) closeLaunchModal(); });
+    document.body.appendChild(el);
+    window._launchModalEl = el;
+}
+
+function launchAndJoin(location, vr) {
+    sendToCS({ action: 'vrcLaunchAndJoin', location, vr });
+    closeLaunchModal();
+}
+
+function closeLaunchModal() {
+    const el = window._launchModalEl;
+    if (!el) return;
+    el.style.opacity = '0';
+    el.style.transition = 'opacity .15s';
+    setTimeout(() => el.remove(), 150);
+    window._launchModalEl = null;
 }
 
 function declineNotif(notifId, btn) {

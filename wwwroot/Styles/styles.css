@@ -3548,6 +3548,7 @@ body {
 .fd-btn-fav {
     background: var(--bg-hover) !important;
     color: var(--tx3) !important;
+    padding: 6px 9px !important;
     margin-left: auto !important;
 }
 .fd-btn-fav:hover {
@@ -5856,3 +5857,36 @@ div.vn-select {
     border-radius: 4px;
     flex-shrink: 0;
 }
+
+/* === Launch modal === */
+.launch-modal-overlay {
+    position: fixed; inset: 0; z-index: 10003;
+    background: rgba(0,0,0,.65); backdrop-filter: blur(4px);
+    display: flex; align-items: center; justify-content: center;
+    animation: fadeIn .12s ease;
+}
+.launch-modal {
+    background: var(--bg-card);
+    border-radius: 14px; padding: 28px 32px 22px;
+    min-width: 300px; text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,.5);
+    animation: modalPop .18s ease;
+}
+.launch-modal-title { font-size: 15px; font-weight: 700; color: var(--tx0); margin-bottom: 6px; }
+.launch-modal-sub { font-size: 13px; color: var(--tx2); margin-bottom: 22px; }
+.launch-modal-btns { display: flex; gap: 10px; justify-content: center; margin-bottom: 14px; }
+.launch-btn {
+    padding: 10px 18px; border-radius: 10px; border: 1px solid var(--brd-lt);
+    background: var(--bg-btn); color: var(--tx1); cursor: pointer;
+    display: flex; align-items: center; gap: 8px; font-size: 13px; font-family: inherit;
+    transition: background .15s, color .15s;
+}
+.launch-btn:hover { background: var(--bg-btn-h); }
+.launch-btn-primary { background: var(--accent); border-color: transparent; color: #fff; }
+.launch-btn-primary:hover { background: var(--accent-lt); }
+.launch-modal-cancel {
+    background: none; border: none; color: var(--tx3); cursor: pointer;
+    font-size: 12px; font-family: inherit; padding: 4px 8px;
+    transition: color .15s;
+}
+.launch-modal-cancel:hover { color: var(--tx2); }
