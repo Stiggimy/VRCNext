@@ -14,7 +14,8 @@ if (winDrag) {
     winDrag.addEventListener('mousedown', e => {
         // Only drag from the topbar background, not buttons/badges
         if (e.target.closest('.win-controls, .btn-notif, .mini-badge, button')) return;
-        if (e.button === 0) sendToCS({ action: 'windowDragStart' });
+        // Skip SC_MOVE on the 2nd click of a double-click so dblclick event can fire
+        if (e.button === 0 && e.detail === 1) sendToCS({ action: 'windowDragStart' });
     });
     winDrag.addEventListener('dblclick', e => {
         if (e.target.closest('.win-controls, .btn-notif, .mini-badge, button')) return;
