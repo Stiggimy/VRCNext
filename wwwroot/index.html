@@ -9,7 +9,7 @@
 </head>
 <body>
     <div class="sidebar" id="sidebarEl">
-        <div class="logo"><div class="logo-icon" id="logoIcon">V</div><div class="logo-txt"><div class="logo-text-row"><div class="logo-text">VRCNext</div><span class="logo-beta-badge">BETA</span></div><div class="logo-sub">v2026.2.1</div></div><button class="sb-toggle" onclick="toggleSidebar()" title="Toggle sidebar"><span class="msi" id="sbIcon">menu_open</span></button></div>
+        <div class="logo"><div class="logo-icon" id="logoIcon">V</div><div class="logo-txt"><div class="logo-text-row"><div class="logo-text">VRCNext</div><span class="logo-beta-badge">BETA</span></div><div class="logo-sub">v2026.2.2</div></div><button class="sb-toggle" onclick="toggleSidebar()" title="Toggle sidebar"><span class="msi" id="sbIcon">menu_open</span></button></div>
         <div class="nav">
             <button class="nav-btn active" onclick="showTab(0)"><span class="ni msi">dashboard</span><span class="nl">Dashboard</span></button>
             <button class="nav-btn" onclick="showTab(1)"><span class="ni msi">travel_explore</span><span class="nl">Worlds</span></button>
@@ -625,7 +625,7 @@
                     <div class="cb-card-header"><span class="msi" style="font-size:16px;">smart_display</span> VRCVideoCacher</div>
                     <p style="font-size:13px;color:var(--tx2);margin:0 0 4px;">Fixes <b style="color:var(--tx1)">YouTube video errors</b> in VRChat by routing requests through a local proxy. Created by <b style="color:var(--tx1)">Elly</b>.</p>
                     <p style="font-size:12px;color:var(--tx3);margin:0 0 8px;">The service runs in the background. When you close VRCNext, the process will be terminated.</p>
-                    <p style="font-size:12px;color:var(--tx2);margin:0 0 12px;padding:8px 10px;background:var(--bg2);border-radius:6px;border-left:3px solid var(--accent);">If you are running this service for the first time, please follow the setup instructions that appear when starting it. Also make sure to read the usage guide on the GitHub page: <a href="https://github.com/EllyVR/VRCVideoCacher" target="_blank" style="color:var(--accent);">github.com/EllyVR/VRCVideoCacher</a></p>
+                    <p style="font-size:12px;color:var(--tx2);margin:0 0 12px;padding:8px 10px;background:var(--bg2);border-radius:6px;border-left:3px solid var(--accent);">If you are running this service for the first time, please follow the setup instructions that appear when starting it. Also make sure to read the usage guide on the GitHub page: <a href="#" onclick="sendToCS({action:'openUrl',url:'https://github.com/EllyVR/VRCVideoCacher'});return false;" style="color:var(--accent);">github.com/EllyVR/VRCVideoCacher</a></p>
                     <div id="vcProgressWrap" style="display:none;margin-bottom:12px;">
                         <div style="font-size:12px;color:var(--tx2);margin-bottom:6px;" id="vcProgressLabel">Downloading...</div>
                         <div style="background:var(--brd);border-radius:4px;height:6px;overflow:hidden;">

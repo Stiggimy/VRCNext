@@ -23,6 +23,20 @@ if (winDrag) {
     });
 }
 
+// Also allow dragging from the left sidebar logo and right sidebar header
+['.logo', '.rsidebar-header'].forEach(sel => {
+    const el = document.querySelector(sel);
+    if (!el) return;
+    el.addEventListener('mousedown', e => {
+        if (e.target.closest('button')) return;
+        if (e.button === 0 && e.detail === 1) sendToCS({ action: 'windowDragStart' });
+    });
+    el.addEventListener('dblclick', e => {
+        if (e.target.closest('button')) return;
+        sendToCS({ action: 'windowMaximize' });
+    });
+});
+
 /* === Borderless window: edge resize === */
 (function () {
     const B = 6;
@@ -52,3 +66,29 @@ updateClock();
 
 // Silently pre-load timeline data so friend-detail previews work before Tab 12 is visited
 sendToCS({ action: 'getTimeline' });
+
+/* === Topbar scroll fade === */
+(function () {
+    const content = document.querySelector('.content');
+    if (!winDrag || !content) return;
+    const FADE_PX = 140;
+    const tab0 = document.getElementById('tab0');
+    function applyTopbarBg() {
+        const hex = getComputedStyle(document.documentElement).getPropertyValue('--bg-base').trim();
+        const r = parseInt(hex.slice(1, 3), 16);
+        const g = parseInt(hex.slice(3, 5), 16);
+        const b = parseInt(hex.slice(5, 7), 16);
+        if (!tab0 || !tab0.classList.contains('active')) {
+            winDrag.style.background = `rgb(${r},${g},${b})`;
+            return;
+        }
+        const t = Math.min(content.scrollTop / FADE_PX, 1);
+        const a1 = (0.78 + 0.22 * t).toFixed(2);
+        const a2 = t.toFixed(2);
+        winDrag.style.background = `linear-gradient(to bottom, rgba(${r},${g},${b},${a1}), rgba(${r},${g},${b},${a2}))`;
+    }
+    applyTopbarBg();
+    content.addEventListener('scroll', applyTopbarBg, { passive: true });
+    document.documentElement.addEventListener('themechange', applyTopbarBg);
+    document.documentElement.addEventListener('tabchange', applyTopbarBg);
+}());

@@ -161,6 +161,7 @@ function applyColors(c) {
     if (c['bg-hover']) document.documentElement.style.setProperty('--bg-btn-h', c['bg-hover']);
     const logoEl = document.getElementById('logoIcon');
     if (logoEl && logoEl._repaintLogo) logoEl._repaintLogo();
+    document.documentElement.dispatchEvent(new Event('themechange'));
 }
 
 function renderThemeChips() {
@@ -263,6 +264,7 @@ function showTab(i) {
     if (i === 12) refreshTimeline();
     if (i === 13) switchInvTab(activeInvTab);
     if (i === 14) sendToCS({ action: 'vcCheck' });
+    document.documentElement.dispatchEvent(new Event('tabchange'));
 }
 
 function toggleRelay() {

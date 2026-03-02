@@ -440,13 +440,18 @@ body {
 }
 
 .topbar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
     height: 54px;
-    min-height: 54px;
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 0 14px 0 28px;
     cursor: default;
+    background: transparent;
+    z-index: 20;
 }
 
 .topbar-title {
@@ -498,19 +503,21 @@ body {
 
 .mini-badge.offline {
     background: rgba(65,80,110,.1);
+    border-color: color-mix(in srgb, var(--tx2) 35%, transparent);
 }
 
 .mini-badge.offline .mini-badge-icon {
     font-size: 13px;
-    color: var(--tx3);
+    color: var(--tx2);
 }
 
 .mini-badge.offline .mini-badge-label {
-    color: var(--tx3);
+    color: var(--tx2);
 }
 
 .mini-badge.online {
     background: rgba(45,212,140,.12);
+    border-color: color-mix(in srgb, var(--ok) 40%, transparent);
 }
 
 .mini-badge.online .mini-badge-icon {
@@ -581,7 +588,7 @@ body {
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
-    padding: 28px;
+    padding: 54px 28px 28px;
 }
 
 .tab {
@@ -1585,7 +1592,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 9999;
+    z-index: 10004;
     cursor: pointer;
     animation: fadeIn .15s ease;
 }
@@ -2372,7 +2379,7 @@ body {
     position: relative;
     overflow: hidden;
     min-height: 280px;
-    margin: -28px -28px 28px -28px;
+    margin: -54px -28px 28px -28px;
 }
 
 .dash-hero-bg {

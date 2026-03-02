@@ -110,7 +110,7 @@ function renderGroupDetail(g) {
     } else {
         galleryTab = '<div class="gd-gallery-grid">';
         gallery.forEach(img => {
-            if (img.imageUrl) galleryTab += `<img class="gd-gallery-img" src="${img.imageUrl}" onclick="window.open('${jsq(img.imageUrl)}','_blank')" onerror="this.style.display='none'">`;
+            if (img.imageUrl) galleryTab += `<img class="gd-gallery-img" src="${img.imageUrl}" onclick="openLightbox('${jsq(img.imageUrl)}')" onerror="this.style.display='none'">`;
         });
         galleryTab += '</div>';
     }
