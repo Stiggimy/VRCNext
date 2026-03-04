@@ -1317,6 +1317,22 @@ public class VRChatApiService
         catch (Exception ex) { Log($"DeleteGroupPost exception: {ex.Message}"); return false; }
     }
 
+    public async Task<bool> UpdateGroupAsync(string groupId, string description, string rules)
+    {
+        if (!IsLoggedIn) return false;
+        try
+        {
+            var body = new JObject { ["description"] = description, ["rules"] = rules };
+            var resp = await _http.PutAsync($"{BASE}/groups/{groupId}",
+                new StringContent(body.ToString(Newtonsoft.Json.Formatting.None), Encoding.UTF8, "application/json"));
+            Log($"UpdateGroup({groupId}): {(int)resp.StatusCode}");
+            if (!resp.IsSuccessStatusCode)
+                Log($"UpdateGroup body: {await resp.Content.ReadAsStringAsync()}");
+            return resp.IsSuccessStatusCode;
+        }
+        catch (Exception ex) { Log($"UpdateGroup exception: {ex.Message}"); return false; }
+    }
+
     public async Task<bool> DeleteGroupEventAsync(string groupId, string eventId)
     {
         if (!IsLoggedIn) return false;

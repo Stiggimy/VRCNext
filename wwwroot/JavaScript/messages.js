@@ -159,6 +159,25 @@ if (window.chrome?.webview) {
                     }
                 }
                 break;
+            case 'vrcGroupUpdated':
+                if (payload.success) {
+                    // Update view content inline
+                    const dv = document.getElementById('gdescDescView');
+                    const rv = document.getElementById('gdescRulesView');
+                    if (dv) dv.innerHTML = payload.description
+                        ? `<div class="fd-bio">${esc(payload.description)}</div>`
+                        : '<div class="myp-empty">No description</div>';
+                    if (rv) rv.innerHTML = payload.rules
+                        ? `<div style="font-size:11px;color:var(--tx3);padding:8px;background:var(--bg-input);border-radius:8px;max-height:120px;overflow-y:auto;white-space:pre-wrap;">${esc(payload.rules)}</div>`
+                        : '<div class="myp-empty">No rules set</div>';
+                    cancelGroupField('desc');
+                    cancelGroupField('rules');
+                    showToast(true, 'Group updated!');
+                } else {
+                    document.querySelectorAll('#gdescDescEdit .myp-save-btn, #gdescRulesEdit .myp-save-btn').forEach(b => b.disabled = false);
+                    showToast(false, 'Update failed.');
+                }
+                break;
             case 'vrcProfileUpdated':
                 if (payload.success) {
                     renderMyProfileContent();

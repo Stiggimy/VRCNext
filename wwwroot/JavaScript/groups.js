@@ -40,11 +40,12 @@ function renderGroupDetail(g) {
     const headerHtml = `<div class="fd-content${banner ? ' fd-has-banner' : ''}"><div class="fd-header">${iconHtml}<div><div class="fd-name">${esc(g.name)}</div><div class="fd-status">${esc(g.shortCode)} · ${g.memberCount} members · ${esc(g.privacy)}</div></div></div>`;
 
     // Actions - moved to bottom bar
-    const canPost = g.canPost === true;
+    const canPost  = g.canPost === true;
+    const canEvent = g.canEvent === true;
     const createPostBtn = (g.isJoined && canPost)
         ? `<button class="fd-btn fd-btn-join" onclick="openGroupPostModal('${esc(g.id)}')"><span class="msi" style="font-size:16px;vertical-align:middle;margin-right:4px;">edit</span>Post</button>`
         : '';
-    const createEventBtn = (g.isJoined && canPost)
+    const createEventBtn = (g.isJoined && canEvent)
         ? `<button class="fd-btn fd-btn-join" onclick="openGroupEventModal('${esc(g.id)}')"><span class="msi" style="font-size:16px;vertical-align:middle;margin-right:4px;">event</span>Events</button>`
         : '';
     const leaveJoinBtn = g.isJoined
@@ -52,9 +53,41 @@ function renderGroupDetail(g) {
         : `<button class="fd-btn fd-btn-join" onclick="sendToCS({action:'vrcJoinGroup',groupId:'${esc(g.id)}'});document.getElementById('modalDetail').style.display='none';"><span class="msi" style="font-size:16px;vertical-align:middle;margin-right:4px;">group_add</span>Join Group</button>`;
 
     // Tab: Info
-    const descHtml = g.description ? `<div class="fd-section-label">Description</div><div class="fd-bio">${esc(g.description)}</div>` : '';
-    const rulesHtml = g.rules ? `<div class="fd-section-label">Rules</div><div style="font-size:11px;color:var(--tx3);margin-bottom:10px;padding:8px;background:var(--bg-input);border-radius:8px;max-height:120px;overflow-y:auto;">${esc(g.rules)}</div>` : '';
-    const infoTab = `${descHtml}${rulesHtml}`;
+    const canEdit = g.canEdit === true;
+    const gid_e = esc(g.id);
+    const infoTab = `
+        <div class="myp-section">
+            <div class="myp-section-header">
+                <span class="myp-section-title">Description</span>
+                ${canEdit ? `<button class="myp-edit-btn" onclick="editGroupField('desc')"><span class="msi" style="font-size:14px;">edit</span></button>` : ''}
+            </div>
+            <div id="gdescDescView">
+                ${g.description ? `<div class="fd-bio">${esc(g.description)}</div>` : '<div class="myp-empty">No description</div>'}
+            </div>
+            ${canEdit ? `<div id="gdescDescEdit" style="display:none;">
+                <textarea id="gdescDescInput" class="myp-textarea" rows="4" maxlength="2000" placeholder="Group description...">${esc(g.description||'')}</textarea>
+                <div class="myp-edit-actions">
+                    <button class="myp-cancel-btn" onclick="cancelGroupField('desc')">Cancel</button>
+                    <button class="myp-save-btn" onclick="saveGroupField('desc','${gid_e}')">Save</button>
+                </div>
+            </div>` : ''}
+        </div>
+        <div class="myp-section">
+            <div class="myp-section-header">
+                <span class="myp-section-title">Rules</span>
+                ${canEdit ? `<button class="myp-edit-btn" onclick="editGroupField('rules')"><span class="msi" style="font-size:14px;">edit</span></button>` : ''}
+            </div>
+            <div id="gdescRulesView">
+                ${g.rules ? `<div style="font-size:11px;color:var(--tx3);padding:8px;background:var(--bg-input);border-radius:8px;max-height:120px;overflow-y:auto;white-space:pre-wrap;">${esc(g.rules)}</div>` : '<div class="myp-empty">No rules set</div>'}
+            </div>
+            ${canEdit ? `<div id="gdescRulesEdit" style="display:none;">
+                <textarea id="gdescRulesInput" class="myp-textarea" rows="5" maxlength="2000" placeholder="Group rules...">${esc(g.rules||'')}</textarea>
+                <div class="myp-edit-actions">
+                    <button class="myp-cancel-btn" onclick="cancelGroupField('rules')">Cancel</button>
+                    <button class="myp-save-btn" onclick="saveGroupField('rules','${gid_e}')">Save</button>
+                </div>
+            </div>` : ''}
+        </div>`;
 
     // Tab: Posts
     const posts = g.posts || [];
@@ -105,7 +138,7 @@ function renderGroupDetail(g) {
             const badge = e.accessType ? `<span style="font-size:9px;padding:1px 6px;border-radius:4px;background:color-mix(in srgb,var(--accent) 12%,transparent);color:var(--accent-lt);border:1px solid color-mix(in srgb,var(--accent) 35%,transparent);margin-left:6px;">${esc(e.accessType)}</span>` : '';
             const gid = esc(e.ownerId || g.id || '');
             const cid = esc(e.id || '');
-            const delEvtBtn = (canPost && e.id)
+            const delEvtBtn = (canEvent && e.id)
                 ? `<button class="gd-post-del" onclick="event.stopPropagation();deleteGroupEvent('${esc(g.id)}','${cid}',this)" title="Delete event"><span class="msi">delete</span></button>`
                 : '';
             eventsTab += `<div class="fd-group-card" data-event-id="${cid}" style="display:block;cursor:pointer;padding:12px;" onclick="openEventDetail('${gid}','${cid}')">
@@ -193,6 +226,41 @@ function renderGroupDetail(g) {
 
 function renderGroupMemberCard(m) {
     return renderProfileItem(m, `closeDetailModal();openFriendDetail('${jsq(m.id || '')}')`);
+}
+
+function editGroupField(field) {
+    // Close other field if open
+    const other = field === 'desc' ? 'rules' : 'desc';
+    document.getElementById(`gdesc${other === 'desc' ? 'Desc' : 'Rules'}View`).style.display = '';
+    const otherEdit = document.getElementById(`gdesc${other === 'desc' ? 'Desc' : 'Rules'}Edit`);
+    if (otherEdit) otherEdit.style.display = 'none';
+
+    const viewId = field === 'desc' ? 'gdescDescView' : 'gdescRulesView';
+    const editId = field === 'desc' ? 'gdescDescEdit' : 'gdescRulesEdit';
+    const inputId = field === 'desc' ? 'gdescDescInput' : 'gdescRulesInput';
+    document.getElementById(viewId).style.display = 'none';
+    document.getElementById(editId).style.display = '';
+    document.getElementById(inputId)?.focus();
+}
+
+function cancelGroupField(field) {
+    const viewId = field === 'desc' ? 'gdescDescView' : 'gdescRulesView';
+    const editId = field === 'desc' ? 'gdescDescEdit' : 'gdescRulesEdit';
+    document.getElementById(viewId).style.display = '';
+    document.getElementById(editId).style.display = 'none';
+}
+
+function saveGroupField(field, groupId) {
+    const inputId = field === 'desc' ? 'gdescDescInput' : 'gdescRulesInput';
+    const editId  = field === 'desc' ? 'gdescDescEdit'  : 'gdescRulesEdit';
+    const value   = document.getElementById(inputId)?.value ?? '';
+    const saveBtn = document.querySelector(`#${editId} .myp-save-btn`);
+    if (saveBtn) saveBtn.disabled = true;
+
+    // Read current values of both fields to send together
+    const descVal  = field === 'desc'  ? value : (document.getElementById('gdescDescInput')?.value  ?? document.querySelector('#gdescDescView .fd-bio')?.textContent ?? '');
+    const rulesVal = field === 'rules' ? value : (document.getElementById('gdescRulesInput')?.value ?? document.querySelector('#gdescRulesView div')?.textContent ?? '');
+    sendToCS({ action: 'vrcUpdateGroup', groupId, description: descVal, rules: rulesVal });
 }
 
 function loadMoreGroupMembers() {

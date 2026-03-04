@@ -257,17 +257,16 @@
 
     function buildGroupItems(id) {
         const g = (typeof myGroups !== 'undefined') && myGroups.find(x => x.id === id);
-        const canPost = g && g.canPost === true;
+        const canPost  = g && g.canPost === true;
+        const canEvent = g && g.canEvent === true;
         const items = [
             { icon: 'open_in_new', label: 'Open Details', action: () => openGroupDetail(id) },
             { icon: 'share', label: 'Share Group', action: () => { navigator.clipboard.writeText('https://vrchat.com/home/group/' + id); showToast(true, 'Group link copied to clipboard'); } },
             'sep',
         ];
-        if (canPost) {
-            items.push({ icon: 'edit_note', label: 'Post', action: () => openGroupPostModal(id) });
-            items.push({ icon: 'event', label: 'Events', action: () => openGroupEventModal(id) });
-            items.push('sep');
-        }
+        if (canPost)  items.push({ icon: 'edit_note', label: 'Post', action: () => openGroupPostModal(id) });
+        if (canEvent) items.push({ icon: 'event', label: 'Events', action: () => openGroupEventModal(id) });
+        if (canPost || canEvent) items.push('sep');
         items.push({ icon: 'logout', label: 'Leave Group', action: () => sendToCS({ action: 'vrcLeaveGroup', groupId: id }), danger: true, confirm: true });
         return items;
     }

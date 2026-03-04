@@ -1441,7 +1441,9 @@ public class MainForm : Form
 
                                 var myMember = g["myMember"] as JObject;
                                 var myPerms = myMember?["permissions"] as JArray ?? new JArray();
-                                var canPost = myPerms.Any(p => p.ToString() == "*" || p.ToString() == "group-posts-manage");
+                                var canPost  = myPerms.Any(p => p.ToString() == "*" || p.ToString() == "group-announcement-manage");
+                                var canEvent = myPerms.Any(p => p.ToString() == "*" || p.ToString() == "group-calendar-manage");
+                                var canEdit  = myPerms.Any(p => p.ToString() == "*" || p.ToString() == "group-data-manage");
 
                                 Invoke(() => SendToJS("vrcGroupDetail", new {
                                     id = g["id"]?.ToString() ?? "", name = g["name"]?.ToString() ?? "",
@@ -1450,7 +1452,7 @@ public class MainForm : Form
                                     memberCount = g["memberCount"]?.Value<int>() ?? 0, privacy = g["privacy"]?.ToString() ?? "",
                                     rules = g["rules"]?.ToString() ?? "",
                                     isJoined = g["myMember"] != null && g["myMember"].Type != JTokenType.Null,
-                                    canPost,
+                                    canPost, canEvent, canEdit,
                                     posts = posts.Select(p => new {
                                         id = p["id"]?.ToString() ?? "",
                                         title = p["title"]?.ToString() ?? "",
@@ -1642,6 +1644,22 @@ public class MainForm : Form
                         {
                             var ok = await _vrcApi.DeleteGroupEventAsync(dgeGroupId, dgeEventId);
                             Invoke(() => SendToJS("vrcActionResult", new { action = "deleteGroupEvent", success = ok, eventId = dgeEventId }));
+                        });
+                    }
+                    break;
+                }
+
+                case "vrcUpdateGroup":
+                {
+                    var ugGroupId = msg["groupId"]?.ToString() ?? "";
+                    var ugDesc    = msg["description"]?.ToString() ?? "";
+                    var ugRules   = msg["rules"]?.ToString() ?? "";
+                    if (!string.IsNullOrEmpty(ugGroupId))
+                    {
+                        _ = Task.Run(async () =>
+                        {
+                            var ok = await _vrcApi.UpdateGroupAsync(ugGroupId, ugDesc, ugRules);
+                            Invoke(() => SendToJS("vrcGroupUpdated", new { success = ok, groupId = ugGroupId, description = ugDesc, rules = ugRules }));
                         });
                     }
                     break;
@@ -3386,8 +3404,8 @@ var list = avatars.Select(a => new
                     || perms.Contains("group-instance-public-create")
                     || perms.Contains("group-instance-restricted-create");
 
-                var canPost = perms != null
-                    && (perms.Contains("*") || perms.Contains("group-posts-manage"));
+                var canPost  = perms != null && (perms.Contains("*") || perms.Contains("group-announcement-manage"));
+                var canEvent = perms != null && (perms.Contains("*") || perms.Contains("group-calendar-manage"));
 
                 enriched.Add(new {
                     id = full["id"]?.ToString() ?? ids[i],
@@ -3399,7 +3417,7 @@ var list = avatars.Select(a => new
                     memberCount  = full["memberCount"]?.Value<int>() ?? 0,
                     privacy      = full["privacy"]?.ToString() ?? "",
                     canCreateInstance = canCreate,
-                    canPost,
+                    canPost, canEvent,
                 });
             }
             if (_settings.FfcEnabled) _cache.Save(CacheHandler.KeyGroups, enriched);
