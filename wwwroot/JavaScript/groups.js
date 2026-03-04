@@ -1,3 +1,15 @@
+/* === Join State === */
+function joinStateBadge(js) {
+    const map = {
+        open:    { label: 'Open',           cls: 'public'  },
+        closed:  { label: 'Closed',         cls: 'private' },
+        invite:  { label: 'Invite Only',    cls: 'friends' },
+        request: { label: 'Request Invite', cls: 'group'   },
+    };
+    const m = map[js] || { label: js || '?', cls: 'hidden' };
+    return `<span class="fd-instance-badge ${m.cls}">${esc(m.label)}</span>`;
+}
+
 /* === My Groups === */
 function loadMyGroups() {
     sendToCS({ action: 'vrcGetMyGroups' });
@@ -20,7 +32,7 @@ function renderMyGroups(list) {
     label.style.display = '';
     el.innerHTML = myGroups.map(g => `<div class="s-card" onclick="openGroupDetail('${esc(g.id)}')">
         <div class="s-card-img" style="background-image:url('${cssUrl(g.bannerUrl||g.iconUrl||'')}')"><div class="s-card-icon" style="background-image:url('${cssUrl(g.iconUrl||'')}')"></div></div>
-        <div class="s-card-body"><div class="s-card-title">${esc(g.name)}</div><div class="s-card-sub">${esc(g.shortCode)} · <span class="msi" style="font-size:11px;">group</span> ${g.memberCount}</div></div></div>`).join('');
+        <div class="s-card-body"><div class="s-card-title">${esc(g.name)}</div><div class="s-card-sub" style="display:flex;align-items:center;gap:4px;">${esc(g.shortCode)} · <span class="msi" style="font-size:11px;">group</span> ${g.memberCount}${g.joinState ? `<span style="margin-left:auto;">${joinStateBadge(g.joinState)}</span>` : ''}</div></div></div>`).join('');
 }
 
 function openGroupDetail(groupId) {
@@ -31,7 +43,7 @@ function openGroupDetail(groupId) {
 }
 
 function renderGroupDetail(g) {
-    window._currentGroupDetail = { id: g.id, canKick: g.canKick === true, canBan: g.canBan === true, languages: g.languages || [], links: g.links || [] };
+    window._currentGroupDetail = { id: g.id, canKick: g.canKick === true, canBan: g.canBan === true, languages: g.languages || [], links: g.links || [], joinState: g.joinState || '' };
     const el = document.getElementById('detailModalContent');
     const canEdit = g.canEdit === true;
     const gidJs  = jsq(g.id);
@@ -46,7 +58,7 @@ function renderGroupDetail(g) {
     const iconHtml = g.iconUrl
         ? `<div style="position:relative;display:inline-block;flex-shrink:0;"><img class="fd-avatar" src="${g.iconUrl}" onerror="this.style.display='none'">${iconEditBtn}</div>`
         : (canEdit ? `<div style="position:relative;display:inline-block;flex-shrink:0;"><div class="fd-avatar" style="display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:var(--tx3);">${esc((g.name||'?')[0])}</div>${iconEditBtn}</div>` : '');
-    const headerHtml = `<div class="fd-content${banner ? ' fd-has-banner' : ''}"><div class="fd-header">${iconHtml}<div><div class="fd-name">${esc(g.name)}</div><div class="fd-status">${esc(g.shortCode)} · ${g.memberCount} members · ${esc(g.privacy)}</div></div></div>`;
+    const headerHtml = `<div class="fd-content${banner ? ' fd-has-banner' : ''}"><div class="fd-header">${iconHtml}<div style="flex:1;min-width:0;"><div class="fd-name">${esc(g.name)}</div><div class="fd-status">${esc(g.shortCode)} · ${g.memberCount} members</div></div><span id="ggrpHeaderBadge" style="margin-left:auto;flex-shrink:0;">${g.joinState ? joinStateBadge(g.joinState) : ''}</span></div>`;
 
     // Actions - moved to bottom bar
     const canPost  = g.canPost === true;
@@ -133,6 +145,27 @@ function renderGroupDetail(g) {
                 <div class="myp-edit-actions">
                     <button class="myp-cancel-btn" onclick="cancelGroupField('rules')">Cancel</button>
                     <button class="myp-save-btn" onclick="saveGroupField('rules','${gid_e}')">Save</button>
+                </div>
+            </div>` : ''}
+        </div>
+        <div class="myp-section">
+            <div class="myp-section-header">
+                <span class="myp-section-title">Open to new Members</span>
+                ${canEdit ? `<button class="myp-edit-btn" onclick="editGroupField('joinState')"><span class="msi" style="font-size:14px;">edit</span></button>` : ''}
+            </div>
+            <div id="ggrpJoinStateView">
+                ${g.joinState ? joinStateBadge(g.joinState) : '<div class="myp-empty">Not set</div>'}
+            </div>
+            ${canEdit ? `<div id="ggrpJoinStateEdit" style="display:none;">
+                <select id="ggrpJoinStateSelect" class="myp-lang-select" style="width:100%;margin-bottom:6px;">
+                    <option value="open"    ${g.joinState==='open'    ? 'selected' : ''}>Open</option>
+                    <option value="closed"  ${g.joinState==='closed'  ? 'selected' : ''}>Closed</option>
+                    <option value="invite"  ${g.joinState==='invite'  ? 'selected' : ''}>Invite Only</option>
+                    <option value="request" ${g.joinState==='request' ? 'selected' : ''}>Request Invite</option>
+                </select>
+                <div class="myp-edit-actions">
+                    <button class="myp-cancel-btn" onclick="cancelGroupField('joinState')">Cancel</button>
+                    <button class="myp-save-btn" onclick="saveGroupField('joinState','${gid_e}')">Save</button>
                 </div>
             </div>` : ''}
         </div>`;
@@ -277,10 +310,11 @@ function renderGroupMemberCard(m) {
 }
 
 const _grpFieldIds = {
-    desc:  { view: 'gdescDescView',  edit: 'gdescDescEdit'  },
-    rules: { view: 'gdescRulesView', edit: 'gdescRulesEdit' },
-    links: { view: 'ggrpLinksView',  edit: 'ggrpLinksEdit'  },
-    langs: { view: 'ggrpLangsView',  edit: 'ggrpLangsEdit'  },
+    desc:      { view: 'gdescDescView',       edit: 'gdescDescEdit'       },
+    rules:     { view: 'gdescRulesView',      edit: 'gdescRulesEdit'      },
+    links:     { view: 'ggrpLinksView',       edit: 'ggrpLinksEdit'       },
+    langs:     { view: 'ggrpLangsView',       edit: 'ggrpLangsEdit'       },
+    joinState: { view: 'ggrpJoinStateView',   edit: 'ggrpJoinStateEdit'   },
 };
 
 function editGroupField(field) {
@@ -324,6 +358,9 @@ function saveGroupField(field, groupId) {
         const chips = document.querySelectorAll('#ggrpLangsChips [data-lang]');
         const languages = Array.from(chips).map(c => c.dataset.lang);
         sendToCS({ action: 'vrcUpdateGroup', groupId, languages });
+    } else if (field === 'joinState') {
+        const val = document.getElementById('ggrpJoinStateSelect')?.value;
+        if (val) sendToCS({ action: 'vrcUpdateGroup', groupId, joinState: val });
     }
 }
 

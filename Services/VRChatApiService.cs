@@ -1347,7 +1347,7 @@ public class VRChatApiService
         catch (Exception ex) { Log($"BanGroupMember exception: {ex.Message}"); return false; }
     }
 
-    public async Task<bool> UpdateGroupAsync(string groupId, string? description = null, string? rules = null, List<string>? languages = null, List<string>? links = null, string? iconId = null, string? bannerId = null)
+    public async Task<bool> UpdateGroupAsync(string groupId, string? description = null, string? rules = null, List<string>? languages = null, List<string>? links = null, string? iconId = null, string? bannerId = null, string? joinState = null)
     {
         if (!IsLoggedIn) return false;
         try
@@ -1359,6 +1359,7 @@ public class VRChatApiService
             if (links       != null) body["links"]       = new JArray(links);
             if (iconId      != null) body["iconId"]      = iconId;
             if (bannerId    != null) body["bannerId"]     = bannerId;
+            if (joinState   != null) body["joinState"]   = joinState;
             var resp = await _http.PutAsync($"{BASE}/groups/{groupId}",
                 new StringContent(body.ToString(Newtonsoft.Json.Formatting.None), Encoding.UTF8, "application/json"));
             Log($"UpdateGroup({groupId}): {(int)resp.StatusCode}");

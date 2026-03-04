@@ -1454,6 +1454,7 @@ public class MainForm : Form
                                     shortCode = g["shortCode"]?.ToString() ?? "", description = g["description"]?.ToString() ?? "",
                                     iconUrl = g["iconUrl"]?.ToString() ?? "", bannerUrl = g["bannerUrl"]?.ToString() ?? "",
                                     memberCount = g["memberCount"]?.Value<int>() ?? 0, privacy = g["privacy"]?.ToString() ?? "",
+                                    joinState = g["joinState"]?.ToString() ?? "",
                                     rules = g["rules"]?.ToString() ?? "",
                                     languages = (g["languages"] as JArray)?.Select(x => x.ToString()).ToArray() ?? Array.Empty<string>(),
                                     links     = (g["links"]     as JArray)?.Select(x => x.ToString()).ToArray() ?? Array.Empty<string>(),
@@ -1662,18 +1663,20 @@ public class MainForm : Form
                     var ugRules     = msg["rules"]       != null ? msg["rules"]!.ToString()       : (string?)null;
                     var ugLanguages = msg["languages"]?.ToObject<List<string>>();
                     var ugLinks     = msg["links"]?.ToObject<List<string>>();
-                    var ugIconId   = msg["iconId"]   != null ? msg["iconId"]!.ToString()   : (string?)null;
-                    var ugBannerId = msg["bannerId"] != null ? msg["bannerId"]!.ToString() : (string?)null;
+                    var ugIconId    = msg["iconId"]    != null ? msg["iconId"]!.ToString()    : (string?)null;
+                    var ugBannerId  = msg["bannerId"]  != null ? msg["bannerId"]!.ToString()  : (string?)null;
+                    var ugJoinState = msg["joinState"] != null ? msg["joinState"]!.ToString() : (string?)null;
                     if (!string.IsNullOrEmpty(ugGroupId))
                     {
                         _ = Task.Run(async () =>
                         {
-                            var ok = await _vrcApi.UpdateGroupAsync(ugGroupId, ugDesc, ugRules, ugLanguages, ugLinks, ugIconId, ugBannerId);
+                            var ok = await _vrcApi.UpdateGroupAsync(ugGroupId, ugDesc, ugRules, ugLanguages, ugLinks, ugIconId, ugBannerId, ugJoinState);
                             Invoke(() => SendToJS("vrcGroupUpdated", new {
                                 success = ok, groupId = ugGroupId,
                                 description = ugDesc, rules = ugRules,
                                 languages = ugLanguages, links = ugLinks,
-                                iconId = ugIconId, bannerId = ugBannerId
+                                iconId = ugIconId, bannerId = ugBannerId,
+                                joinState = ugJoinState
                             }));
                         });
                     }
@@ -3457,6 +3460,7 @@ var list = avatars.Select(a => new
                     bannerUrl    = full["bannerUrl"]?.ToString() ?? "",
                     memberCount  = full["memberCount"]?.Value<int>() ?? 0,
                     privacy      = full["privacy"]?.ToString() ?? "",
+                    joinState    = full["joinState"]?.ToString() ?? "",
                     canCreateInstance = canCreate,
                     canPost, canEvent,
                 });
