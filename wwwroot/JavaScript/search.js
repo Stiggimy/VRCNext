@@ -15,7 +15,6 @@ function doSearch(type, loadMore) {
         if (btn) btn.textContent = 'Loading...';
     }
 
-    if (type === 'groups') { document.getElementById('searchGroupsLabel').style.display = ''; }
     sendToCS({ action, query: searchState[sType].query, offset: searchState[sType].offset });
 }
 

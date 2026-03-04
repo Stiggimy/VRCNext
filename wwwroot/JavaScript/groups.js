@@ -11,6 +11,33 @@ function joinStateBadge(js) {
 }
 
 /* === My Groups === */
+function _renderGroupListCard(g) {
+    return `<div class="s-card" onclick="openGroupDetail('${esc(g.id)}')">
+        <div class="s-card-img" style="background-image:url('${cssUrl(g.bannerUrl||g.iconUrl||'')}')"><div class="s-card-icon" style="background-image:url('${cssUrl(g.iconUrl||'')}')"></div></div>
+        <div class="s-card-body"><div class="s-card-title">${esc(g.name)}</div><div class="s-card-sub" style="display:flex;align-items:center;gap:4px;">${esc(g.shortCode)} · <span class="msi" style="font-size:11px;">group</span> ${g.memberCount}${g.joinState ? `<span style="margin-left:auto;">${joinStateBadge(g.joinState)}</span>` : ''}</div></div></div>`;
+}
+
+function setGroupFilter(filter) {
+    document.getElementById('groupFilterMine').classList.toggle('active', filter === 'mine');
+    document.getElementById('groupFilterSearch').classList.toggle('active', filter === 'search');
+    document.getElementById('groupMineArea').style.display   = filter === 'mine'   ? '' : 'none';
+    document.getElementById('groupSearchArea').style.display = filter === 'search' ? '' : 'none';
+    if (filter === 'mine' && !myGroupsLoaded) loadMyGroups();
+    if (filter === 'search') document.getElementById('searchGroupsInput')?.focus();
+}
+
+function filterMyGroups() {
+    const q = (document.getElementById('filterGroupsInput')?.value || '').toLowerCase();
+    const el = document.getElementById('myGroupsGrid');
+    if (!el) return;
+    const filtered = q
+        ? myGroups.filter(g => (g.name||'').toLowerCase().includes(q) || (g.shortCode||'').toLowerCase().includes(q))
+        : myGroups;
+    el.innerHTML = filtered.length
+        ? filtered.map(_renderGroupListCard).join('')
+        : `<div class="empty-msg">${q ? 'No groups match' : 'No groups joined'}</div>`;
+}
+
 function loadMyGroups() {
     sendToCS({ action: 'vrcGetMyGroups' });
 }
@@ -26,13 +53,7 @@ function renderMyGroups(list) {
     if (btn) { btn.disabled = false; btn.querySelector('.msi').textContent = 'refresh'; }
     myGroups = list || [];
     myGroupsLoaded = true;
-    const el = document.getElementById('myGroupsGrid');
-    const label = document.getElementById('myGroupsLabel');
-    if (myGroups.length === 0) { el.innerHTML = ''; label.style.display = 'none'; return; }
-    label.style.display = '';
-    el.innerHTML = myGroups.map(g => `<div class="s-card" onclick="openGroupDetail('${esc(g.id)}')">
-        <div class="s-card-img" style="background-image:url('${cssUrl(g.bannerUrl||g.iconUrl||'')}')"><div class="s-card-icon" style="background-image:url('${cssUrl(g.iconUrl||'')}')"></div></div>
-        <div class="s-card-body"><div class="s-card-title">${esc(g.name)}</div><div class="s-card-sub" style="display:flex;align-items:center;gap:4px;">${esc(g.shortCode)} · <span class="msi" style="font-size:11px;">group</span> ${g.memberCount}${g.joinState ? `<span style="margin-left:auto;">${joinStateBadge(g.joinState)}</span>` : ''}</div></div></div>`).join('');
+    filterMyGroups();
 }
 
 function openGroupDetail(groupId) {
@@ -493,14 +514,14 @@ function openGroupPostModal(groupId) {
             <div style="display:flex;gap:12px;margin-top:12px;flex-wrap:wrap;">
                 <div style="flex:1;min-width:130px;">
                     <label class="gp-label">Visibility</label>
-                    <select id="gpVisibility" class="gp-select">
+                    <select id="gpVisibility" class="wd-create-select" style="width:100%">
                         <option value="group">Group only</option>
                         <option value="public">Public</option>
                     </select>
                 </div>
                 <div style="flex:1;min-width:130px;">
                     <label class="gp-label">Notification</label>
-                    <select id="gpNotify" class="gp-select">
+                    <select id="gpNotify" class="wd-create-select" style="width:100%">
                         <option value="0">No notification</option>
                         <option value="1">Send notification</option>
                     </select>
@@ -531,6 +552,7 @@ function openGroupPostModal(groupId) {
             <button class="fd-btn fd-btn-join" id="gpSubmitBtn" onclick="submitGroupPost()"><span class="msi" style="font-size:16px;vertical-align:middle;margin-right:4px;">send</span>Post</button>
         </div>
     </div>`;
+    initAllVnSelects();
     overlay.style.display = 'flex';
     setTimeout(() => document.getElementById('gpTitle')?.focus(), 50);
 }
@@ -707,7 +729,7 @@ function openGroupEventModal(groupId) {
             <div style="display:flex;gap:12px;margin-top:12px;flex-wrap:wrap;">
                 <div style="flex:1;min-width:130px;">
                     <label class="gp-label">Category</label>
-                    <select id="gevCategory" class="gp-select">
+                    <select id="gevCategory" class="wd-create-select" style="width:100%">
                         <option value="hangout">Hangout</option>
                         <option value="gaming">Gaming</option>
                         <option value="music">Music</option>
@@ -725,7 +747,7 @@ function openGroupEventModal(groupId) {
                 </div>
                 <div style="flex:1;min-width:130px;">
                     <label class="gp-label">Access Type</label>
-                    <select id="gevAccess" class="gp-select">
+                    <select id="gevAccess" class="wd-create-select" style="width:100%">
                         <option value="group">Group only</option>
                         <option value="public">Public</option>
                     </select>
@@ -734,7 +756,7 @@ function openGroupEventModal(groupId) {
 
             <div style="margin-top:12px;">
                 <label class="gp-label">Notification</label>
-                <select id="gevNotify" class="gp-select">
+                <select id="gevNotify" class="wd-create-select" style="width:100%">
                     <option value="0">No notification</option>
                     <option value="1">Send notification</option>
                 </select>
@@ -766,6 +788,7 @@ function openGroupEventModal(groupId) {
             <button class="fd-btn fd-btn-join" id="gevSubmitBtn" onclick="submitGroupEvent()"><span class="msi" style="font-size:16px;vertical-align:middle;margin-right:4px;">event</span>Create Event</button>
         </div>
     </div>`;
+    initAllVnSelects();
     overlay.style.display = 'flex';
     setTimeout(() => document.getElementById('gevName')?.focus(), 50);
 }

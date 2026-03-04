@@ -134,11 +134,23 @@
             </div>
             <!-- Tab 2: Groups -->
             <div class="tab" id="tab2">
-                <div class="search-bar-row"><span class="msi search-ico">search</span><input type="text" id="searchGroupsInput" class="search-input" placeholder="Search groups..." onkeydown="if(event.key==='Enter')doSearch('groups')"><button class="btn-f" onclick="doSearch('groups')">Search</button><button id="groupsRefreshBtn" class="btn-f" onclick="refreshGroups()" title="Refresh my groups"><span class="msi" style="font-size:16px;">refresh</span> Refresh</button></div>
-                <div class="dash-section-label" id="myGroupsLabel" style="display:none;">MY GROUPS</div>
-                <div id="myGroupsGrid" class="search-grid"></div>
-                <div class="dash-section-label" id="searchGroupsLabel" style="display:none;">SEARCH RESULTS</div>
-                <div id="searchGroupsResults" class="search-grid"></div>
+                <div style="display:flex;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:10px;">
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        <button class="btn-fav sub-tab-btn active" id="groupFilterMine" onclick="setGroupFilter('mine')"><span class="msi" style="font-size:16px;">groups</span> My Groups</button>
+                        <button class="btn-fav sub-tab-btn" id="groupFilterSearch" onclick="setGroupFilter('search')"><span class="msi" style="font-size:16px;">search</span> Search</button>
+                    </div>
+                    <button id="groupsRefreshBtn" class="btn-f" onclick="refreshGroups()" title="Refresh my groups" style="margin-left:auto;"><span class="msi" style="font-size:16px;">refresh</span> Refresh</button>
+                </div>
+                <div id="groupMineArea">
+                    <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap;">
+                        <div class="search-bar-row" style="margin-bottom:0;flex:1;min-width:140px;"><span class="msi search-ico">search</span><input type="text" id="filterGroupsInput" class="search-input" placeholder="Filter my groups..." oninput="filterMyGroups()"></div>
+                    </div>
+                    <div id="myGroupsGrid" class="search-grid"></div>
+                </div>
+                <div id="groupSearchArea" style="display:none;">
+                    <div class="search-bar-row"><span class="msi search-ico">search</span><input type="text" id="searchGroupsInput" class="search-input" placeholder="Search groups..." onkeydown="if(event.key==='Enter')doSearch('groups')"><button class="btn-f" onclick="doSearch('groups')">Search</button></div>
+                    <div id="searchGroupsResults" class="search-grid"><div class="empty-msg">Search for VRChat groups</div></div>
+                </div>
             </div>
             <!-- Tab 3: People (Favorites + Search + Blocked + Muted) -->
             <div class="tab" id="tab3">
