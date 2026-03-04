@@ -268,6 +268,7 @@
         const favEntry = (typeof favWorldsData !== 'undefined') && favWorldsData.find(fw => fw.id === id);
         const items = [
             { icon: 'open_in_new', label: 'Open Details', action: () => openWorldSearchDetail(id) },
+            { icon: 'share', label: 'Share World', action: () => { navigator.clipboard.writeText('https://vrchat.com/home/world/' + id); showToast(true, 'World link copied to clipboard'); } },
             'sep',
         ];
         if (favEntry) {
@@ -281,6 +282,7 @@
     function buildFriendItems(id) {
         const items = [
             { icon: 'person', label: 'View Profile', action: () => openFriendDetail(id) },
+            { icon: 'share', label: 'Share Profile', action: () => { navigator.clipboard.writeText('https://vrchat.com/home/user/' + id); showToast(true, 'Profile link copied to clipboard'); } },
         ];
 
         const f = (typeof vrcFriendsData !== 'undefined') && vrcFriendsData.find(x => x.id === id);

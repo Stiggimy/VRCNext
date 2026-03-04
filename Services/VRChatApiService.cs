@@ -1154,6 +1154,65 @@ public class VRChatApiService
         return new JArray();
     }
 
+    public async Task<JArray> GetCalendarEventsAsync(string filter = "all", int year = 0, int month = 0, int n = 100, int offset = 0)
+    {
+        if (!IsLoggedIn) return new JArray();
+        try
+        {
+            var now = DateTime.UtcNow;
+            int y = year  > 0 ? year  : now.Year;
+            int m = month > 0 ? month : now.Month;
+            var monthDate    = new DateTime(y, m, 1, 0, 0, 0, DateTimeKind.Utc);
+            var monthDateStr = Uri.EscapeDataString(monthDate.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"));
+
+            var endpoint = filter switch {
+                "featured"  => $"{BASE}/calendar/featured?n={n}&offset={offset}&monthDate={monthDateStr}",
+                "following" => $"{BASE}/calendar/following?n={n}&offset={offset}&monthDate={monthDateStr}",
+                _           => $"{BASE}/calendar?n={n}&offset={offset}&monthDate={monthDateStr}"
+            };
+            var resp = await _http.GetAsync(endpoint);
+            var body = await resp.Content.ReadAsStringAsync();
+            Log($"GetCalendarEvents({filter},{y}/{m}): {(int)resp.StatusCode}, len={body.Length}, preview={body[..Math.Min(400,body.Length)]}");
+            if (resp.IsSuccessStatusCode)
+            {
+                var token = JToken.Parse(body);
+                if (token is JArray arr) return arr;
+                if (token is JObject obj)
+                    foreach (var key in new[] { "results", "events", "data", "items" })
+                        if (obj[key] is JArray found) return found;
+            }
+        }
+        catch (Exception ex) { Log($"GetCalendarEvents exception: {ex.Message}"); }
+        return new JArray();
+    }
+
+    public async Task<JObject?> GetCalendarEventAsync(string groupId, string calendarId)
+    {
+        if (!IsLoggedIn) return null;
+        try
+        {
+            var resp = await _http.GetAsync($"{BASE}/calendar/{groupId}/{calendarId}");
+            var body = await resp.Content.ReadAsStringAsync();
+            Log($"GetCalendarEvent({groupId},{calendarId}): {(int)resp.StatusCode}");
+            if (resp.IsSuccessStatusCode) return JObject.Parse(body);
+        }
+        catch (Exception ex) { Log($"GetCalendarEvent exception: {ex.Message}"); }
+        return null;
+    }
+
+    public async Task<bool> FollowEventAsync(string groupId, string calendarId, bool follow)
+    {
+        if (!IsLoggedIn) return false;
+        try
+        {
+            var content = new StringContent($"{{\"isFollowing\":{(follow ? "true" : "false")}}}", Encoding.UTF8, "application/json");
+            var resp    = await _http.PostAsync($"{BASE}/calendar/{groupId}/{calendarId}/follow", content);
+            Log($"FollowEvent({groupId},{calendarId},{follow}): {(int)resp.StatusCode}");
+            return resp.IsSuccessStatusCode;
+        }
+        catch (Exception ex) { Log($"FollowEvent exception: {ex.Message}"); return false; }
+    }
+
     public async Task<JArray> GetGroupEventsAsync(string groupId, int n = 60)
     {
         if (!IsLoggedIn) return new JArray();
@@ -1163,7 +1222,9 @@ public class VRChatApiService
             if (resp.IsSuccessStatusCode)
             {
                 var body = await resp.Content.ReadAsStringAsync();
-                var token = JToken.Parse(body);
+                JToken token;
+                using (var reader = new Newtonsoft.Json.JsonTextReader(new System.IO.StringReader(body)) { DateParseHandling = Newtonsoft.Json.DateParseHandling.None })
+                    token = JToken.Load(reader);
                 if (token is JArray arr) return arr;
                 if (token is JObject obj && obj["results"] is JArray results) return results;
                 Log($"GetGroupEvents({groupId}): unexpected shape");

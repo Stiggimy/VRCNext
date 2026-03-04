@@ -165,6 +165,8 @@ if (window.chrome?.webview) {
                 closeFriendDetail();
                 sendToCS({ action: 'vrcRefreshFriends' });
                 break;
+            case 'vrcCalendarEvents': renderCalendarEvents(payload); break;
+            case 'vrcCalendarEvent':  renderEventDetail(payload); break;
             case 'vrcBlockedList':
                 blockedData = Array.isArray(payload) ? payload : [];
                 renderModList('blockedList', blockedData, 'block');

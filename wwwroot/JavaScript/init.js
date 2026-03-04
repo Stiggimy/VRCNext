@@ -1,4 +1,14 @@
 /* === Init === */
+
+// Restore nav group collapsed states (default: collapsed)
+(function() {
+    document.querySelectorAll('.nav-group[id]').forEach(group => {
+        const saved = localStorage.getItem('vrcnext_navgroup_' + group.id);
+        const isCollapsed = saved === null ? true : saved === '1';
+        group.classList.toggle('collapsed', isCollapsed);
+    });
+}());
+
 initAllVnSelects();
 renderWebhookCards([{}, {}, {}, {}]);
 renderThemeChips();

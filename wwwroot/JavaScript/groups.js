@@ -89,14 +89,23 @@ function renderGroupDetail(g) {
         eventsTab = '<div style="padding:20px;text-align:center;font-size:12px;color:var(--tx3);">No events</div>';
     } else {
         events.forEach(e => {
-            const start = e.startDate ? new Date(e.startDate).toLocaleString() : '';
-            const end = e.endDate ? new Date(e.endDate).toLocaleString() : '';
+            const startD = e.startsAt ? new Date(e.startsAt) : null;
+            const endD   = e.endsAt   ? new Date(e.endsAt)   : null;
+            const timeStr = startD && !isNaN(startD)
+                ? startD.toLocaleTimeString(undefined, { hour:'2-digit', minute:'2-digit' }) +
+                  (endD && !isNaN(endD) ? ' – ' + endD.toLocaleTimeString(undefined, { hour:'2-digit', minute:'2-digit' }) : '')
+                : '';
+            const dateStr = startD && !isNaN(startD)
+                ? startD.toLocaleDateString(undefined, { weekday:'long', month:'long', day:'numeric' })
+                : '';
             const imgHtml = e.imageUrl ? `<img src="${e.imageUrl}" style="width:100%;max-height:120px;object-fit:cover;border-radius:6px;margin-bottom:8px;" onerror="this.style.display='none'">` : '';
-            const badge = e.accessType ? `<span style="font-size:9px;padding:2px 6px;border-radius:10px;background:var(--accent2);color:var(--tx0);margin-left:6px;">${esc(e.accessType)}</span>` : '';
-            eventsTab += `<div class="fd-group-card" style="display:block;cursor:default;padding:12px;">
+            const badge = e.accessType ? `<span style="font-size:9px;padding:1px 6px;border-radius:4px;background:color-mix(in srgb,var(--accent) 12%,transparent);color:var(--accent-lt);border:1px solid color-mix(in srgb,var(--accent) 35%,transparent);margin-left:6px;">${esc(e.accessType)}</span>` : '';
+            const gid = esc(e.ownerId || g.id || '');
+            const cid = esc(e.id || '');
+            eventsTab += `<div class="fd-group-card" style="display:block;cursor:pointer;padding:12px;" onclick="openEventDetail('${gid}','${cid}')">
                 ${imgHtml}
                 <div style="font-size:13px;font-weight:600;color:var(--tx0);">${esc(e.title || 'Untitled Event')}${badge}</div>
-                <div style="font-size:10px;color:var(--tx3);margin:2px 0 4px;">${start}${end ? ' → ' + end : ''}</div>
+                <div style="font-size:10px;color:var(--tx3);margin:2px 0 4px;">${dateStr}${timeStr ? ' · ' + timeStr : ''}</div>
                 ${e.description ? `<div style="font-size:12px;color:var(--tx2);line-height:1.4;">${esc(e.description)}</div>` : ''}
             </div>`;
         });

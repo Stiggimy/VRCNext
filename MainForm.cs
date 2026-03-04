@@ -1438,10 +1438,12 @@ public class MainForm : Form
                                         visibility = p["visibility"]?.ToString() ?? "",
                                     }),
                                     groupEvents = events.Select(e => new {
+                                        id = e["id"]?.ToString() ?? "",
+                                        ownerId = e["ownerId"]?.ToString() ?? "",
                                         title = e["title"]?.ToString() ?? "",
                                         description = e["description"]?.ToString() ?? "",
-                                        startDate = e["startsAt"]?.ToString() ?? e["startDate"]?.ToString() ?? "",
-                                        endDate = e["endsAt"]?.ToString() ?? e["endDate"]?.ToString() ?? "",
+                                        startsAt = e["startsAt"]?.ToString() ?? "",
+                                        endsAt = e["endsAt"]?.ToString() ?? "",
                                         imageUrl = e["imageUrl"]?.ToString() ?? "",
                                         accessType = e["accessType"]?.ToString() ?? "",
                                     }),
@@ -2092,6 +2094,43 @@ public class MainForm : Form
                             var ok = await _vrcApi.SendBoopAsync(boopUid);
                             Invoke(() => SendToJS("vrcActionResult", new { action = "boop", success = ok,
                                 message = ok ? "Booped!" : "Failed to boop" }));
+                        });
+                    }
+                    break;
+
+                // Calendar
+                case "vrcGetCalendarEvents":
+                    var calFilter = msg["filter"]?.ToString() ?? "all";
+                    var calYear   = msg["year"]?.Value<int>()  ?? 0;
+                    var calMonth  = msg["month"]?.Value<int>() ?? 0;
+                    _ = Task.Run(async () => {
+                        var evts = await _vrcApi.GetCalendarEventsAsync(calFilter, calYear, calMonth);
+                        Invoke(() => SendToJS("vrcCalendarEvents", new { events = evts, filter = calFilter }));
+                    });
+                    break;
+
+                case "vrcGetCalendarEvent":
+                    var calGrpId = msg["groupId"]?.ToString();
+                    var calEvtId = msg["calendarId"]?.ToString();
+                    if (!string.IsNullOrEmpty(calGrpId) && !string.IsNullOrEmpty(calEvtId))
+                    {
+                        _ = Task.Run(async () => {
+                            var ev = await _vrcApi.GetCalendarEventAsync(calGrpId, calEvtId);
+                            Invoke(() => SendToJS("vrcCalendarEvent", ev ?? new JObject()));
+                        });
+                    }
+                    break;
+
+                case "vrcFollowEvent":
+                    var fevGrpId = msg["groupId"]?.ToString();
+                    var fevEvtId = msg["calendarId"]?.ToString();
+                    var doFollow = msg["follow"]?.Value<bool>() ?? true;
+                    if (!string.IsNullOrEmpty(fevGrpId) && !string.IsNullOrEmpty(fevEvtId))
+                    {
+                        _ = Task.Run(async () => {
+                            var ok = await _vrcApi.FollowEventAsync(fevGrpId, fevEvtId, doFollow);
+                            Invoke(() => SendToJS("vrcActionResult", new { action = doFollow ? "followEvent" : "unfollowEvent",
+                                success = ok, message = ok ? (doFollow ? "Following event" : "Unfollowed") : "Failed" }));
                         });
                     }
                     break;
