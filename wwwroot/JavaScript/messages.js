@@ -341,6 +341,13 @@ if (window.chrome?.webview) {
             case 'vrcWorldDetail':
                 renderWorldSearchDetail(payload);
                 break;
+            case 'vrcAvatarDetail':
+                renderAvatarDetail(payload);
+                break;
+            case 'vrcAvatarDetailError':
+                { const ac = document.getElementById('avatarDetailContent');
+                  if (ac) ac.innerHTML = `<div style="padding:30px;text-align:center;color:var(--err);">${esc(payload.error || 'Error loading avatar')}</div><div style="text-align:center;margin-top:10px;"><button class="fd-btn" onclick="closeAvatarDetail()">Close</button></div>`; }
+                break;
             case 'vrcFavoriteWorlds':
                 renderFavWorlds(payload);
                 break;

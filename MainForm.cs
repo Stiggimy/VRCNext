@@ -1231,6 +1231,56 @@ public class MainForm : Form
                     }
                     break;
 
+                case "vrcGetAvatarDetail":
+                {
+                    var avdId = msg["avatarId"]?.ToString() ?? "";
+                    if (!string.IsNullOrEmpty(avdId))
+                    {
+                        _ = Task.Run(async () =>
+                        {
+                            var avatar = await _vrcApi.GetAvatarAsync(avdId);
+                            if (avatar == null)
+                            {
+                                Invoke(() => SendToJS("vrcAvatarDetailError", new { error = "Could not load avatar" }));
+                                return;
+                            }
+                            // Parse unityPackages for platform + performance rating
+                            var packages = avatar["unityPackages"] as JArray ?? new JArray();
+                            var realPkgs = packages.Where(p => p["variant"]?.ToString() != "impostor").ToList();
+                            var hasPC    = realPkgs.Any(p => p["platform"]?.ToString() == "standalonewindows");
+                            var hasQuest = realPkgs.Any(p => p["platform"]?.ToString() == "android");
+                            var hasImpostor = packages.Any(p => p["variant"]?.ToString() == "impostor");
+                            var pcPerf    = realPkgs.FirstOrDefault(p => p["platform"]?.ToString() == "standalonewindows")?["performanceRating"]?.ToString() ?? "";
+                            var questPerf = realPkgs.FirstOrDefault(p => p["platform"]?.ToString() == "android")?["performanceRating"]?.ToString() ?? "";
+                            // Fallback: newer performance object
+                            var perf = avatar["performance"] as JObject;
+                            if (string.IsNullOrEmpty(pcPerf))    pcPerf    = perf?["standalonewindows"]?.ToString() ?? "";
+                            if (string.IsNullOrEmpty(questPerf)) questPerf = perf?["android"]?.ToString() ?? "";
+                            Invoke(() => SendToJS("vrcAvatarDetail", new
+                            {
+                                id               = avatar["id"]?.ToString()                  ?? "",
+                                name             = avatar["name"]?.ToString()                ?? "",
+                                authorName       = avatar["authorName"]?.ToString()          ?? "",
+                                authorId         = avatar["authorId"]?.ToString()            ?? "",
+                                thumbnailImageUrl = avatar["thumbnailImageUrl"]?.ToString()  ?? "",
+                                imageUrl         = avatar["imageUrl"]?.ToString()            ?? "",
+                                releaseStatus    = avatar["releaseStatus"]?.ToString()       ?? "",
+                                version          = avatar["version"]?.Value<int>()           ?? 0,
+                                created_at       = avatar["created_at"]?.ToString()          ?? "",
+                                updated_at       = avatar["updated_at"]?.ToString()          ?? "",
+                                description      = avatar["description"]?.ToString()         ?? "",
+                                tags             = avatar["tags"]?.ToObject<List<string>>()  ?? new(),
+                                hasPC,
+                                hasQuest,
+                                hasImpostor,
+                                pcPerf,
+                                questPerf,
+                            }));
+                        });
+                    }
+                    break;
+                }
+
                 // Favorite Friends
                 case "vrcGetFavoriteFriends":
                     _ = LoadFavoriteFriendsAsync();

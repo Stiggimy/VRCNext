@@ -493,6 +493,21 @@ public class VRChatApiService
         return null;
     }
 
+    // Get avatar info by ID
+    public async Task<JObject?> GetAvatarAsync(string avatarId)
+    {
+        if (!IsLoggedIn) return null;
+        try
+        {
+            var resp = await _http.GetAsync($"{BASE}/avatars/{avatarId}");
+            var body = await resp.Content.ReadAsStringAsync();
+            if (resp.IsSuccessStatusCode) return JObject.Parse(body);
+            Log($"GetAvatar {(int)resp.StatusCode}: {body[..Math.Min(200, body.Length)]}");
+        }
+        catch (Exception ex) { Log($"GetAvatar exception: {ex.Message}"); }
+        return null;
+    }
+
     // Get instance info
     public async Task<JObject?> GetInstanceAsync(string location)
     {

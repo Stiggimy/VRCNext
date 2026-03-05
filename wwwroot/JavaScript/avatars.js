@@ -582,3 +582,79 @@ function renderRoseAvatarCard(a) {
         </div>
     </div>`;
 }
+
+/* === Avatar Detail Modal === */
+function openAvatarDetail(avatarId) {
+    const c = document.getElementById('avatarDetailContent');
+    if (c) c.innerHTML = sk('detail');
+    document.getElementById('modalAvatarDetail').style.display = 'flex';
+    sendToCS({ action: 'vrcGetAvatarDetail', avatarId });
+}
+
+function closeAvatarDetail() {
+    document.getElementById('modalAvatarDetail').style.display = 'none';
+}
+
+function renderAvatarDetail(a) {
+    const c = document.getElementById('avatarDetailContent');
+    if (!c) return;
+
+    const thumb = a.thumbnailImageUrl || a.imageUrl || '';
+
+    function platBadge(label, cssClass, icon, perf) {
+        const perfHtml = perf ? `<span style="opacity:.8;font-weight:400;"> · ${esc(perf)}</span>` : '';
+        return `<span class="av-badge ${cssClass}"><span class="msi" style="font-size:10px;">${icon}</span>${label}${perfHtml}</span>`;
+    }
+
+    const isPublic = a.releaseStatus === 'public';
+    const statusBadge = isPublic
+        ? '<span class="av-badge public"><span class="msi" style="font-size:10px;">public</span> Public</span>'
+        : '<span class="av-badge private"><span class="msi" style="font-size:10px;">lock</span> Private</span>';
+
+    const pcBadge       = a.hasPC    ? platBadge('PC',    'platform-pc',    'computer', a.pcPerf)    : '';
+    const questBadge    = a.hasQuest ? platBadge('Quest', 'platform-quest', 'android',  a.questPerf) : '';
+    const impostorBadge = a.hasImpostor
+        ? '<span class="av-badge" style="background:rgba(138,43,226,.18);color:#b47aff;"><span class="msi" style="font-size:10px;">smart_toy</span> Impostor</span>'
+        : '';
+
+    function fmtDate(iso) {
+        if (!iso) return '–';
+        const d = new Date(iso);
+        if (isNaN(d)) return iso;
+        const pad = n => String(n).padStart(2, '0');
+        return `${pad(d.getDate())}.${pad(d.getMonth()+1)}.${d.getFullYear()}, ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    }
+
+    const authorHtml = a.authorId
+        ? `<span onclick="closeAvatarDetail();openFriendDetail('${jsq(a.authorId)}')" style="display:inline-flex;align-items:center;padding:1px 8px;border-radius:20px;background:var(--bg-hover);font-size:11px;font-weight:600;color:var(--tx1);cursor:pointer;line-height:1.8;">${esc(a.authorName || a.authorId)}</span>`
+        : esc(a.authorName || '');
+
+    const metaRows = [
+        `<div class="fd-meta-row"><span class="fd-meta-label">Created At</span><span>${fmtDate(a.created_at)}</span></div>`,
+        `<div class="fd-meta-row"><span class="fd-meta-label">Last Updated</span><span>${fmtDate(a.updated_at)}</span></div>`,
+        a.version ? `<div class="fd-meta-row"><span class="fd-meta-label">Version</span><span>v${a.version}</span></div>` : '',
+    ].join('');
+
+    const descHtml = a.description
+        ? `<div style="font-size:12px;color:var(--tx2);margin-bottom:14px;max-height:120px;overflow-y:auto;line-height:1.5;white-space:pre-wrap;">${esc(a.description)}</div>`
+        : '';
+
+    c.innerHTML = `
+        ${thumb ? `<div class="fd-banner"><img src="${thumb}" onerror="this.parentElement.style.display='none'"><div class="fd-banner-fade"></div></div>` : ''}
+        <div class="fd-content${thumb ? ' fd-has-banner' : ''}" style="padding:20px;">
+            <h2 style="margin:0 0 4px;color:var(--tx0);font-size:18px;">${esc(a.name || 'Unnamed Avatar')}</h2>
+            <div style="font-size:12px;color:var(--tx3);margin-bottom:12px;">by ${authorHtml}</div>
+            <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:14px;">
+                ${statusBadge}${pcBadge}${questBadge}${impostorBadge}
+            </div>
+            <div style="margin-bottom:12px;">${idBadge(a.id)}</div>
+            ${descHtml}
+            <div class="fd-meta" style="margin-bottom:14px;">${metaRows}</div>
+            <div style="display:flex;justify-content:flex-end;gap:6px;margin-top:14px;">
+                <button class="fd-btn fd-btn-join" onclick="selectAvatar('${jsq(a.id)}');closeAvatarDetail()">
+                    <span class="msi" style="font-size:14px;">checkroom</span> Use Avatar
+                </button>
+                <button class="fd-btn" onclick="closeAvatarDetail()">Close</button>
+            </div>
+        </div>`;
+}
