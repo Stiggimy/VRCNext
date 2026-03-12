@@ -4,7 +4,7 @@ let _prevTab = -1;
 let hiddenMedia = new Set();
 try { hiddenMedia = new Set(JSON.parse(localStorage.getItem('vrcnext_hidden') || '[]')); } catch {}
 const thumbCache = {};
-let currentTheme = 'midnight', notifyAudio = null, currentVrcUser = null;
+let currentTheme = 'midnight', currentSpecialTheme = '', autoColorAccuracy = 50, notifyAudio = null, currentVrcUser = null;
 let sidebarCollapsed = localStorage.getItem('vrcnext_sidebar') === '1';
 // Apply saved sidebar state immediately on load
 (function() {
@@ -189,8 +189,144 @@ function renderThemeChips() {
 
 function selectTheme(n) {
     currentTheme = n;
-    applyColors(THEMES[n].c);
+    if (currentSpecialTheme === 'auto') applyAutoColor();
+    else applyColors(THEMES[n].c);
     renderThemeChips();
+    autoSave();
+}
+
+// ── Auto Color ────────────────────────────────────────────────────────────────
+function _rgbToHsl(r, g, b) {
+    r /= 255; g /= 255; b /= 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    let h = 0, s = 0, l = (max + min) / 2;
+    if (max !== min) {
+        const d = max - min;
+        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+        switch (max) {
+            case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+            case g: h = ((b - r) / d + 2) / 6; break;
+            case b: h = ((r - g) / d + 4) / 6; break;
+        }
+    }
+    return [h * 360, s * 100, l * 100];
+}
+
+function _hslToHex(h, s, l) {
+    h = ((h % 360) + 360) % 360; s = Math.max(0, Math.min(100, s)); l = Math.max(0, Math.min(100, l));
+    h /= 360; s /= 100; l /= 100;
+    let r, g, b;
+    if (s === 0) { r = g = b = l; } else {
+        const q = l < 0.5 ? l * (1 + s) : l + s - l * s, p = 2 * l - q;
+        const f = (t) => { t = ((t % 1) + 1) % 1; if (t < 1/6) return p + (q-p)*6*t; if (t < 1/2) return q; if (t < 2/3) return p + (q-p)*(2/3-t)*6; return p; };
+        r = f(h + 1/3); g = f(h); b = f(h - 1/3);
+    }
+    return '#' + [r, g, b].map(x => Math.round(x * 255).toString(16).padStart(2, '0')).join('');
+}
+
+function _buildAutoTheme(bgHue, accentHue, accentLit, imgSat) {
+    // accuracy 0-100, default 50 = current behavior
+    // Below 50: only saturation drops (lightness stays) → muted/grey, clearly different
+    // Above 50: lightness rises + saturation rises → vivid, color-accurate
+    const t = autoColorAccuracy / 100;
+    const lMult = t < 0.5 ? 1.0 : 1.0 + (t - 0.5) * 1.6; // 0%→1.0, 50%→1.0, 100%→1.8
+    const sMult = 0.2 + t * 1.6;                            // 0%→0.2, 50%→1.0, 100%→1.8
+    const bs = Math.max(14, Math.min(95, Math.round(Math.max(55, Math.min(82, imgSat * 1.25)) * sMult)));
+    const al = Math.max(52, Math.min(65, accentLit));
+    return {
+        'bg-base':   _hslToHex(bgHue, bs*0.92, 4.5  * lMult),
+        'bg-side':   _hslToHex(bgHue, bs*0.88, 7.0  * lMult),
+        'bg-card':   _hslToHex(bgHue, bs*0.78, 10.5 * lMult),
+        'bg-hover':  _hslToHex(bgHue, bs*0.68, 15.5 * lMult),
+        'bg-input':  _hslToHex(bgHue, bs*0.82, 8.0  * lMult),
+        'accent':    _hslToHex(accentHue, 74, al),
+        'accent-lt': _hslToHex(accentHue, 66, al + 13),
+        'cyan':      _hslToHex((accentHue + 28) % 360, 66, 60),
+        'ok':        '#2DD48C',
+        'warn':      '#FFBA37',
+        'err':       '#FF4B55',
+        'tx0':       _hslToHex(bgHue, 22, 95),
+        'tx1':       _hslToHex(bgHue, 18, 83),
+        'tx2':       _hslToHex(bgHue, 20, 54),
+        'tx3':       _hslToHex(bgHue, 22, 32),
+        'brd':       _hslToHex(bgHue, bs*0.68, 17 * lMult),
+        'brd-lt':    _hslToHex(bgHue, bs*0.58, 23 * lMult),
+    };
+}
+
+function setAutoColorAccuracy(val) {
+    autoColorAccuracy = parseInt(val) || 50;
+    if (currentSpecialTheme === 'auto') applyAutoColor();
+}
+
+function applyAutoColor() {
+    const url = (typeof dashBgDataUri !== 'undefined' && dashBgDataUri)
+        || (typeof dashBgPath !== 'undefined' && dashBgPath ? 'file:///' + dashBgPath.replace(/\\/g, '/') : null);
+    if (!url) return;
+
+    const img = new Image();
+    img.onload = () => {
+        try {
+            const SIZE = 80;
+            const cv = document.createElement('canvas');
+            cv.width = cv.height = SIZE;
+            const ctx = cv.getContext('2d');
+            ctx.drawImage(img, 0, 0, SIZE, SIZE);
+            const data = ctx.getImageData(0, 0, SIZE, SIZE).data;
+
+            const buckets = new Array(36).fill(0);
+            let bestSat = 0, accentHue = 210, accentLit = 55;
+            let colorful = 0, satSum = 0;
+
+            for (let i = 0; i < data.length; i += 12) {
+                const [h, s, l] = _rgbToHsl(data[i], data[i+1], data[i+2]);
+                // Lower thresholds: capture dark-but-colored pixels (e.g. deep ocean blues)
+                if (s < 5 || l < 3 || l > 93) continue;
+                colorful++;
+                satSum += s;
+                buckets[Math.floor(h / 10) % 36]++;
+                // Accent: most vibrant pixel with visible brightness
+                if (s > bestSat && l > 18 && l < 75) { bestSat = s; accentHue = h; accentLit = l; }
+            }
+
+            if (colorful < 20) { applyColors(_buildAutoTheme(210, 210, 55, 55)); return; }
+
+            const avgSat = satSum / colorful;
+
+            // Smooth hue histogram (±1 bucket) and find peak
+            let domBucket = 0, domCount = 0;
+            for (let i = 0; i < 36; i++) {
+                const c = buckets[(i+35)%36] + buckets[i]*2 + buckets[(i+1)%36];
+                if (c > domCount) { domCount = c; domBucket = i; }
+            }
+            const domHue = domBucket * 10 + 5;
+            if (bestSat < 15) { accentHue = domHue; accentLit = 55; }
+
+            applyColors(_buildAutoTheme(domHue, accentHue, accentLit, avgSat));
+        } catch (e) { console.warn('[AutoColor]', e); }
+    };
+    img.src = url;
+}
+
+function renderSpecialThemeChips() {
+    const el = document.getElementById('specialThemeGrid');
+    if (!el) return;
+    const chips = [
+        { key: '',     label: 'Standard',   dot: 'var(--accent)' },
+        { key: 'auto', label: 'Auto Color', dot: 'conic-gradient(red,yellow,lime,cyan,blue,magenta,red)' },
+    ];
+    el.innerHTML = chips.map(t =>
+        `<button class="theme-chip${currentSpecialTheme === t.key ? ' active' : ''}" onclick="applySpecialTheme('${t.key}')"><span class="theme-dot" style="background:${t.dot}"></span>${t.label}</button>`
+    ).join('');
+}
+
+function applySpecialTheme(n) {
+    currentSpecialTheme = n;
+    if (n === 'auto') applyAutoColor();
+    else applyColors(THEMES[currentTheme]?.c);
+    renderSpecialThemeChips();
+    const row = document.getElementById('autoAccuracyRow');
+    if (row) row.style.display = n === 'auto' ? 'flex' : 'none';
     autoSave();
 }
 

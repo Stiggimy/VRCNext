@@ -2293,8 +2293,8 @@ body {
 .dash-hero {
     position: relative;
     overflow: hidden;
-    min-height: 280px;
-    margin: -54px -28px 28px -28px;
+    min-height: 630px;
+    margin: -54px -28px -322px -28px;
 }
 
 .dash-hero-bg {
@@ -2308,7 +2308,7 @@ body {
 .dash-hero-fade {
     position: absolute;
     inset: 0;
-    background: linear-gradient(to bottom, rgba(0,0,0,0.15) 0%, var(--bg-base) 100%);
+    background: linear-gradient(to bottom, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.05) 45%, transparent 65%, var(--bg-base) 100%);
 }
 
 .dash-hero-content {

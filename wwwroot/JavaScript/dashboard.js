@@ -31,6 +31,7 @@ function renderDashboard() {
         const op = dashOpacity / 100;
         fadeEl.style.background = `linear-gradient(to bottom, rgba(0,0,0,${op * 0.4}) 0%, var(--bg-base) 100%)`;
     }
+    if (currentSpecialTheme === 'auto') applyAutoColor();
 
     renderDashWorlds();
     renderDashFriendsFeed();

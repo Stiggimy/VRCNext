@@ -198,6 +198,8 @@ public class AppSettings
     public bool NotifySound { get; set; }
     public bool MinimizeToTray { get; set; }
     public string Theme { get; set; } = "midnight";
+    public string SpecialTheme { get; set; } = "";
+    public int AutoColorAccuracy { get; set; } = 50;
     public string DashBgPath { get; set; } = "";
     public int DashOpacity { get; set; } = 40;
     public bool RandomDashBg { get; set; } = false;

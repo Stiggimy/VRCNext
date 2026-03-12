@@ -9,7 +9,7 @@
 </head>
 <body>
     <div class="sidebar" id="sidebarEl">
-        <div class="logo"><div class="logo-icon" id="logoIcon">V</div><div class="logo-txt"><div class="logo-text-row"><div class="logo-text">VRCNext</div><span class="logo-beta-badge">BETA</span></div><div class="logo-sub">v2026.10.6</div></div><button class="sb-toggle" onclick="toggleSidebar()" title="Toggle sidebar"><span class="msi" id="sbIcon">menu_open</span></button></div>
+        <div class="logo"><div class="logo-icon" id="logoIcon">V</div><div class="logo-txt"><div class="logo-text-row"><div class="logo-text">VRCNext</div><span class="logo-beta-badge">BETA</span></div><div class="logo-sub">v2026.10.7</div></div><button class="sb-toggle" onclick="toggleSidebar()" title="Toggle sidebar"><span class="msi" id="sbIcon">menu_open</span></button></div>
         <div class="nav">
             <button class="nav-btn active" onclick="showTab(0)"><span class="ni msi">dashboard</span><span class="nl">Dashboard</span></button>
             <button class="nav-btn" onclick="showTab(1)"><span class="ni msi">travel_explore</span><span class="nl">Worlds</span></button>
@@ -453,6 +453,13 @@
                         <div class="sf-toggle-row"><span>Notification sound</span><label class="toggle"><input type="checkbox" id="setNotifySound" onchange="autoSave()"><div class="toggle-track"><div class="toggle-knob"></div></div></label></div>
                         <div class="sf-section-label" style="margin-top:16px;">Theme</div>
                         <div class="theme-grid" id="themeGrid"></div>
+                        <div class="sf-section-label" style="margin-top:16px;">Special Themes</div>
+                        <div class="theme-grid" id="specialThemeGrid"></div>
+                        <div class="sf-row" id="autoAccuracyRow" style="margin-top:8px;display:none;">
+                            <label style="font-size:12px;color:var(--tx2);">Color Accuracy</label>
+                            <input type="range" id="setAutoAccuracy" min="0" max="100" value="50" style="flex:1;accent-color:var(--accent);" oninput="document.getElementById('autoAccuracyVal').textContent=this.value+'%';setAutoColorAccuracy(this.value);autoSave()">
+                            <span id="autoAccuracyVal" style="font-size:12px;color:var(--tx2);margin-left:8px;min-width:35px;text-align:right;">50%</span>
+                        </div>
                     </div>
 
                     <!-- DEBUGGING -->

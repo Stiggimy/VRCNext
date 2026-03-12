@@ -257,6 +257,8 @@ public partial class MainForm
             _settings.NotifySound = data["notifySound"]?.Value<bool>() ?? false;
             _settings.MinimizeToTray = data["minimizeToTray"]?.Value<bool>() ?? false;
             _settings.Theme = data["theme"]?.ToString() ?? "midnight";
+            _settings.SpecialTheme = data["specialTheme"]?.ToString() ?? "";
+            _settings.AutoColorAccuracy = data["autoColorAccuracy"]?.Value<int>() ?? 50;
 
             var dashBg = data["dashBgPath"]?.ToString();
             if (dashBg != null) _settings.DashBgPath = dashBg;

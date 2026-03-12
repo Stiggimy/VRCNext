@@ -457,6 +457,7 @@ window.external.receiveMessage(rawMsg => {
                 dashBgDataUri = payload.dataUri || '';
                 if (dashBgPath) document.getElementById('dashBgName').textContent = dashBgPath.split(/[\\\\/]/).pop();
                 renderDashboard();
+                autoSave();
                 break;
             case 'chatboxUpdate':
                 handleChatboxUpdate(payload);

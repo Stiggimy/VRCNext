@@ -210,6 +210,15 @@
             return buildSelfItems();
         }
 
+        const libCard = el.closest('.lib-card');
+        if (libCard) {
+            const path = libCard.dataset.path || '';
+            const url  = libCard.dataset.url  || '';
+            const type = libCard.dataset.type || 'image';
+            const name = libCard.dataset.name || '';
+            if (path) return buildLibCardItems(path, url, type, name);
+        }
+
         const groupCard = el.closest('#myGroupsGrid .s-card');
         if (groupCard) {
             const id = extractId(groupCard, /openGroupDetail\('([^']+)'\)/);
@@ -403,6 +412,29 @@
             items.push('sep');
             items.push({ icon: 'person_add', label: 'Send Friend Request', action: () => sendToCS({ action: 'vrcSendFriendRequest', userId: id }) });
         }
+        return items;
+    }
+
+    function buildLibCardItems(path, url, type, name) {
+        const isFav    = (typeof favorites    !== 'undefined') && favorites.has(path);
+        const isHidden = (typeof hiddenMedia  !== 'undefined') && hiddenMedia.has(path);
+        const items = [
+            { icon: 'content_copy', label: 'Copy to Clipboard', action: () => copyToClipboard(url, path, type) },
+        ];
+        if (type === 'image') {
+            items.push({ icon: 'wallpaper', label: 'Set as Background', action: () => setLibItemAsDashBg(path) });
+        }
+        items.push('sep');
+        items.push(isFav
+            ? { icon: 'star_border', label: 'Remove Favorite', action: () => toggleFavorite(path) }
+            : { icon: 'star',        label: 'Favorite',        action: () => toggleFavorite(path) }
+        );
+        items.push(isHidden
+            ? { icon: 'visibility',     label: 'Unhide', action: () => toggleHidden(path) }
+            : { icon: 'visibility_off', label: 'Hide',   action: () => toggleHidden(path) }
+        );
+        items.push('sep');
+        items.push({ icon: 'delete', label: 'Delete', danger: true, action: () => showDeleteModal(path, name) });
         return items;
     }
 

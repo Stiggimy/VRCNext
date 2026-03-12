@@ -108,6 +108,8 @@ function saveSettings() {
             startWithWindows: document.getElementById('setStartWithWindows').checked,
             notifySound: document.getElementById('setNotifySound').checked,
             theme: currentTheme,
+            specialTheme: currentSpecialTheme,
+            autoColorAccuracy: autoColorAccuracy,
             dashBgPath: dashBgPath,
             dashOpacity: parseInt(document.getElementById('setDashOpacity').value) || 40,
             randomDashBg: document.getElementById('setRandomBg').checked,
@@ -212,9 +214,16 @@ function loadSettingsToUI(s) {
     renderExtraExe(settings.extraExe);
     updateFolderFilterOptions(settings.folders);
     currentTheme = s.Theme || s.theme || 'midnight';
+    currentSpecialTheme = s.SpecialTheme || s.specialTheme || '';
+    autoColorAccuracy = s.AutoColorAccuracy ?? s.autoColorAccuracy ?? 50;
+    const accSlider = document.getElementById('setAutoAccuracy');
+    if (accSlider) { accSlider.value = autoColorAccuracy; document.getElementById('autoAccuracyVal').textContent = autoColorAccuracy + '%'; }
+    const accRow = document.getElementById('autoAccuracyRow');
+    if (accRow) accRow.style.display = currentSpecialTheme === 'auto' ? 'flex' : 'none';
     if (THEMES[currentTheme]) applyColors(THEMES[currentTheme].c);
     else { currentTheme = 'midnight'; applyColors(THEMES.midnight.c); }
     renderThemeChips();
+    renderSpecialThemeChips();
 
     // Restore chatbox settings
     document.getElementById('cbShowTime').checked = s.CbShowTime ?? s.cbShowTime ?? true;
