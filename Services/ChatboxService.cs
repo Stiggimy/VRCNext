@@ -8,6 +8,9 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+#if WINDOWS
+using Windows.Media.Control;
+#endif
 
 namespace VRCNext
 {
@@ -208,11 +211,25 @@ namespace VRCNext
 #endif
         }
 
-        private Task UpdateMediaInfoAsync()
+        private async Task UpdateMediaInfoAsync()
         {
-            // Windows Media Control (WinRT) not available on Linux
+#if WINDOWS
+            try
+            {
+                var mgr = await GlobalSystemMediaTransportControlsSessionManager.RequestAsync();
+                var s = mgr.GetCurrentSession();
+                if (s == null) { IsPlaying = false; CurrentTitle = ""; CurrentArtist = ""; return; }
+                IsPlaying = s.GetPlaybackInfo()?.PlaybackStatus == GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing;
+                var p = await s.TryGetMediaPropertiesAsync();
+                if (p != null) { CurrentTitle = p.Title ?? ""; CurrentArtist = p.Artist ?? ""; }
+                var tl = s.GetTimelineProperties();
+                if (tl != null) { CurrentPosition = tl.Position; CurrentDuration = tl.EndTime - tl.StartTime; }
+            }
+            catch { IsPlaying = false; }
+#else
             IsPlaying = false;
-            return Task.CompletedTask;
+            await Task.CompletedTask;
+#endif
         }
 
         private void SendOscChatbox(string text, bool suppressSound = true)
