@@ -16,6 +16,75 @@ I am using CachyOS (Arch based) with KDE Plasma, so that is the only environment
 
 However, anyone is welcome to test it and help improve the Linux port.
 
+## Linux Installation
+
+Download the latest Linux build and extract the archive. Then run the install script — it will automatically install all required dependencies for your distro and register VRCNext in your application menu.
+
+```bash
+chmod +x install_vrcnext.sh
+bash install_vrcnext.sh
+```
+
+The installer supports **apt** (Debian/Ubuntu), **pacman** (Arch/CachyOS/Manjaro), **dnf** (Fedora), and **zypper** (openSUSE).
+
+#### Dependencies installed automatically
+
+| Package | Purpose |
+|---|---|
+| `webkit2gtk-4.1` | WebKit rendering engine (Photino.NET) |
+| `gtk3` | GTK window toolkit |
+| `glib2` | Core GLib library |
+| `zenity` | Native file dialogs |
+| `gst-plugins-base` | GStreamer base plugins |
+| `gst-plugins-good` | GStreamer good plugins |
+| `gst-libav` | GStreamer FFmpeg/libav codec support |
+
+#### Optional dependency
+
+| Package | Purpose |
+|---|---|
+| `playerctl` | Now Playing / Play Time in Custom Chatbox (MPRIS2) |
+
+To install `playerctl` on Arch/CachyOS:
+```bash
+sudo pacman -S playerctl
+```
+
+#### Uninstall
+
+```bash
+sudo rm -rf /opt/vrcnext && rm -f ~/.local/share/applications/vrcnext.desktop
+```
+
+---
+
+## Linux Port
+
+### Tested on
+
+| Distro | Desktop Environment |
+|---|---|
+| Arch Linux | KDE Plasma |
+| CachyOS (Arch) | KDE Plasma |
+
+### Feature Status
+
+| Feature | Status |
+|---|---|
+| Friends Management | ✅ 100% |
+| Group Management | ✅ 100% |
+| Avatar Management | ✅ 100% |
+| All other core features | ✅ 100% |
+| Mutual Network | ✅ 100% |
+| Time Spent | ✅ 100% |
+| Custom Chatbox | 🟡 60% |
+| Discord Presence | 🟡 50% *(not tested)* |
+| Media Relay | ❌ 0% |
+| Space Flight | ❌ 0% |
+| OSC Tool | ❌ 0% |
+| YouTube Fix | ❌ 0% |
+| Voice Fight | ❌ 0% |
+
 AI Disclaimer: The frontend (the visual interface you see) was partially created with AI assistance. AI helped with parts of the frontend, mainly CSS and JavaScript such as styling and animations, because design is not really my strength. It did not write the whole frontend. The communication between the frontend and backend, as well as the backend itself, was written entirely by a human. 
 "and yes i did use DeepL to translate from german to english because english is not my first language, so is this whole descirption translated except this part here :D"
 
