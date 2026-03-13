@@ -123,7 +123,6 @@
 /* --- vrcn-flex-center: all selectors that are flex+center+center --- */
 .vrcn-flex-center,
 .logo-icon,
-.sb-toggle,
 .win-btn,
 .btn-play,
 .nav-btn .ni,
@@ -309,30 +308,15 @@ body {
 }
 
 .sidebar.collapsed .logo {
-    justify-content: center;
-    padding: 16px 8px;
-    gap: 0;
+    display: none;
 }
 
 .sb-toggle {
-    margin-left: auto;
-    padding: 5px;
-    border-radius: 8px;
-    background: none;
-    border: none;
     color: var(--tx3);
-    cursor: pointer;
-    transition: all .15s;
-    flex-shrink: 0;
 }
 
 .sb-toggle:hover {
-    background: var(--bg-hover);
     color: var(--tx1);
-}
-
-.sidebar.collapsed .sb-toggle {
-    margin: 0 auto;
 }
 
 .nav {
