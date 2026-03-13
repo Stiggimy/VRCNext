@@ -18,6 +18,11 @@ However, anyone is welcome to test it and help improve the Linux port.
 
 ## Linux Installation
 
+2026.10.8
+https://github.com/shinyflvre/VRCNext/releases/tag/v2026.10.8
+
+Other newer builds do not have an linux version as its still being ported. you're stuck on 2026.10.8 for a while :p
+
 Download the latest Linux build and extract the archive. Then run the install script — it will automatically install all required dependencies for your distro and register VRCNext in your application menu.
 
 ```bash
