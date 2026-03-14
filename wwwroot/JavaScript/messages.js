@@ -450,6 +450,9 @@ window.external.receiveMessage(rawMsg => {
                 { const ac = document.getElementById('avatarDetailContent');
                   if (ac) ac.innerHTML = `<div style="padding:30px;text-align:center;color:var(--err);">${esc(payload.error || 'Error loading avatar')}</div><div style="text-align:center;margin-top:10px;"><button class="vrcn-button-round" onclick="closeAvatarDetail()">Close</button></div>`; }
                 break;
+            case 'customColors':
+                loadCustomThemes(payload);
+                break;
             case 'vrcFavoriteWorlds':
                 renderFavWorlds(payload);
                 break;

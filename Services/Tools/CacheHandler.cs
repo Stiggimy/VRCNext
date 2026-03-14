@@ -12,10 +12,11 @@ public class CacheHandler
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "VRCNext");
 
     // Cache file keys
-    public static readonly string KeyFavWorlds = "fav_worlds_cache.json";
-    public static readonly string KeyAvatars   = "avatars_cache.json";
-    public static readonly string KeyGroups    = "groups_cache.json";
-    public static readonly string KeyFriends   = "friends_cache.json";
+    public static readonly string KeyFavWorlds    = "fav_worlds_cache.json";
+    public static readonly string KeyAvatars      = "avatars_cache.json";
+    public static readonly string KeyGroups       = "groups_cache.json";
+    public static readonly string KeyFriends      = "friends_cache.json";
+    public static readonly string KeyCustomColors = "custom_colors.json";
 
     /// <summary>Per-user profile cache key. Stored under profiles/ subfolder.</summary>
     public static string KeyUserProfile(string userId) => $"profiles/{userId}.json";

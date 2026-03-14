@@ -289,6 +289,10 @@ var list = avatars.Select(a => new
     /// </summary>
     private void SendAllCachedData()
     {
+        // Custom themes are always sent — they are a user preference, not API cache.
+        var customColors = _cache.LoadRaw(CacheHandler.KeyCustomColors);
+        if (customColors != null) SendToJS("customColors", customColors);
+
         if (!_settings.FfcEnabled) return;
 
         // Friends are NOT sent from cache — status/location must always be live.

@@ -1282,6 +1282,30 @@ body {
     flex-shrink: 0;
 }
 
+.theme-chip-del {
+    visibility: hidden;
+    margin-left: 2px;
+    font-size: 13px;
+    line-height: 1;
+    color: var(--tx3);
+    padding: 0 2px;
+}
+.theme-chip-custom:hover .theme-chip-del {
+    visibility: visible;
+}
+.theme-chip-del:hover { color: var(--err); }
+
+.theme-chip-name-input {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: inherit;
+    font: inherit;
+    width: 60px;
+    min-width: 30px;
+    max-width: 90px;
+}
+
 /* === LIBRARY === */
 /* Tab 7 fills full .content height as flex column — same pattern as #tab12 */
 /* Remove bottom padding so paginator reaches the screen edge on both tabs */

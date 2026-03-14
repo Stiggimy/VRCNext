@@ -212,6 +212,12 @@ public partial class MainForm
                     if (data != null) ApplySettings(data);
                     break;
 
+                case "saveCustomColors":
+                    var themesArr = msg["themes"] as JArray;
+                    if (themesArr != null)
+                        _cache.Save(CacheHandler.KeyCustomColors, new { themes = themesArr });
+                    break;
+
                 case "addFolder":
                     {
                         var r = Dialog.FolderPicker();

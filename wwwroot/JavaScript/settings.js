@@ -256,7 +256,8 @@ function loadSettingsToUI(s) {
     const accRow = document.getElementById('autoAccuracyRow');
     if (accRow) accRow.style.display = currentSpecialTheme === 'auto' ? 'flex' : 'none';
     if (THEMES[currentTheme]) applyColors(THEMES[currentTheme].c);
-    else { currentTheme = 'midnight'; applyColors(THEMES.midnight.c); }
+    else if (!currentTheme.startsWith('custom_')) { currentTheme = 'midnight'; applyColors(THEMES.midnight.c); }
+    // custom_ themes are applied later when customColors loads
     renderThemeChips();
     renderSpecialThemeChips();
 

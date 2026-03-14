@@ -5,6 +5,7 @@ let hiddenMedia = new Set();
 try { hiddenMedia = new Set(JSON.parse(localStorage.getItem('vrcnext_hidden') || '[]')); } catch {}
 const thumbCache = {};
 let currentTheme = 'midnight', currentSpecialTheme = '', autoColorAccuracy = 50, notifyAudio = null, currentVrcUser = null;
+let customThemes = []; // user-saved themes from auto color
 let sidebarCollapsed = localStorage.getItem('vrcnext_sidebar') === '1';
 let rsidebarCollapsed = localStorage.getItem('vrcnext_rsidebar') === '1';
 // Apply saved sidebar state immediately on load
@@ -199,9 +200,16 @@ function applyColors(c) {
 }
 
 function renderThemeChips() {
-    document.getElementById('themeGrid').innerHTML = Object.entries(THEMES).map(([k, t]) =>
+    const builtIn = Object.entries(THEMES).map(([k, t]) =>
         `<button class="theme-chip${currentTheme === k ? ' active' : ''}" onclick="selectTheme('${k}')"><span class="theme-dot" style="background:${t.dot}"></span>${t.label}</button>`
     ).join('');
+    const custom = customThemes.map(t =>
+        `<button class="theme-chip theme-chip-custom${currentTheme === t.key ? ' active' : ''}" data-ckey="${t.key}" onclick="selectCustomTheme('${t.key}')"><span class="theme-dot" style="background:${t.dot}"></span><span class="theme-chip-label">${esc(t.label)}</span><span class="theme-chip-del" onclick="event.stopPropagation();deleteCustomTheme('${t.key}')" title="Remove">×</span></button>`
+    ).join('');
+    const addBtn = currentSpecialTheme === 'auto'
+        ? `<button class="theme-chip theme-chip-add" onclick="addCustomThemeFromAuto()"><span class="theme-dot" style="background:var(--accent)"></span>Add +</button>`
+        : '';
+    document.getElementById('themeGrid').innerHTML = builtIn + custom + addBtn;
 }
 
 function selectTheme(n) {
@@ -210,6 +218,76 @@ function selectTheme(n) {
     else applyColors(THEMES[n].c);
     renderThemeChips();
     autoSave();
+}
+
+function selectCustomTheme(key) {
+    const t = customThemes.find(x => x.key === key);
+    if (!t) return;
+    currentTheme = key;
+    currentSpecialTheme = '';
+    applyColors(t.c);
+    renderThemeChips();
+    renderSpecialThemeChips();
+    const row = document.getElementById('autoAccuracyRow');
+    if (row) row.style.display = 'none';
+    autoSave();
+}
+
+function deleteCustomTheme(key) {
+    customThemes = customThemes.filter(t => t.key !== key);
+    if (currentTheme === key) { currentTheme = 'midnight'; applyColors(THEMES.midnight.c); }
+    renderThemeChips();
+    saveCustomColors();
+}
+
+function addCustomThemeFromAuto() {
+    const style = getComputedStyle(document.documentElement);
+    const colorKeys = ['bg-base','bg-side','bg-card','bg-hover','bg-input','accent','accent-lt','cyan','ok','warn','err','tx0','tx1','tx2','tx3','brd','brd-lt'];
+    const c = {};
+    colorKeys.forEach(k => { c[k] = style.getPropertyValue('--' + k).trim(); });
+    const dot = c['accent'] || '#3884FF';
+    const key = 'custom_' + Date.now();
+    customThemes.push({ key, label: 'Custom', dot, c });
+    renderThemeChips();
+    // Enter inline name-edit mode on the new chip
+    const chip = document.querySelector(`.theme-chip-custom[data-ckey="${key}"]`);
+    if (!chip) return;
+    const labelEl = chip.querySelector('.theme-chip-label');
+    if (!labelEl) return;
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = 'Custom';
+    input.className = 'theme-chip-name-input';
+    input.onclick = e => e.stopPropagation();
+    let saved = false;
+    const finalize = () => {
+        if (saved) return; saved = true;
+        const name = input.value.trim() || 'Custom';
+        const theme = customThemes.find(t => t.key === key);
+        if (theme) theme.label = name;
+        renderThemeChips();
+        saveCustomColors();
+    };
+    input.addEventListener('blur', finalize);
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); input.blur(); } if (e.key === 'Escape') { input.value = 'Custom'; input.blur(); } });
+    labelEl.replaceWith(input);
+    input.select();
+    input.focus();
+}
+
+function saveCustomColors() {
+    sendToCS({ action: 'saveCustomColors', themes: customThemes });
+}
+
+function loadCustomThemes(data) {
+    customThemes = Array.isArray(data?.themes) ? data.themes : [];
+    renderThemeChips();
+    // If the saved currentTheme is a custom key, apply it now that we have the data
+    if (currentTheme && currentTheme.startsWith('custom_')) {
+        const t = customThemes.find(x => x.key === currentTheme);
+        if (t) applyColors(t.c);
+        else { currentTheme = 'midnight'; applyColors(THEMES.midnight.c); renderThemeChips(); }
+    }
 }
 
 // ── Auto Color ────────────────────────────────────────────────────────────────
@@ -342,6 +420,7 @@ function applySpecialTheme(n) {
     if (n === 'auto') applyAutoColor();
     else applyColors(THEMES[currentTheme]?.c);
     renderSpecialThemeChips();
+    renderThemeChips(); // show/hide Add + button
     const row = document.getElementById('autoAccuracyRow');
     if (row) row.style.display = n === 'auto' ? 'flex' : 'none';
     autoSave();
