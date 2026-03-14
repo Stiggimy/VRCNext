@@ -343,7 +343,8 @@ function renderVrcFriends(friends, counts) {
             const statusEl = document.getElementById('fd-live-status');
             if (statusEl) {
                 const isWeb = lf.presence === 'web';
-                const isOff = lf.presence === 'offline' || lf.location === 'offline';
+                // Fix status overrides
+                const isOff = lf.presence === 'offline';
                 const dotClass = isWeb ? 'vrc-status-ring' : 'vrc-status-dot';
                 statusEl.innerHTML = `<span class="${dotClass} ${isOff ? 's-offline' : statusDotClass(lf.status)}" style="width:8px;height:8px;"></span>${isOff ? 'Offline' : statusLabel(lf.status)}${(!isOff && isWeb) ? ' (Web)' : ''}${(!isOff && lf.statusDescription) ? ' — ' + esc(lf.statusDescription) : ''}`;
             }

@@ -586,7 +586,11 @@ public partial class MainForm
             diskProfile["canRequestInvite"]    = false;
             diskProfile["inSameInstance"]      = false;
             diskProfile["travelingToLocation"] = "";
-            diskProfile["state"]               = "";
+            // Fix Status overrides
+            var _liveStatus = live?["status"]?.ToString() ?? "offline";
+            var _liveLoc    = live?["location"]?.ToString() ?? "";
+            bool _liveInGame = !string.IsNullOrEmpty(_liveLoc) && _liveLoc != "offline";
+            diskProfile["state"] = (_liveStatus != "offline" && !_liveInGame) ? "active" : "";
             SendToJS("vrcFriendDetail", diskProfile);
 
             // Background refresh — at most one per userId at a time
