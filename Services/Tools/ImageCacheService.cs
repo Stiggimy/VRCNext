@@ -167,32 +167,72 @@ public class ImageCacheService
     }
 
     /// <summary>
-    /// Decodes <paramref name="sourcePath"/> using SkiaSharp (supports JPEG, PNG, WebP, GIF, AVIF, …),
-    /// re-encodes as JPEG at 50 % quality and writes to <paramref name="destPath"/>.
-    /// On any failure the source file is deleted so no broken or oversized files remain.
+    /// Saves the downloaded image to <paramref name="destPath"/>:
+    /// - Already-JPEG sources are copied as-is (avoids double lossy compression / generation loss).
+    /// - All other formats (WebP, PNG, GIF, AVIF, …) are decoded and re-encoded as JPEG at 85 %.
+    /// On any failure both files are deleted so no broken or oversized files remain.
     /// </summary>
     private static void CompressToJpeg(string sourcePath, string destPath)
     {
         try
         {
+            // Detect actual format from file magic bytes — not from the URL extension,
+            // which is unreliable (CDN may serve WebP under a .jpg URL).
+            var format = DetectFormat(sourcePath);
+
+            if (format == SKEncodedImageFormat.Jpeg)
+            {
+                // Already JPEG — copy as-is to avoid generation loss from double compression
+                File.Copy(sourcePath, destPath, overwrite: true);
+                TryDelete(sourcePath);
+                return;
+            }
+
+            // Non-JPEG (WebP, PNG, etc.) — decode and encode as JPEG 85 %
             using var bmp = SKBitmap.Decode(sourcePath);
             if (bmp == null) { TryDelete(sourcePath); return; }
 
             using var img  = SKImage.FromBitmap(bmp);
-            using var data = img.Encode(SKEncodedImageFormat.Jpeg, 70);
+            using var data = img.Encode(SKEncodedImageFormat.Jpeg, 90);
             if (data == null) { TryDelete(sourcePath); return; }
 
             using var fs = File.Create(destPath);
             data.SaveTo(fs);
 
-            TryDelete(sourcePath); // remove .tmp after successful write
+            TryDelete(sourcePath);
         }
         catch
         {
-            // Never keep a broken or uncompressed file — delete and let the next request retry.
             TryDelete(sourcePath);
             TryDelete(destPath);
         }
+    }
+
+    /// <summary>Reads the first 12 bytes to identify the image format by magic number.</summary>
+    private static SKEncodedImageFormat DetectFormat(string path)
+    {
+        try
+        {
+            Span<byte> hdr = stackalloc byte[12];
+            using var f = File.OpenRead(path);
+            f.ReadAtLeast(hdr, hdr.Length, throwOnEndOfStream: false);
+
+            // JPEG: FF D8 FF
+            if (hdr[0] == 0xFF && hdr[1] == 0xD8 && hdr[2] == 0xFF)
+                return SKEncodedImageFormat.Jpeg;
+            // PNG: 89 50 4E 47
+            if (hdr[0] == 0x89 && hdr[1] == 0x50 && hdr[2] == 0x4E && hdr[3] == 0x47)
+                return SKEncodedImageFormat.Png;
+            // WebP: 52 49 46 46 ?? ?? ?? ?? 57 45 42 50
+            if (hdr[0] == 0x52 && hdr[1] == 0x49 && hdr[2] == 0x46 && hdr[3] == 0x46 &&
+                hdr[8] == 0x57 && hdr[9] == 0x45 && hdr[10] == 0x42 && hdr[11] == 0x50)
+                return SKEncodedImageFormat.Webp;
+            // GIF: 47 49 46
+            if (hdr[0] == 0x47 && hdr[1] == 0x49 && hdr[2] == 0x46)
+                return SKEncodedImageFormat.Gif;
+        }
+        catch { }
+        return (SKEncodedImageFormat)(-1); // unknown
     }
 
     private static void TryDelete(string path)

@@ -352,7 +352,7 @@ public partial class MainForm
 
             // Image cache settings
             _settings.ImgCacheEnabled  = data["imgCacheEnabled"]?.Value<bool>() ?? true;
-            _settings.ImgCacheLimitGb  = data["imgCacheLimitGb"]?.Value<int>()  ?? 5;
+            _settings.ImgCacheLimitGb  = Math.Clamp(data["imgCacheLimitGb"]?.Value<int>() ?? 5, 5, 30);
             if (_imgCache != null)
             {
                 _imgCache.Enabled    = _settings.ImgCacheEnabled;

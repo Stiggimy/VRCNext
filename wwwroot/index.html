@@ -512,7 +512,7 @@
                         <div id="imgCacheLimitRow" style="margin-top:12px;">
                             <div class="sf-row">
                                 <label style="font-size:12px;color:var(--tx2);flex-shrink:0;margin-right:10px;">Max Cache Size</label>
-                                <input type="range" id="setImgCacheLimit" min="1" max="15" step="1" value="5" style="flex:1;accent-color:var(--accent);" oninput="document.getElementById('imgCacheLimitVal').textContent=this.value+' GB';autoSave()">
+                                <input type="range" id="setImgCacheLimit" min="5" max="30" step="1" value="5" style="flex:1;accent-color:var(--accent);" oninput="document.getElementById('imgCacheLimitVal').textContent=this.value+' GB';autoSave()">
                                 <span id="imgCacheLimitVal" style="font-size:12px;color:var(--tx2);margin-left:10px;min-width:44px;text-align:right;">5 GB</span>
                             </div>
                             <div style="font-size:10px;color:var(--tx3);margin-top:6px;">When the limit is reached, the oldest ~2 GB of cached images are removed automatically.</div>

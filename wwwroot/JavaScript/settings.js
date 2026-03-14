@@ -347,7 +347,7 @@ function loadSettingsToUI(s) {
 
     // Image cache settings
     const imgCacheEnabled = s.ImgCacheEnabled ?? s.imgCacheEnabled ?? true;
-    const imgCacheLimitGb = s.ImgCacheLimitGb ?? s.imgCacheLimitGb ?? 5;
+    const imgCacheLimitGb = Math.max(5, Math.min(30, s.ImgCacheLimitGb ?? s.imgCacheLimitGb ?? 5));
     document.getElementById('setImgCacheEnabled').checked = imgCacheEnabled;
     document.getElementById('setImgCacheLimit').value = imgCacheLimitGb;
     document.getElementById('imgCacheLimitVal').textContent = imgCacheLimitGb + ' GB';
