@@ -2,6 +2,7 @@ using Photino.NET;
 using Newtonsoft.Json;
 using System.Diagnostics;
 using VRCNext.Services;
+using VRCNext.Services.Helpers;
 
 namespace VRCNext;
 
@@ -10,6 +11,8 @@ public partial class MainForm
     public MainForm(string[] args)
     {
         _settings = AppSettings.Load();
+        MigrationHelper.MigrateFavorites(_settings); // silently moves Favorites → favorited_images.json
+        _favorites = FavoritedImagesStore.Load();
         if (_settings.MemoryTrimEnabled) _memTrim.SetEnabled(true);
         _timeTracker = UserTimeTracker.Load();
         _worldTimeTracker = WorldTimeTracker.Load();

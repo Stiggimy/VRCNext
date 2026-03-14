@@ -2,6 +2,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using NativeFileDialogSharp;
 using VRCNext.Services;
+using VRCNext.Services.Helpers;
 using System.Diagnostics;
 
 namespace VRCNext;
@@ -49,7 +50,7 @@ public partial class MainForm
                     SendToJS("log", new { msg = $"[LOAD] {AppSettings.LoadDebugInfo}", color = "sec" });
                     SendToJS("log", new { msg = $"[STARTUP] Webhooks: {string.Join(", ", _settings.Webhooks.Select((w,i) => $"#{i+1} \"{w.Name}\" url={w.Url?.Length ?? 0}ch {(w.Enabled?"ON":"off")}"))}", color = "sec" });
                     SendToJS("loadSettings", _settings);
-                    SendToJS("favoritesLoaded", _settings.Favorites);
+                    SendToJS("favoritesLoaded", _favorites);
                     // Relay auto-start is now triggered by vrcLaunched (VRChat launched from VRCNext)
                     _ = VrcTryResumeAsync();
                     _ = Task.Run(async () =>
@@ -300,8 +301,8 @@ public partial class MainForm
                             if (File.Exists(fullDelPath))
                             {
                                 File.Delete(fullDelPath);
-                                _settings.Favorites.Remove(delPath);
-                                _settings.Save();
+                                _favorites.Remove(delPath);
+                                FavoritedImagesStore.Save(_favorites);
                                 SendToJS("log", new { msg = $"Deleted: {Path.GetFileName(fullDelPath)}", color = "ok" });
                                 SendToJS("libraryFileDeleted", new { path = delPath });
                             }
@@ -342,10 +343,10 @@ public partial class MainForm
 
                 case "addFavorite":
                     var favPath = msg["path"]?.ToString();
-                    if (!string.IsNullOrEmpty(favPath) && !_settings.Favorites.Contains(favPath))
+                    if (!string.IsNullOrEmpty(favPath) && !_favorites.Contains(favPath))
                     {
-                        _settings.Favorites.Add(favPath);
-                        _settings.Save();
+                        _favorites.Add(favPath);
+                        FavoritedImagesStore.Save(_favorites);
                     }
                     break;
 
@@ -353,8 +354,8 @@ public partial class MainForm
                     var unfavPath = msg["path"]?.ToString();
                     if (!string.IsNullOrEmpty(unfavPath))
                     {
-                        _settings.Favorites.Remove(unfavPath);
-                        _settings.Save();
+                        _favorites.Remove(unfavPath);
+                        FavoritedImagesStore.Save(_favorites);
                     }
                     break;
 

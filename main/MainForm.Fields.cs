@@ -1,12 +1,14 @@
 using Photino.NET;
 using Newtonsoft.Json.Linq;
 using VRCNext.Services;
+using VRCNext.Services.Helpers;
 using System.Diagnostics;
 
 namespace VRCNext;
 
 public partial class MainForm
 {
+    private List<string> _favorites = new();
     private PhotinoWindow _window = null!;
     private string _imgCacheDir = "";
     private string _thumbCacheDir = "";
