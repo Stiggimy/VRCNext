@@ -336,7 +336,7 @@ body {
     overflow-y: auto;
     overflow-x: hidden;
     min-height: 0;
-    scrollbar-gutter: stable;
+    scrollbar-gutter: stable both-edges;
 }
 .nav::-webkit-scrollbar { width: 5px; }
 .nav::-webkit-scrollbar-track { background: transparent; }
