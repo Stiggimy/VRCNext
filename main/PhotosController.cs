@@ -133,14 +133,20 @@ public class PhotosController
                 }
                 catch { ts = new FileInfo(filePath).LastWriteTimeUtc; }
 
+                var bsWorldName  = "";
+                var bsWorldThumb = "";
+                if (!string.IsNullOrEmpty(rec.WorldId) && _core.WorldTimeTracker.Worlds.TryGetValue(rec.WorldId, out var bsWRec) && !string.IsNullOrEmpty(bsWRec.WorldName))
+                { bsWorldName = bsWRec.WorldName; bsWorldThumb = bsWRec.WorldThumb; }
                 var ev = new TimelineService.TimelineEvent
                 {
-                    Type      = "photo",
-                    Timestamp = ts.ToString("o"),
-                    WorldId   = rec.WorldId,
-                    PhotoPath = filePath,
-                    PhotoUrl  = photoUrl,
-                    Players   = rec.Players.Select(p => new TimelineService.PlayerSnap
+                    Type       = "photo",
+                    Timestamp  = ts.ToString("o"),
+                    WorldId    = rec.WorldId,
+                    WorldName  = bsWorldName,
+                    WorldThumb = bsWorldThumb,
+                    PhotoPath  = filePath,
+                    PhotoUrl   = photoUrl,
+                    Players    = rec.Players.Select(p => new TimelineService.PlayerSnap
                     {
                         UserId      = p.UserId,
                         DisplayName = p.DisplayName,
@@ -539,14 +545,20 @@ public class PhotosController
 
             // Timeline: log photo event
             var photoUrl = GetVirtualMediaUrl(filePath);
+            var phWorldName  = _instance.CachedInstWorldName;
+            var phWorldThumb = _instance.CachedInstWorldThumb;
+            if (string.IsNullOrEmpty(phWorldName) && _core.WorldTimeTracker.Worlds.TryGetValue(wid, out var phWRec) && !string.IsNullOrEmpty(phWRec.WorldName))
+            { phWorldName = phWRec.WorldName; phWorldThumb = phWRec.WorldThumb; }
             var photoEv = new TimelineService.TimelineEvent
             {
-                Type      = "photo",
-                Timestamp = DateTime.UtcNow.ToString("o"),
-                WorldId   = wid,
-                PhotoPath = filePath,
-                PhotoUrl  = photoUrl,
-                Players   = players.Select(p => new TimelineService.PlayerSnap
+                Type       = "photo",
+                Timestamp  = DateTime.UtcNow.ToString("o"),
+                WorldId    = wid,
+                WorldName  = phWorldName,
+                WorldThumb = phWorldThumb,
+                PhotoPath  = filePath,
+                PhotoUrl   = photoUrl,
+                Players    = players.Select(p => new TimelineService.PlayerSnap
                 {
                     UserId      = p.userId,
                     DisplayName = p.displayName,

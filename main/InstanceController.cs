@@ -616,8 +616,9 @@ public class InstanceController
                             Image       = _friends.ResolvePlayerImage(kv.Key, kv.Value.image)
                         }).ToList();
 
-                        string wName = "", wThumb = "";
-                        if (worldId.StartsWith("wrld_") && _core.VrcApi.IsLoggedIn)
+                        // Resolve world name: DB cache first, API fallback
+                        var (wName, wThumb) = ResolveWorldInfoFromCache(worldId);
+                        if (string.IsNullOrEmpty(wName) && worldId.StartsWith("wrld_") && _core.VrcApi.IsLoggedIn)
                         {
                             var world = await _core.VrcApi.GetWorldAsync(worldId);
                             if (world != null)
@@ -634,10 +635,13 @@ public class InstanceController
                             ev.Players    = snap;
                         });
 
-                        // Store name/thumb in WorldTimeTracker so Time Spent tab can show it
-                        // even for worlds that aren't in the timeline top-200
+                        // Store name/thumb in WorldTimeTracker so future lookups skip the API
                         if (!string.IsNullOrEmpty(wName))
+                        {
                             _core.WorldTimeTracker.UpdateWorldInfo(worldId, wName, wThumb);
+                            // Backfill ALL events (entire DB) with same WorldId that are missing WorldName
+                            BackfillWorldName(worldId, wName, wThumb);
+                        }
 
                         var updated = _core.Timeline.GetEvents().FirstOrDefault(e => e.Id == evId);
                         if (updated != null) _core.SendToJS("timelineEvent", BuildTimelinePayload(updated));
@@ -684,19 +688,42 @@ public class InstanceController
         {
             _core.Timeline.AddKnownUser(userId);
             var img = _friends.TryGetNameImage(userId, out var fi) ? fi.image : "";
+            var fmWorldId = _core.LogWatcher.CurrentWorldId ?? "";
+            var (fmWorldName, fmWorldThumb) = ResolveWorldInfoFromCache(fmWorldId);
             var meetEv = new TimelineService.TimelineEvent
             {
-                Type      = "first_meet",
-                Timestamp = DateTime.UtcNow.ToString("o"),
-                UserId    = userId,
-                UserName  = displayName,
-                UserImage = img,
-                WorldId   = _core.LogWatcher.CurrentWorldId ?? "",
-                Location  = _core.LogWatcher.CurrentLocation ?? ""
+                Type       = "first_meet",
+                Timestamp  = DateTime.UtcNow.ToString("o"),
+                UserId     = userId,
+                UserName   = displayName,
+                UserImage  = img,
+                WorldId    = fmWorldId,
+                WorldName  = fmWorldName,
+                WorldThumb = fmWorldThumb,
+                Location   = _core.LogWatcher.CurrentLocation ?? ""
             };
             _core.Timeline.AddEvent(meetEv);
             _core.SendToJS("timelineEvent", BuildTimelinePayload(meetEv));
             _core.SendToJS("log", new { msg = $"[TIMELINE] First meet: {displayName}", color = "sec" });
+
+            // If world name still unknown, async-fetch and backfill ALL events with same WorldId
+            if (string.IsNullOrEmpty(fmWorldName) && fmWorldId.StartsWith("wrld_") && _core.VrcApi.IsLoggedIn)
+            {
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        var world = await _core.VrcApi.GetWorldAsync(fmWorldId);
+                        if (world == null) return;
+                        var fn = world["name"]?.ToString() ?? "";
+                        var ft = world["thumbnailImageUrl"]?.ToString() ?? "";
+                        if (string.IsNullOrEmpty(fn)) return;
+                        _core.WorldTimeTracker.UpdateWorldInfo(fmWorldId, fn, ft);
+                        Invoke(() => BackfillWorldName(fmWorldId, fn, ft));
+                    }
+                    catch { }
+                });
+            }
 
             // If no image yet, fetch async and update the event
             if (string.IsNullOrEmpty(img) && _core.VrcApi.IsLoggedIn)
@@ -733,18 +760,41 @@ public class InstanceController
             {
                 _meetAgainThisInstance.Add(userId);
                 var img = _friends.TryGetNameImage(userId, out var fi2) ? fi2.image : "";
+                var maWorldId = _core.LogWatcher.CurrentWorldId ?? "";
+                var (maWorldName, maWorldThumb) = ResolveWorldInfoFromCache(maWorldId);
                 var meetAgainEv = new TimelineService.TimelineEvent
                 {
-                    Type      = "meet_again",
-                    Timestamp = DateTime.UtcNow.ToString("o"),
-                    UserId    = userId,
-                    UserName  = displayName,
-                    UserImage = img,
-                    WorldId   = _core.LogWatcher.CurrentWorldId ?? "",
-                    Location  = _core.LogWatcher.CurrentLocation ?? ""
+                    Type       = "meet_again",
+                    Timestamp  = DateTime.UtcNow.ToString("o"),
+                    UserId     = userId,
+                    UserName   = displayName,
+                    UserImage  = img,
+                    WorldId    = maWorldId,
+                    WorldName  = maWorldName,
+                    WorldThumb = maWorldThumb,
+                    Location   = _core.LogWatcher.CurrentLocation ?? ""
                 };
                 _core.Timeline.AddEvent(meetAgainEv);
                 _core.SendToJS("timelineEvent", BuildTimelinePayload(meetAgainEv));
+
+                // If world name still unknown, async-fetch and backfill ALL events with same WorldId
+                if (string.IsNullOrEmpty(maWorldName) && maWorldId.StartsWith("wrld_") && _core.VrcApi.IsLoggedIn)
+                {
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            var world = await _core.VrcApi.GetWorldAsync(maWorldId);
+                            if (world == null) return;
+                            var mn = world["name"]?.ToString() ?? "";
+                            var mt = world["thumbnailImageUrl"]?.ToString() ?? "";
+                            if (string.IsNullOrEmpty(mn)) return;
+                            _core.WorldTimeTracker.UpdateWorldInfo(maWorldId, mn, mt);
+                            Invoke(() => BackfillWorldName(maWorldId, mn, mt));
+                        }
+                        catch { }
+                    });
+                }
 
                 // Async-fetch image if missing
                 if (string.IsNullOrEmpty(img) && _core.VrcApi.IsLoggedIn)
@@ -827,6 +877,34 @@ public class InstanceController
     }
 
     // Timeline - helpers
+
+    /// Resolve world name + thumb from in-memory caches (no API call).
+    /// Priority: instance cache (only if worldId matches) → WorldTimeTracker DB cache.
+    private (string name, string thumb) ResolveWorldInfoFromCache(string worldId)
+    {
+        if (string.IsNullOrEmpty(worldId)) return ("", "");
+        if (!string.IsNullOrEmpty(_cachedInstWorldName) && _cachedInstLocation.StartsWith(worldId))
+            return (_cachedInstWorldName, _cachedInstWorldThumb);
+        if (_core.WorldTimeTracker.Worlds.TryGetValue(worldId, out var rec) && !string.IsNullOrEmpty(rec.WorldName))
+            return (rec.WorldName, rec.WorldThumb);
+        return ("", "");
+    }
+
+    /// Backfill all timeline events with matching worldId that have empty WorldName.
+    /// Pushes updated events to JS automatically.
+    private void BackfillWorldName(string worldId, string wName, string wThumb)
+    {
+        if (string.IsNullOrEmpty(worldId) || string.IsNullOrEmpty(wName)) return;
+        var toFix = _core.Timeline.GetEvents()
+            .Where(e => e.WorldId == worldId && string.IsNullOrEmpty(e.WorldName))
+            .ToList();
+        foreach (var ev in toFix)
+        {
+            _core.Timeline.UpdateEvent(ev.Id, e => { e.WorldName = wName; e.WorldThumb = wThumb; });
+            Invoke(() => _core.SendToJS("timelineEvent", BuildTimelinePayload(
+                _core.Timeline.GetEvents().FirstOrDefault(e => e.Id == ev.Id) ?? ev)));
+        }
+    }
 
     public object BuildTimelinePayload(TimelineService.TimelineEvent ev) => new
     {

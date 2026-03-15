@@ -100,18 +100,34 @@ public class TimelineController
                 if (tlCt.IsCancellationRequested) return;
 
                 var tlTypeFilter = msg["type"]?.ToString() ?? "";
+
+                // 0) Backfill missing world names from WorldTimeTracker DB cache (entire DB, no API calls)
+                var allEvents = _core.Timeline.GetEvents();
+                foreach (var ev in allEvents.Where(e => !string.IsNullOrEmpty(e.WorldId) && string.IsNullOrEmpty(e.WorldName)))
+                {
+                    if (_core.WorldTimeTracker.Worlds.TryGetValue(ev.WorldId, out var wRec) && !string.IsNullOrEmpty(wRec.WorldName))
+                    {
+                        _core.Timeline.UpdateEvent(ev.Id, e =>
+                        {
+                            e.WorldName = wRec.WorldName;
+                            if (string.IsNullOrEmpty(e.WorldThumb)) e.WorldThumb = wRec.WorldThumb;
+                        });
+                    }
+                }
+
                 var (events, hasMore) = _core.Timeline.GetEventsPaged(100, 0, tlTypeFilter);
                 var total   = _core.Timeline.GetEventCount(tlTypeFilter);
                 var payload = events.Select(e => _instance.BuildTimelinePayload(e)).ToList();
                 _core.SendToJS("timelineData", new { events = payload, hasMore, offset = 0, total, type = tlTypeFilter });
 
                 if (!_core.VrcApi.IsLoggedIn) return;
-                if (tlCt.IsCancellationRequested) return;
                 bool anyResolved = false;
+                if (tlCt.IsCancellationRequested) return;
 
-                // 1) Resolve missing world thumbs (session-cached: skip known 404s and already-resolved worlds)
+                // 1) Resolve missing world thumbs/names via API (session-cached: skip known 404s and already-resolved worlds)
                 var unknownWorlds = events
-                    .Where(e => !string.IsNullOrEmpty(e.WorldId) && string.IsNullOrEmpty(e.WorldThumb)
+                    .Where(e => !string.IsNullOrEmpty(e.WorldId)
+                        && (string.IsNullOrEmpty(e.WorldThumb) || string.IsNullOrEmpty(e.WorldName))
                         && !_core.WorldThumbCache.ContainsKey(e.WorldId))
                     .Select(e => e.WorldId).Distinct().Take(20).ToList();
 
@@ -126,8 +142,9 @@ public class TimelineController
                             var wName  = w["name"]?.ToString()              ?? "";
                             var wThumb = w["thumbnailImageUrl"]?.ToString() ?? "";
                             _core.WorldThumbCache[wid] = wThumb;
+                            _core.WorldTimeTracker.UpdateWorldInfo(wid, wName, wThumb);
                             foreach (var ev in events
-                                .Where(e => e.WorldId == wid && string.IsNullOrEmpty(e.WorldThumb)))
+                                .Where(e => e.WorldId == wid && (string.IsNullOrEmpty(e.WorldThumb) || string.IsNullOrEmpty(e.WorldName))))
                             {
                                 _core.Timeline.UpdateEvent(ev.Id, e => { e.WorldName = wName; e.WorldThumb = wThumb; });
                                 ev.WorldName  = wName;
