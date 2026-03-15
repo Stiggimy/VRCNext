@@ -55,14 +55,6 @@ public class DiscordPresenceService : IDisposable
         Log("[Discord] Disconnected");
     }
 
-    /// <summary>
-    /// Updates the Discord Rich Presence.
-    /// </summary>
-    /// <param name="worldName">World name shown as Details (top line)</param>
-    /// <param name="instanceState">e.g. "Friends+ #12345 (13/32)"</param>
-    /// <param name="worldImageUrl">VRChat world thumbnail URL (Discord supports external URLs)</param>
-    /// <param name="status">VRC status string: "active", "join me", "busy", "ask me"</param>
-    /// <param name="joinedAt">When the user joined the instance (for elapsed timer)</param>
     public void UpdatePresence(string worldName, string instanceState, string worldImageUrl, string status, DateTime joinedAt, string? joinUrl = null)
     {
         if (_client?.IsInitialized != true) return;
@@ -84,7 +76,6 @@ public class DiscordPresenceService : IDisposable
                 SmallImageText = smallText,
             };
 
-            // Discord supports external image URLs directly
             if (!string.IsNullOrEmpty(worldImageUrl))
                 assets.LargeImageKey = worldImageUrl;
 

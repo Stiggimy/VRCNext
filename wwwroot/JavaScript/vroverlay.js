@@ -52,7 +52,11 @@ function handleVroState(d) {
         if (btn) btn.innerHTML = '<span class="msi" style="font-size:16px;">link_off</span> Disconnect';
         badge?.classList.replace('offline', 'online');
         if (currentSpecialTheme === 'auto') applyAutoColor();
-        else if (typeof THEMES !== 'undefined' && THEMES[currentTheme]) applyColors(THEMES[currentTheme].c);
+        else {
+            const t = (typeof THEMES !== 'undefined' && THEMES[currentTheme])
+                   || (typeof customThemes !== 'undefined' && customThemes.find(x => x.key === currentTheme));
+            if (t) applyColors(t.c);
+        }
     } else {
         dot?.classList.replace('online', 'offline');
         if (txt) txt.textContent = d.error || 'Not connected';
@@ -107,7 +111,24 @@ function vroConnect() {
     if (vroConnected) {
         sendToCS({ action: 'vroDisconnect' });
     } else {
-        sendToCS({ action: 'vroConnect' });
+        // Resolve the current theme colors and send them with the connect
+        // message so C# can seed the overlay immediately — no round-trip needed.
+        let colors = null;
+        if (currentSpecialTheme === 'auto') {
+            // Grab whatever CSS vars are currently active (auto color already applied)
+            const s = getComputedStyle(document.documentElement);
+            const keys = ['bg-card','bg-hover','accent','ok','warn','err','cyan','tx1','tx2','tx3','brd'];
+            colors = {};
+            for (const k of keys) {
+                const v = s.getPropertyValue('--' + k).trim();
+                if (v) colors[k] = v;
+            }
+        } else {
+            const t = (typeof THEMES !== 'undefined' && THEMES[currentTheme])
+                   || (typeof customThemes !== 'undefined' && customThemes.find(x => x.key === currentTheme));
+            if (t) colors = t.c;
+        }
+        sendToCS({ action: 'vroConnect', themeColors: colors || null });
         vroSendConfig();
     }
 }

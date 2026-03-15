@@ -6,10 +6,11 @@
     <title>VRCNext</title>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="Styles/styles.css">
+    <link rel="stylesheet" href="Styles/retro-style.css">
 </head>
 <body>
     <div class="sidebar" id="sidebarEl">
-        <div class="logo"><div class="logo-icon" id="logoIcon">V</div><div class="logo-txt"><div class="logo-text-row"><div class="logo-text">VRCNext</div></div><div class="logo-sub">v2026.10.12</div></div><button class="sb-toggle" onclick="toggleSidebar()" title="Toggle sidebar"><span class="msi" id="sbIcon">chevron_left</span></button></div>
+        <div class="logo"><div class="logo-icon" id="logoIcon">V</div><div class="logo-txt"><div class="logo-text-row"><div class="logo-text">VRCNext</div></div><div class="logo-sub">v2026.10.13</div></div><button class="sb-toggle" onclick="toggleSidebar()" title="Toggle sidebar"><span class="msi" id="sbIcon">chevron_left</span></button></div>
         <div class="nav">
             <button class="nav-btn active" onclick="showTab(0)"><span class="ni msi">dashboard</span><span class="nl">Dashboard</span></button>
             <button class="nav-btn" onclick="showTab(1)"><span class="ni msi">travel_explore</span><span class="nl">Worlds</span></button>
@@ -469,6 +470,11 @@
                         <div class="sf-toggle-row"><span>Notification sound</span><label class="toggle"><input type="checkbox" id="setNotifySound" onchange="autoSave()"><div class="toggle-track"><div class="toggle-knob"></div></div></label></div>
                         <div class="sf-section-label" style="margin-top:16px;">Theme</div>
                         <div class="theme-grid" id="themeGrid"></div>
+
+                        <div id="customThemeSection" style="display:none;">
+                            <div class="sf-section-label" style="margin-top:16px;">Custom Theme</div>
+                            <div class="theme-grid" id="customThemeGrid"></div>
+                        </div>
                         <div class="sf-section-label" style="margin-top:16px;">Special Themes</div>
                         <div class="theme-grid" id="specialThemeGrid"></div>
                         <div class="sf-section-label" style="margin-top:16px;">Play Button Theme</div>

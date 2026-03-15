@@ -2,12 +2,6 @@ using System.Text.RegularExpressions;
 
 namespace VRCNext.Services;
 
-/// <summary>
-/// Watches VRChat's output_log_*.txt files to track players joining/leaving instances.
-/// IMPORTANT: VRChat obfuscates component tags (e.g. [NetworkManager] becomes random unicode).
-/// So we match on event keywords (OnPlayerJoined etc.) NOT on the component tags.
-/// Log path: %LocalAppData%Low\VRChat\VRChat\output_log_*.txt
-/// </summary>
 public class VRChatLogWatcher : IDisposable
 {
     public class PlayerInfo
@@ -32,46 +26,30 @@ public class VRChatLogWatcher : IDisposable
     private int _totalRoomEvents;
 
     public event Action<string>?         DebugLog;
-    /// <summary>Fires on a real-time world/instance change (not during log catch-up).</summary>
-    public event Action<string, string>? WorldChanged;   // worldId, location
-    /// <summary>Fires when VRChat logs "Instance closed: {location}" — not during catch-up.</summary>
-    public event Action<string>? InstanceClosed;         // full location string
-    /// <summary>Fires when VRChat logs a player switching to an avatar — not during catch-up.</summary>
-    public event Action<string, string>? AvatarChanged;  // displayName, avatarName
-    /// <summary>Fires when VRChat resolves a video/media URL — not during catch-up.</summary>
-    public event Action<string>? VideoUrl;               // url
-    /// <summary>Fires when a player joins during live play (not during log catch-up).</summary>
-    public event Action<string, string>? PlayerJoined;   // userId, displayName
-    /// <summary>Fires when a player leaves during live play (not during log catch-up).</summary>
-    public event Action<string, string>? PlayerLeft;     // userId, displayName
+    public event Action<string, string>? WorldChanged;
+    public event Action<string>? InstanceClosed;
+    public event Action<string, string>? AvatarChanged;
+    public event Action<string>? VideoUrl;
+    public event Action<string, string>? PlayerJoined;
+    public event Action<string, string>? PlayerLeft;
 
     private void Log(string msg) => DebugLog?.Invoke(msg);
 
-    // Real player join/leave events always come from [Behaviour] in the log.
-    // World scripts (e.g. [PUG] [TapsterLock]) also emit OnPlayerJoined/Left lines
-    // with non-player payloads — we must require [Behaviour] to avoid false matches.
-    // Note: [NetworkManager] is obfuscated but [Behaviour] is stable across versions.
-
-    // "OnPlayerJoined DisplayName (usr_xxx)" — also handles old non-usr_ ID format
+    // [Behaviour] prefix required to avoid false matches from world scripts
     private static readonly Regex RxPlayerJoined = new(
         @"\[Behaviour\]\s+OnPlayerJoined (.+?)(?:\s+\(([A-Za-z0-9_\-]+)\))?\s*$",
         RegexOptions.Compiled);
     private static readonly Regex RxPlayerLeft = new(
         @"\[Behaviour\]\s+OnPlayerLeft (.+?)(?:\s+\(([A-Za-z0-9_\-]+)\))?\s*$",
         RegexOptions.Compiled);
-    // "Joining wrld_xxx:12345~..." captures the full location string
     private static readonly Regex RxRoomJoin = new(
         @"Joining (wrld_[^\s]+)", RegexOptions.Compiled);
-    // "Instance closed: wrld_xxx:12345~..."
     private static readonly Regex RxInstanceClosed = new(
         @"Instance closed: (wrld_[^\s]+)", RegexOptions.Compiled);
-    // "[Behaviour] Switching {displayName} to avatar {avatarName}"
     private static readonly Regex RxAvatarSwitch = new(
         @"Switching (.+?) to avatar (.+)$", RegexOptions.Compiled);
-    // "[Video Playback] Attempting to resolve URL 'https://...'" or "Resolving URL '...'"
     private static readonly Regex RxVideoUrl = new(
         @"(?:Attempting to resolve|Resolving) URL '([^']+)'", RegexOptions.Compiled);
-    // "Entering Room: WorldName"
     private static readonly Regex RxRoomEnter = new(
         @"Entering Room: (.+)", RegexOptions.Compiled);
 
@@ -82,7 +60,6 @@ public class VRChatLogWatcher : IDisposable
 
     public int PlayerCount { get { lock (_lock) return _players.Count; } }
     public string? CurrentWorldId => _currentWorldId;
-    /// <summary>Full VRChat instance location string from the log, e.g. "wrld_abc:12345~private~..."</summary>
     public string? CurrentLocation => _currentLocation;
 
     public string GetDiagnostics()
@@ -134,8 +111,7 @@ public class VRChatLogWatcher : IDisposable
 
     private string GetLogDirectory()
     {
-        // Need: C:\Users\X\AppData\LocalLow\VRChat\VRChat
-        // SpecialFolder.LocalApplicationData = C:\Users\X\AppData\Local
+        // VRChat uses LocalLow, not Local
         var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
         var appData = Directory.GetParent(local)?.FullName ?? local;
         return Path.Combine(appData, "LocalLow", "VRChat", "VRChat");
@@ -196,14 +172,12 @@ public class VRChatLogWatcher : IDisposable
     {
         if (line.Length < 30) return;
 
-        // Room join - clears player list
         if (line.Contains("Joining wrld_"))
         {
             var m = RxRoomJoin.Match(line);
             if (m.Success)
             {
                 _currentLocation = m.Groups[1].Value;
-                // Extract world ID (part before ':')
                 var colon = _currentLocation.IndexOf(':');
                 _currentWorldId = colon >= 0 ? _currentLocation.Substring(0, colon) : _currentLocation;
                 lock (_lock) _players.Clear();
@@ -228,7 +202,6 @@ public class VRChatLogWatcher : IDisposable
             }
         }
 
-        // Player joined
         if (line.Contains("OnPlayerJoined"))
         {
             var m = RxPlayerJoined.Match(line);
@@ -251,7 +224,6 @@ public class VRChatLogWatcher : IDisposable
             }
         }
 
-        // Player left
         if (line.Contains("OnPlayerLeft"))
         {
             var m = RxPlayerLeft.Match(line);
@@ -278,7 +250,6 @@ public class VRChatLogWatcher : IDisposable
             }
         }
 
-        // Video URL — "[Video Playback] Attempting to resolve URL 'https://...'"
         if (line.Contains("resolve URL '") || line.Contains("Resolving URL '"))
         {
             var m = RxVideoUrl.Match(line);
@@ -287,7 +258,6 @@ public class VRChatLogWatcher : IDisposable
             return;
         }
 
-        // Avatar switch — "[Behaviour] Switching {name} to avatar {avatarName}"
         if (line.Contains("Switching ") && line.Contains(" to avatar "))
         {
             var m = RxAvatarSwitch.Match(line);
@@ -296,7 +266,6 @@ public class VRChatLogWatcher : IDisposable
             return;
         }
 
-        // Instance closed
         if (line.Contains("Instance closed:"))
         {
             var m = RxInstanceClosed.Match(line);
