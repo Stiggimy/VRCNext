@@ -17,8 +17,8 @@ namespace VRCNext
     public class OscService : IDisposable
     {
         private const string OSC_IP = "127.0.0.1";
-        private const int VRC_LISTEN_PORT = 9001;  // VRChat sends params here
-        private const int VRC_SEND_PORT = 9000;    // VRChat listens here
+        private const int VRC_LISTEN_PORT = 9001;
+        private const int VRC_SEND_PORT = 9000;
 
         private UdpClient? _receiver;
         private UdpClient? _sender;
@@ -28,8 +28,8 @@ namespace VRCNext
         public bool IsConnected => _running;
 
         private readonly Action<string> _log;
-        private Action<string, object, string>? _onParam;   // name, value, type
-        private Action<string, List<OscParamDef>>? _onAvatarChange; // avatarId, params
+        private Action<string, object, string>? _onParam;
+        private Action<string, List<OscParamDef>>? _onAvatarChange;
 
         public OscService(Action<string> log) { _log = log; }
 
@@ -94,7 +94,6 @@ namespace VRCNext
                 string typeTag = ReadOscString(data, ref pos);
                 if (typeTag.Length < 2 || typeTag[0] != ',') return;
 
-                // Avatar change
                 if (address == "/avatar/change")
                 {
                     if (typeTag[1] == 's')
@@ -110,7 +109,6 @@ namespace VRCNext
                     return;
                 }
 
-                // Avatar parameters
                 if (!address.StartsWith("/avatar/parameters/")) return;
 
                 string paramName = address.Substring("/avatar/parameters/".Length);
@@ -147,13 +145,9 @@ namespace VRCNext
             catch { }
         }
 
-        // VRChat OSC config file handling
-
         private static string GetOscConfigDir()
         {
-            // VRChat stores data in AppData\LocalLow\VRChat\VRChat, NOT AppData\Roaming
-            // Environment.SpecialFolder.ApplicationData = AppData\Roaming (wrong)
-            // We have to build the LocalLow path manually.
+            // VRChat uses LocalLow, not Roaming
             var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
             return Path.Combine(userProfile, "AppData", "LocalLow", "VRChat", "VRChat", "OSC");
         }
@@ -171,10 +165,6 @@ namespace VRCNext
             return null;
         }
 
-        /// <summary>
-        /// Finds and loads the most recently written avatar config file.
-        /// Used on connect so the parameter list populates immediately without needing /avatar/change.
-        /// </summary>
         public (string AvatarId, List<OscParamDef> Params) LoadMostRecentAvatarConfig()
         {
             try
@@ -238,7 +228,6 @@ namespace VRCNext
             var json = File.ReadAllText(path);
             var root = JsonNode.Parse(json);
 
-            // VRChat uses nested {input:{address,type}, output:{address,type}} format
             var parameters = root?["parameters"]?.AsArray();
             if (parameters == null) return result;
 
@@ -248,13 +237,12 @@ namespace VRCNext
                 var name = p["name"]?.GetValue<string>();
                 if (string.IsNullOrEmpty(name)) continue;
 
-                // Nested format: { input: {address, type}, output: {address, type} }
                 bool hasInput  = p["input"]  != null;
                 bool hasOutput = p["output"] != null;
 
                 string? rawType = p["input"]?["type"]?.GetValue<string>()
                                ?? p["output"]?["type"]?.GetValue<string>()
-                               ?? p["type"]?.GetValue<string>(); // flat format fallback
+                               ?? p["type"]?.GetValue<string>();
 
                 string type = (rawType ?? "").ToLowerInvariant() switch
                 {
@@ -264,7 +252,6 @@ namespace VRCNext
                     _       => "float"
                 };
 
-                // If neither input nor output but there's a flat "address" field, treat as both
                 if (!hasInput && !hasOutput && p["address"] != null)
                 {
                     hasInput = true;
@@ -277,10 +264,6 @@ namespace VRCNext
             return result;
         }
 
-        /// <summary>
-        /// Modifies all VRChat OSC avatar config files to enable output for every parameter.
-        /// Returns the number of files updated.
-        /// </summary>
         public int EnableAllOutputs()
         {
             int updated = 0;
@@ -320,12 +303,11 @@ namespace VRCNext
             foreach (var p in parameters)
             {
                 if (p == null) continue;
-                if (p["output"] != null) continue; // already has output
+                if (p["output"] != null) continue;
 
                 var name = p["name"]?.GetValue<string>();
                 if (string.IsNullOrEmpty(name)) continue;
 
-                // Determine type from input section
                 string? rawType = p["input"]?["type"]?.GetValue<string>();
                 if (rawType == null) continue;
 
@@ -346,8 +328,6 @@ namespace VRCNext
             }
             return changed;
         }
-
-        // OSC binary helpers
 
         private static string ReadOscString(byte[] data, ref int pos)
         {
@@ -436,13 +416,6 @@ namespace VRCNext
             for (int i = 0; i < pad; i++) buf.Add(0);
         }
 
-        // OSCQuery (VRChat v2023.3.1+)
-
-        /// <summary>
-        /// Tries to fetch all current avatar parameter values via VRChat's OSCQuery HTTP endpoint.
-        /// VRChat serves OSCQuery on localhost:9002 by default.
-        /// Returns true if at least one parameter was retrieved.
-        /// </summary>
         public async Task<bool> TryOscQueryAsync(Action<string, object, string> onResult)
         {
             const int port = 9002;

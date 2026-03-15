@@ -19,7 +19,7 @@ namespace VRCNext.Services
 {
     public class VROverlayService : IDisposable
     {
-        // ── Config ────────────────────────────────────────────────────────────
+        //  Config 
         public bool AttachToLeft   { get; set; } = true;
         public bool AttachToHand   { get; set; } = true;
         public float PosX          { get; set; } = 0.0f;
@@ -35,35 +35,35 @@ namespace VRCNext.Services
         public List<uint> KeybindDt     { get; private set; } = new();
         public int        KeybindDtHand { get; private set; } = 0; // 0=any, 1=left, 2=right (doubletap slot)
 
-        // ── State ─────────────────────────────────────────────────────────────
+        //  State 
         public bool IsConnected    { get; private set; }
         public bool IsVisible      { get; private set; }
         public bool IsRecording    { get; private set; }
         public string? LastError   { get; private set; }
 
-        // ── Events ────────────────────────────────────────────────────────────
+        //  Events 
         public event Action<object>? OnStateUpdate;
         public event Action<List<uint>, List<string>, int, int>? OnKeybindRecorded; // (ids, names, hand, mode)
         public event Action<int>? OnToolToggle;
         public event Action<string, string>? OnJoinRequest; // (friendId, location)
 
-        // ── OpenVR handles ────────────────────────────────────────────────────
+        //  OpenVR handles 
         private CVRSystem? _vrSystem;
         private bool _ownedInit;
         private ulong _overlayHandle;
 
-        // ── Poll loop ─────────────────────────────────────────────────────────
+        //  Poll loop 
         private CancellationTokenSource? _cts;
         private bool _running;
         private bool _disposed;
         private readonly Action<string> _log;
 
-        // ── Controller tracking ───────────────────────────────────────────────
+        //  Controller tracking 
         private uint _leftIdx  = OpenVR.k_unTrackedDeviceIndexInvalid;
         private uint _rightIdx = OpenVR.k_unTrackedDeviceIndexInvalid;
         private readonly TrackedDevicePose_t[] _poses = new TrackedDevicePose_t[OpenVR.k_unMaxTrackedDeviceCount];
 
-        // ── Keybind recording ─────────────────────────────────────────────────
+        //  Keybind recording 
         private ulong _lastPressedButtons;
         private int   _stableFrames;
         private const int STABLE_FRAMES_REQUIRED = 25; // ~275ms at 11ms poll
@@ -75,13 +75,13 @@ namespace VRCNext.Services
         private ulong _eventRightHeld   = 0;  // buttons held on right controller only
         private bool  _keybindTriggered = false;    // prevents repeated toggle while combo held
         private int   _keybindReleaseFrames = 0;    // frames the combo has been NOT held
-        private const int KEYBIND_RELEASE_REQUIRED = 30; // ~330ms stable release before re-arm
+        private const int KEYBIND_RELEASE_REQUIRED = 8; // ~88ms stable release before re-arm
         // Double-tap state
         private ulong    _prevTriggerHeld      = 0;
         private uint     _doubleTapLastButton  = uint.MaxValue;
         private DateTime _doubleTapLastTime    = DateTime.MinValue;
 
-        // ── D3D11 (staging + overlay textures for flicker-free upload) ────────
+        //  D3D11 (staging + overlay textures for flicker-free upload) 
         // Valve docs & openvr#772: use Texture2D.NativePointer + CopyResource + Flush,
         // NOT SetOverlayRaw (shockingly inefficient, causes blank frame each call).
         private ID3D11Device?        _d3dDevice;
@@ -89,7 +89,7 @@ namespace VRCNext.Services
         private ID3D11Texture2D?     _stagingTex;  // CPU-writable staging buffer
         private ID3D11Texture2D?     _overlayTex;  // GPU texture SteamVR reads from
 
-        // ── Rendering ─────────────────────────────────────────────────────────
+        //  Rendering 
         private Bitmap?   _bitmap;
         private const int W = 512;
         private const int H = 384;
@@ -108,21 +108,21 @@ namespace VRCNext.Services
         // Track last controller index that a valid transform was applied for
         private uint _lastTransformIdx = OpenVR.k_unTrackedDeviceIndexInvalid;
 
-        // ── Profile image cache (notification avatars) ────────────────────────
+        //  Profile image cache (notification avatars) 
         private readonly Dictionary<string, Bitmap?> _notifImgCache = new();
         private readonly System.Net.Http.HttpClient  _httpImgClient = new() { Timeout = TimeSpan.FromSeconds(5) };
 
-        // ── Join button cooldowns (friendId → click time) ─────────────────────
+        //  Join button cooldowns (friendId → click time) 
         private readonly Dictionary<string, DateTime> _joinCooldowns = new();
 
-        // ── Material Symbols Rounded font (downloaded once, used for tool icons) ─
+        //  Material Symbols Rounded font (downloaded once, used for tool icons) 
         private System.Drawing.Text.PrivateFontCollection? _matSymFonts;
         private FontFamily? _matSymFamily;
 
-        // ── Album art (SMTC thumbnail) ────────────────────────────────────────
+        //  Album art (SMTC thumbnail) 
         private Bitmap? _albumArt;
 
-        // ── Proximity interaction ─────────────────────────────────────────────
+        //  Proximity interaction 
         // Free hand < ENTER_DIST from wrist → Mouse mode + interactive flag on.
         // Free hand > LEAVE_DIST            → back to None (hysteresis prevents flicker).
         private bool  _interactMode      = false;
@@ -130,7 +130,7 @@ namespace VRCNext.Services
         private float InteractEnterDist => Math.Max(0.03f, ControlRadius);
         private float InteractLeaveDist => InteractEnterDist + 0.08f;
 
-        // ── Overlay content ───────────────────────────────────────────────────
+        //  Overlay content 
         private int                   _activeTab = 0; // 0=Alerts 1=Location 2=Music 3=Tools
         private readonly List<NotifEntry> _notifications = new();
         private string   _mediaTitle    = "";
@@ -139,7 +139,7 @@ namespace VRCNext.Services
         private bool     _mediaPlaying  = false;
         private bool     _dirty         = true;
 
-        // ── Tool states ───────────────────────────────────────────────────────
+        //  Tool states 
         private bool _toolDiscord  = false;
         private bool _toolVoice    = false;
         private bool _toolYtFix    = false;
@@ -158,7 +158,7 @@ namespace VRCNext.Services
             _dirty = true;
         }
 
-        // ── Allowed buttons & keybind limits ─────────────────────────────────
+        //  Allowed buttons & keybind limits 
         // Allowed: Grip(2), B/Y(1), A/X(7), Thumbstick(32), Trigger(33)
         // Excluded: System(0), Trackpad(34)
         private const ulong ALLOWED_BUTTON_MASK =
@@ -166,7 +166,7 @@ namespace VRCNext.Services
         private const int MAX_KEYBIND_BUTTONS  = 4;
         private const int DOUBLE_TAP_WINDOW_MS = 400;
 
-        // ── Button name maps ──────────────────────────────────────────────────
+        //  Button name maps 
         private static readonly Dictionary<uint, string> ButtonNames = new()
         {
             { (uint)EVRButtonId.k_EButton_ApplicationMenu, "B/Y"       },
@@ -178,13 +178,13 @@ namespace VRCNext.Services
 
         private record NotifEntry(string EvType, string FriendName, string EvText, string Time, string ImageUrl = "", string FriendId = "", string Location = "");
 
-        // ── Location tab ──────────────────────────────────────────────────────
+        //  Location tab 
         private record LocationEntry(string WorldId, string InstanceId, string WorldName, string WorldImageUrl, string FriendId, string FriendName, string FriendImageUrl, string Location);
         private readonly List<LocationEntry>         _friendLocations  = new();
         private readonly Dictionary<string, Bitmap?> _locationImgCache = new(); // world + friend images, keyed by URL
         private int _locationPage = 0; // current page (0-based, 6 cards per page)
 
-        // ── Location layout constants (shared by Draw + Click) ────────────────
+        //  Location layout constants (shared by Draw + Click) 
         private const int LocPadX     = 12;
         private const int LocColGap   = 6;
         private const int LocRowGap   = 6;
@@ -195,7 +195,7 @@ namespace VRCNext.Services
         private const int LocArrW     = 40;
         private static int LocColW    => (W - 2 * LocPadX - LocColGap) / 2; // = 241
 
-        // ── Theme colors ──────────────────────────────────────────────────────
+        //  Theme colors 
         private OverlayTheme _theme = OverlayTheme.FromName("midnight");
 
         public void SetTheme(string name)
@@ -204,7 +204,7 @@ namespace VRCNext.Services
             _dirty = true;
         }
 
-        /// <summary>Called from JS applyColors — handles both named themes and auto color.</summary>
+        // called from JS applyColors, handles both named themes and auto color
         public void SetThemeColors(Dictionary<string, string> colors)
         {
             _theme = OverlayTheme.FromColors(colors);
@@ -253,33 +253,36 @@ namespace VRCNext.Services
                     Convert.ToInt32(hex[3..5], 16),
                     Convert.ToInt32(hex[5..7], 16));
 
+            // Synced from JS THEMES in core.js — keep these in sync when themes change!
             private static readonly Dictionary<string, OverlayTheme> _palettes = new()
             {
                 ["midnight"]   = new() { BgCard=H("#0F1628"),BgHover=H("#141E37"),Accent=H("#3884FF"),Ok=H("#2DD48C"),Warn=H("#FFBA37"),Err=H("#FF4B55"),Cyan=H("#00D2EB"),Tx1=H("#DCE4F5"),Tx2=H("#788CAF"),Tx3=H("#41506E"),Brd=H("#1C2841") },
                 ["ocean"]      = new() { BgCard=H("#082233"),BgHover=H("#0C2E44"),Accent=H("#0EA5E9"),Ok=H("#34D399"),Warn=H("#FBBF24"),Err=H("#F87171"),Cyan=H("#22D3EE"),Tx1=H("#BAE6FD"),Tx2=H("#7DD3FC"),Tx3=H("#3B7EA1"),Brd=H("#164E63") },
                 ["emerald"]    = new() { BgCard=H("#0C2018"),BgHover=H("#12301F"),Accent=H("#10B981"),Ok=H("#4ADE80"),Warn=H("#FCD34D"),Err=H("#FB7185"),Cyan=H("#2DD4BF"),Tx1=H("#BBF7D0"),Tx2=H("#6EE7B7"),Tx3=H("#3D7A5A"),Brd=H("#1A4034") },
-                ["sunset"]     = new() { BgCard=H("#1E1008"),BgHover=H("#2D1A0C"),Accent=H("#F97316"),Ok=H("#84CC16"),Warn=H("#FCD34D"),Err=H("#EF4444"),Cyan=H("#22D3EE"),Tx1=H("#FEF3C7"),Tx2=H("#FDBA74"),Tx3=H("#7C4D28"),Brd=H("#431C08") },
-                ["rose"]       = new() { BgCard=H("#1E0A12"),BgHover=H("#2D1220"),Accent=H("#F43F5E"),Ok=H("#34D399"),Warn=H("#FBBF24"),Err=H("#FB7185"),Cyan=H("#22D3EE"),Tx1=H("#FFE4E6"),Tx2=H("#FDA4AF"),Tx3=H("#7C2D42"),Brd=H("#4C0519") },
-                ["lavender"]   = new() { BgCard=H("#16122A"),BgHover=H("#1E1840"),Accent=H("#A78BFA"),Ok=H("#34D399"),Warn=H("#FCD34D"),Err=H("#F87171"),Cyan=H("#67E8F9"),Tx1=H("#EDE9FE"),Tx2=H("#C4B5FD"),Tx3=H("#5B4E8A"),Brd=H("#2E2660") },
-                ["vrchat"]     = new() { BgCard=H("#1C1C2C"),BgHover=H("#26263C"),Accent=H("#7C3AED"),Ok=H("#2DD48C"),Warn=H("#FFBA37"),Err=H("#FF4B55"),Cyan=H("#00D2EB"),Tx1=H("#E2E2F0"),Tx2=H("#9898B0"),Tx3=H("#484865"),Brd=H("#2E2E50") },
-                ["day"]        = new() { BgCard=H("#F0F4FF"),BgHover=H("#E2EAFF"),Accent=H("#3884FF"),Ok=H("#16A34A"),Warn=H("#D97706"),Err=H("#DC2626"),Cyan=H("#0891B2"),Tx1=H("#1E2A3A"),Tx2=H("#4B5A6F"),Tx3=H("#9CA3B0"),Brd=H("#CBD5E8") },
-                ["night"]      = new() { BgCard=H("#0A0A0F"),BgHover=H("#111118"),Accent=H("#6366F1"),Ok=H("#22C55E"),Warn=H("#EAB308"),Err=H("#EF4444"),Cyan=H("#06B6D4"),Tx1=H("#E2E8F0"),Tx2=H("#64748B"),Tx3=H("#334155"),Brd=H("#1E293B") },
-                ["iris"]       = new() { BgCard=H("#0E0E20"),BgHover=H("#16163A"),Accent=H("#818CF8"),Ok=H("#34D399"),Warn=H("#FCD34D"),Err=H("#F87171"),Cyan=H("#67E8F9"),Tx1=H("#E0E7FF"),Tx2=H("#A5B4FC"),Tx3=H("#4338CA"),Brd=H("#312E81") },
-                ["glacier"]    = new() { BgCard=H("#0E1B22"),BgHover=H("#152833"),Accent=H("#38BDF8"),Ok=H("#34D399"),Warn=H("#FCD34D"),Err=H("#F87171"),Cyan=H("#22D3EE"),Tx1=H("#E0F2FE"),Tx2=H("#7DD3FC"),Tx3=H("#164E63"),Brd=H("#0C4A6E") },
-                ["petal"]      = new() { BgCard=H("#1F0F1A"),BgHover=H("#2E1728"),Accent=H("#EC4899"),Ok=H("#34D399"),Warn=H("#FCD34D"),Err=H("#F87171"),Cyan=H("#67E8F9"),Tx1=H("#FCE7F3"),Tx2=H("#F9A8D4"),Tx3=H("#831843"),Brd=H("#500724") },
-                ["void"]       = new() { BgCard=H("#070707"),BgHover=H("#0D0D0D"),Accent=H("#A78BFA"),Ok=H("#2DD48C"),Warn=H("#FFBA37"),Err=H("#FF4B55"),Cyan=H("#00D2EB"),Tx1=H("#CCCCCC"),Tx2=H("#666666"),Tx3=H("#333333"),Brd=H("#1A1A1A") },
-                ["dusk"]       = new() { BgCard=H("#181024"),BgHover=H("#241840"),Accent=H("#C084FC"),Ok=H("#4ADE80"),Warn=H("#FCD34D"),Err=H("#F87171"),Cyan=H("#67E8F9"),Tx1=H("#F3E8FF"),Tx2=H("#D8B4FE"),Tx3=H("#6B21A8"),Brd=H("#4C1D95") },
-                ["ultraviolet"]= new() { BgCard=H("#0A0015"),BgHover=H("#150025"),Accent=H("#9333EA"),Ok=H("#22C55E"),Warn=H("#EAB308"),Err=H("#EF4444"),Cyan=H("#06B6D4"),Tx1=H("#FAF5FF"),Tx2=H("#D8B4FE"),Tx3=H("#581C87"),Brd=H("#3B0764") },
-                ["plum"]       = new() { BgCard=H("#160C20"),BgHover=H("#221232"),Accent=H("#D946EF"),Ok=H("#34D399"),Warn=H("#FCD34D"),Err=H("#F87171"),Cyan=H("#67E8F9"),Tx1=H("#FDF4FF"),Tx2=H("#F0ABFC"),Tx3=H("#701A75"),Brd=H("#4A044E") },
-                ["periwinkle"] = new() { BgCard=H("#0E1228"),BgHover=H("#161C3A"),Accent=H("#6D83EF"),Ok=H("#6EE7B7"),Warn=H("#FCD34D"),Err=H("#FCA5A5"),Cyan=H("#93C5FD"),Tx1=H("#EEF2FF"),Tx2=H("#A5B4FC"),Tx3=H("#3730A3"),Brd=H("#312E81") },
+                ["sunset"]     = new() { BgCard=H("#251814"),BgHover=H("#33201A"),Accent=H("#F97316"),Ok=H("#4ADE80"),Warn=H("#FDE047"),Err=H("#EF4444"),Cyan=H("#FBBF24"),Tx1=H("#FED7AA"),Tx2=H("#FDBA74"),Tx3=H("#9A6340"),Brd=H("#3D2516") },
+                ["rose"]       = new() { BgCard=H("#22101E"),BgHover=H("#311828"),Accent=H("#F43F5E"),Ok=H("#4ADE80"),Warn=H("#FCD34D"),Err=H("#FF6B6B"),Cyan=H("#F472B6"),Tx1=H("#FECDD3"),Tx2=H("#FDA4AF"),Tx3=H("#9A4058"),Brd=H("#3D1526") },
+                ["lavender"]   = new() { BgCard=H("#16132A"),BgHover=H("#1E1A3A"),Accent=H("#A78BFA"),Ok=H("#4ADE80"),Warn=H("#FCD34D"),Err=H("#FB7185"),Cyan=H("#818CF8"),Tx1=H("#DDD6FE"),Tx2=H("#A78BFA"),Tx3=H("#6D5BA0"),Brd=H("#2E2556") },
+                ["vrchat"]     = new() { BgCard=H("#0D1230"),BgHover=H("#141A3F"),Accent=H("#1461FF"),Ok=H("#2DD48C"),Warn=H("#FFBA37"),Err=H("#FF4B55"),Cyan=H("#00C8FF"),Tx1=H("#C8D5FF"),Tx2=H("#6B7DB8"),Tx3=H("#3A4880"),Brd=H("#1A2454") },
+                ["day"]        = new() { BgCard=H("#FFFFFF"),BgHover=H("#E8EDF8"),Accent=H("#3884FF"),Ok=H("#18A86A"),Warn=H("#D4860A"),Err=H("#D93040"),Cyan=H("#00A8C8"),Tx1=H("#1A2440"),Tx2=H("#4A5878"),Tx3=H("#8090B0"),Brd=H("#D0D8E8") },
+                ["night"]      = new() { BgCard=H("#1A1B20"),BgHover=H("#22242C"),Accent=H("#0A84FF"),Ok=H("#30D158"),Warn=H("#FFD60A"),Err=H("#FF453A"),Cyan=H("#5AC8FA"),Tx1=H("#C8CACD"),Tx2=H("#6E737D"),Tx3=H("#3D4249"),Brd=H("#272930") },
+                ["iris"]       = new() { BgCard=H("#101430"),BgHover=H("#181C42"),Accent=H("#6674F0"),Ok=H("#4ADE80"),Warn=H("#FCD34D"),Err=H("#FC8181"),Cyan=H("#94B8FF"),Tx1=H("#C0CAFF"),Tx2=H("#7080C0"),Tx3=H("#3C4880"),Brd=H("#1E2452") },
+                ["glacier"]    = new() { BgCard=H("#1D2335"),BgHover=H("#242B42"),Accent=H("#7AA8E0"),Ok=H("#68C89A"),Warn=H("#D8C068"),Err=H("#D88080"),Cyan=H("#88CCD8"),Tx1=H("#9EB0C8"),Tx2=H("#5A6E88"),Tx3=H("#364054"),Brd=H("#242C3E") },
+                ["petal"]      = new() { BgCard=H("#241620"),BgHover=H("#302030"),Accent=H("#E890B0"),Ok=H("#68C888"),Warn=H("#F0C848"),Err=H("#F07878"),Cyan=H("#D8A0D0"),Tx1=H("#ECC8D8"),Tx2=H("#B07890"),Tx3=H("#744860"),Brd=H("#361E2C") },
+                ["void"]       = new() { BgCard=H("#0E0A18"),BgHover=H("#140F22"),Accent=H("#8060C8"),Ok=H("#3AD480"),Warn=H("#E8B840"),Err=H("#F06060"),Cyan=H("#6060D8"),Tx1=H("#C8B8E8"),Tx2=H("#7060A0"),Tx3=H("#40305C"),Brd=H("#18102A") },
+                ["dusk"]       = new() { BgCard=H("#121228"),BgHover=H("#1A1A36"),Accent=H("#C4944C"),Ok=H("#64C878"),Warn=H("#E8C040"),Err=H("#E86868"),Cyan=H("#9880C8"),Tx1=H("#E0C8A0"),Tx2=H("#907060"),Tx3=H("#50404C"),Brd=H("#1E1C32") },
+                ["ultraviolet"]= new() { BgCard=H("#120E24"),BgHover=H("#1A1430"),Accent=H("#7B4FCC"),Ok=H("#50C880"),Warn=H("#E8B040"),Err=H("#E06080"),Cyan=H("#6080D8"),Tx1=H("#C8B8E8"),Tx2=H("#806898"),Tx3=H("#483860"),Brd=H("#1E1640") },
+                ["plum"]       = new() { BgCard=H("#2E2844"),BgHover=H("#3A3252"),Accent=H("#9878C0"),Ok=H("#6CC890"),Warn=H("#D4BC60"),Err=H("#D07880"),Cyan=H("#8898C8"),Tx1=H("#C8BFD4"),Tx2=H("#8878A0"),Tx3=H("#504868"),Brd=H("#3A3052") },
+                ["lilac"]      = new() { BgCard=H("#FAFBFE"),BgHover=H("#EDE4FB"),Accent=H("#9A50D8"),Ok=H("#28A870"),Warn=H("#B87A10"),Err=H("#C83040"),Cyan=H("#7878E0"),Tx1=H("#280E3C"),Tx2=H("#5A3878"),Tx3=H("#9878B0"),Brd=H("#D8C8F0") },
+                ["prism"]      = new() { BgCard=H("#101628"),BgHover=H("#182030"),Accent=H("#8878F0"),Ok=H("#48D890"),Warn=H("#F0C848"),Err=H("#F06090"),Cyan=H("#60C0F8"),Tx1=H("#C0C0F8"),Tx2=H("#6870C0"),Tx3=H("#383870"),Brd=H("#182040") },
+                ["periwinkle"] = new() { BgCard=H("#141828"),BgHover=H("#1C2234"),Accent=H("#7A9AD8"),Ok=H("#58C890"),Warn=H("#D4C060"),Err=H("#D06880"),Cyan=H("#88C0D8"),Tx1=H("#B8C8E8"),Tx2=H("#5870A0"),Tx3=H("#304068"),Brd=H("#1C2440") },
             };
         }
 
-        // ─────────────────────────────────────────────────────────────────────
+        // 
 
         public VROverlayService(Action<string> log) => _log = log;
 
-        // ── Public API ────────────────────────────────────────────────────────
+        //  Public API 
 
         public bool Connect()
         {
@@ -586,7 +589,7 @@ namespace VRCNext.Services
             }
         }
 
-        // ── Friend location data (Location tab) ───────────────────────────────
+        //  Friend location data (Location tab) 
 
         public void SetFriendLocations(IReadOnlyList<(string worldId, string instanceId, string worldName, string worldImageUrl, string friendId, string friendName, string friendImageUrl, string location)> entries)
         {
@@ -764,15 +767,9 @@ namespace VRCNext.Services
             EmitState();
         }
 
-        // ── Private helpers ────────────────────────────────────────────────────
+        //  Private helpers 
 
-        /// <summary>
-        /// Measures distance between the wrist controller and the free (opposite) hand.
-        /// Under INTERACT_ENTER_DIST → enables Mouse input + MakeOverlaysInteractiveIfVisible
-        /// so SteamVR shows a laser pointer and routes click events to the overlay.
-        /// Over INTERACT_LEAVE_DIST  → reverts to None so the game gets all input back.
-        /// Hysteresis prevents flickering at the boundary.
-        /// </summary>
+        // proximity check: enables laser pointer when free hand is near the wrist overlay, disables when far
         private void UpdateProximityInteract()
         {
             if (!IsVisible || _vrSystem == null || OpenVR.Overlay == null || _overlayHandle == 0) return;
@@ -932,6 +929,42 @@ namespace VRCNext.Services
         private void PollEvents()
         {
             if (_vrSystem == null) return;
+
+            //  Reconcile event-driven button state with GetControllerState 
+            // OpenVR can drop ButtonUnpress events (e.g. during focus transitions,
+            // overlay show/hide, or compositor restarts), leaving stale bits in
+            // _event*Held that permanently block keybind re-arming.
+            // GetControllerState is authoritative when available (returns 0 when
+            // Steam overlay has focus — that's fine, events cover that case).
+            // We AND the event bits with the polled state so any bit that the
+            // runtime considers released gets cleared even if we missed the event.
+            {
+                var s  = new VRControllerState_t();
+                var sz = (uint)Marshal.SizeOf<VRControllerState_t>();
+                ulong polledAll = 0;
+                if (_leftIdx != OpenVR.k_unTrackedDeviceIndexInvalid)
+                {
+                    if (_vrSystem.GetControllerState(_leftIdx, ref s, sz))
+                    {
+                        _eventLeftHeld &= s.ulButtonPressed;
+                        polledAll |= s.ulButtonPressed;
+                    }
+                }
+                if (_rightIdx != OpenVR.k_unTrackedDeviceIndexInvalid)
+                {
+                    if (_vrSystem.GetControllerState(_rightIdx, ref s, sz))
+                    {
+                        _eventRightHeld &= s.ulButtonPressed;
+                        polledAll |= s.ulButtonPressed;
+                    }
+                }
+                // Keep non-allowed bits untouched; clear allowed bits that the
+                // runtime says are released.
+                _eventButtonsHeld = (_eventButtonsHeld & ~ALLOWED_BUTTON_MASK)
+                                  | (_eventLeftHeld & ALLOWED_BUTTON_MASK)
+                                  | (_eventRightHeld & ALLOWED_BUTTON_MASK);
+            }
+
             var evt = new VREvent_t();
             var evtSize = (uint)Marshal.SizeOf<VREvent_t>();
 
@@ -1132,11 +1165,7 @@ namespace VRCNext.Services
                 return _friendLocations.GroupBy(e => e.WorldId + ":" + e.InstanceId).Count();
         }
 
-        /// <summary>
-        /// Merges GetControllerState (reliable when Steam overlay is closed) with
-        /// _eventButtonsHeld (from VREvent_ButtonPress, reliable when Steam overlay
-        /// is open). Using both sources covers both cases.
-        /// </summary>
+        // merges GetControllerState with _eventButtonsHeld to work whether Steam overlay is open or closed
         private ulong GetMergedButtonState()
         {
             ulong state = _eventButtonsHeld;
@@ -1150,10 +1179,7 @@ namespace VRCNext.Services
             return state;
         }
 
-        /// <summary>
-        /// Returns button state for a specific controller side.
-        /// side=0 → merged (both), side=1 → left only, side=2 → right only.
-        /// </summary>
+        // returns button state for a specific controller side (0=both, 1=left, 2=right)
         private ulong GetSideButtonState(int side)
         {
             if (side == 0) return GetMergedButtonState();
@@ -1199,7 +1225,7 @@ namespace VRCNext.Services
 
             if (KeybindMode == 1)
             {
-                // ── Double-tap mode ──────────────────────────────────────────
+                //  Double-tap mode 
                 ulong cur      = GetSideButtonState(KeybindDtHand) & ALLOWED_BUTTON_MASK;
                 ulong newPress = cur & ~_prevTriggerHeld; // edge: newly pressed this frame
                 _prevTriggerHeld = cur;
@@ -1242,7 +1268,7 @@ namespace VRCNext.Services
             }
             else
             {
-                // ── Combo (hold) mode ────────────────────────────────────────
+                //  Combo (hold) mode 
                 ulong mask = 0;
                 foreach (var b in Keybind) mask |= 1UL << (int)b;
                 bool allHeld = mask != 0 && (GetSideButtonState(KeybindHand) & mask) == mask;
@@ -1373,7 +1399,7 @@ namespace VRCNext.Services
             return names;
         }
 
-        // ── Rendering ─────────────────────────────────────────────────────────
+        //  Rendering 
 
         private void Render()
         {
@@ -1410,7 +1436,7 @@ namespace VRCNext.Services
 
             if (hasArt)
             {
-                // ── Music tab: blurred art fills entire card ──────────────────
+                //  Music tab: blurred art fills entire card 
                 // Clip drawing to rounded card shape
                 using var cardClip = RoundedRectPath(0, 0, W, H, r);
                 var oldClip = g.Clip;
@@ -1451,7 +1477,7 @@ namespace VRCNext.Services
             }
             else
             {
-                // ── All other tabs: solid themed card ─────────────────────────
+                //  All other tabs: solid themed card 
                 using var brush = new SolidBrush(Color.FromArgb(235, th.BgCard));
                 FillRoundedRect(g, brush, 0, 0, W, H, r);
             }
@@ -1624,11 +1650,11 @@ namespace VRCNext.Services
             bool inCooldown = _joinCooldowns.TryGetValue(locKey, out var cdT)
                 && (DateTime.UtcNow - cdT).TotalSeconds < 5;
 
-            // ── Card background ────────────────────────────────────────────
+            //  Card background 
             using var cardBg = new SolidBrush(Color.FromArgb(inCooldown ? 200 : 190, inCooldown ? th.Ok : th.BgCard));
             FillRoundedRect(g, cardBg, x, y, w, h, 8);
 
-            // ── Cooldown state: green card + centred checkmark only ────────
+            //  Cooldown state: green card + centred checkmark only 
             if (inCooldown)
             {
                 using var checkFont = _matSymFamily != null
@@ -1640,7 +1666,7 @@ namespace VRCNext.Services
                 return;
             }
 
-            // ── World image (left strip 52×h-4) ───────────────────────────
+            //  World image (left strip 52×h-4) 
             const int imgW = 52;
             Bitmap? worldImg = null;
             if (!string.IsNullOrEmpty(first.WorldImageUrl))
@@ -1659,7 +1685,7 @@ namespace VRCNext.Services
             }
             g.SetClip(oldClip, System.Drawing.Drawing2D.CombineMode.Replace);
 
-            // ── Avatar (right side, 24×24) ────────────────────────────────
+            //  Avatar (right side, 24×24) 
             const int avSz = 24, avRadius = 5;
             int avX = x + w - avSz - 6;
             int avY = y + (h - avSz) / 2;
@@ -1705,7 +1731,7 @@ namespace VRCNext.Services
                     new RectangleF(badgeX, badgeY, 16, 12), bFmt);
             }
 
-            // ── Text area ─────────────────────────────────────────────────
+            //  Text area 
             int textX = x + imgW + 6;
             int textW = w - imgW - 6 - avSz - 10;
 
@@ -1858,11 +1884,11 @@ namespace VRCNext.Services
             var evColor  = EventColor(entry.EvType);
             bool hasJoin = entry.EvType == "friend_gps" && !string.IsNullOrEmpty(entry.Location);
 
-            // ── Card background (matches sidebar bg-card) ─────────────────────
+            //  Card background (matches sidebar bg-card) 
             using var bg = new SolidBrush(Color.FromArgb(190, th.BgCard));
             FillRoundedRect(g, bg, x, y, w, h, 8);
 
-            // ── Join button — square (width = height), right edge of card ─────
+            //  Join button — square (width = height), right edge of card 
             int jbW = h - 4;   // square: width equals height (h minus 2px top+bottom margin)
             int jbX = x + w - jbW - 2;
             if (hasJoin)
@@ -1883,7 +1909,7 @@ namespace VRCNext.Services
                 g.DrawString(icon, iconFont, iconBrush, new RectangleF(jbX, y + 2, jbW, h - 4), iconFmt);
             }
 
-            // ── Avatar — 32×32 rounded square (8px radius), like sidebar ──────
+            //  Avatar — 32×32 rounded square (8px radius), like sidebar 
             const int avSize = 32, avR = 8;
             int avX = x + 8;
             int avY = y + (h - avSize) / 2;
@@ -1913,7 +1939,7 @@ namespace VRCNext.Services
             }
             g.SetClip(oldClip, System.Drawing.Drawing2D.CombineMode.Replace);
 
-            // ── Text area layout ──────────────────────────────────────────────
+            //  Text area layout 
             // textX: start after avatar + 8px gap (matches sidebar gap)
             // textRight: stop before join button (or right margin 8px)
             int textX     = avX + avSize + 8;
@@ -1927,7 +1953,7 @@ namespace VRCNext.Services
             float row1Y = y + (h - row1H - rowGap - row2H) / 2f;
             float row2Y = row1Y + row1H + rowGap;
 
-            // ── Row 1: Time · Dot · Name ──────────────────────────────────────
+            //  Row 1: Time · Dot · Name 
             using var timeFont  = new Font("Segoe UI", 7.5f, FontStyle.Regular, GraphicsUnit.Point);
             using var timeBrush = new SolidBrush(th.Tx3);
             var timeSz = g.MeasureString(entry.Time, timeFont);
@@ -1953,7 +1979,7 @@ namespace VRCNext.Services
             g.DrawString(entry.FriendName, nameFont, nameBrush,
                 new RectangleF(nameX, row1Y, nameW, row1H), ellipsisFmt);
 
-            // ── Row 2: Event text ─────────────────────────────────────────────
+            //  Row 2: Event text 
             string evText = EventBadgeLabel(entry.EvType, entry.EvText);
             using var evFont  = new Font("Segoe UI", 8.5f, FontStyle.Regular, GraphicsUnit.Point);
             using var evBrush = new SolidBrush(th.Tx3);
@@ -2008,12 +2034,12 @@ namespace VRCNext.Services
 
             // Background is drawn by DrawBackground() — no duplicate here.
 
-            // ── Layout constants ──────────────────────────────────────────────
+            //  Layout constants 
             const int artSize = 128;
             int artX = (W - artSize) / 2;   // centered
             int artY = tabBottom + 10;
 
-            // ── Album art (centered, rounded) ─────────────────────────────────
+            //  Album art (centered, rounded) 
             if (_albumArt != null)
             {
                 var artRect = new Rectangle(artX, artY, artSize, artSize);
@@ -2035,7 +2061,7 @@ namespace VRCNext.Services
 
             int artBottom = artY + artSize;
 
-            // ── Title + Artist (centered below art) ───────────────────────────
+            //  Title + Artist (centered below art) 
             var ellipsisFmt = new StringFormat { Trimming = StringTrimming.EllipsisCharacter,
                                                   FormatFlags = StringFormatFlags.NoWrap,
                                                   Alignment = StringAlignment.Center };
@@ -2053,7 +2079,7 @@ namespace VRCNext.Services
                     new RectangleF(pad, artBottom + 36, W - pad * 2, 20), ellipsisFmt);
             }
 
-            // ── Progress bar ──────────────────────────────────────────────────
+            //  Progress bar 
             int barY = artBottom + 62;
             int barH = 6;
             int barX = pad + 4;
@@ -2091,7 +2117,7 @@ namespace VRCNext.Services
                 new RectangleF(barX + barW - 55, barY + barH + 4, 55, 15),
                 new StringFormat { Alignment = StringAlignment.Far });
 
-            // ── Controls ──────────────────────────────────────────────────────
+            //  Controls 
             // Play button: large filled accent circle, center at (W/2, ctrlCY)
             // Prev/Next: smaller, subtle bg circle
             int ctrlCY = barY + barH + 38;   // center Y of all controls
@@ -2243,7 +2269,7 @@ namespace VRCNext.Services
             }
         }
 
-        // ── GDI+ helpers ──────────────────────────────────────────────────────
+        //  GDI+ helpers 
 
         private static void FillRoundedRect(Graphics g, Brush brush, int x, int y, int w, int h, int r)
         {
@@ -2273,7 +2299,7 @@ namespace VRCNext.Services
             return path;
         }
 
-        // ── IDisposable ────────────────────────────────────────────────────────
+        //  IDisposable 
 
         public void Dispose()
         {

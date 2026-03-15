@@ -14,7 +14,7 @@ using System.Runtime.InteropServices;
 namespace VRCNext.Services;
 
 #if !WINDOWS
-/// <summary>Stub for non-Windows platforms — VoiceFight requires Windows audio APIs.</summary>
+// stub for non-windows platforms, voicefight requires windows audio apis
 public sealed class VoiceFightService : IDisposable
 {
     public event Action<string>? OnKeywordTriggered;
@@ -36,61 +36,48 @@ public sealed class VoiceFightService : IDisposable
 }
 #else
 
-/// <summary>
-/// Voice-triggered soundboard using VOSK offline speech recognition and NAudio.
-/// Captures microphone input, detects configured trigger words, and plays the matching audio file.
-/// </summary>
+// voice-triggered soundboard using VOSK speech recognition and NAudio. captures mic, detects trigger words, plays sounds.
 public sealed class VoiceFightService : IDisposable
 {
     public event Action<string>? OnKeywordTriggered;
-    public event Action<string, string, bool>? OnRecognized; // displayHtml, cleanText, isPartial
+    public event Action<string, string, bool>? OnRecognized;
     public event Action<string>? OnLog;
 
     private static readonly string ModelPath = Path.Combine(
         AppDomain.CurrentDomain.BaseDirectory, "voice", "vosk-model-small-en-us-0.15");
 
-    // Keyword → sound item map (lower-cased key)
     private readonly Dictionary<string, VoiceFightSettings.VfSoundItem> _keywordMap = new(StringComparer.OrdinalIgnoreCase);
     private readonly object _keywordLock = new();
     private static readonly Random _rng = new();
 
-    // Per-keyword cooldown to prevent spam (ms)
     private const int KeywordCooldownMs = 1500;
     private readonly Dictionary<string, DateTime> _lastTriggered = new(StringComparer.OrdinalIgnoreCase);
     private DateTime _lastStopTriggered = DateTime.MinValue;
 
-    // Stop word
     private string _stopWord = "";
     private readonly object _stopWordLock = new();
     private static readonly string StopSoundPath = Path.Combine(
         AppDomain.CurrentDomain.BaseDirectory, "voice", "sounds", "stop.wav");
 
-    // Block list — words stripped from recognition results before keyword matching
     private static readonly string BlockListPath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "VRCNext", "block.txt");
     private static readonly string[] BlockListDefaults = ["huh", "heh", "hah"];
     private HashSet<string> _blockList = new(StringComparer.OrdinalIgnoreCase);
 
-    // Mic capture
     private WaveInEvent? _waveIn;
-
-    // Meter
     private volatile float _meterLevel;
     public float MeterLevel => _meterLevel;
 
-    // PCM queue for worker thread
     private readonly ConcurrentQueue<byte[]> _pcmQueue = new();
     private readonly AutoResetEvent _workerEvent = new(false);
     private Thread? _workerThread;
     private volatile bool _workerRunning;
 
-    // Playback
     private WaveOutEvent? _waveOut;
     private WaveStream? _currentReader;
     private int _outputDeviceIndex = -1;
     private readonly object _playLock = new();
 
-    // Vosk
     private Model? _model;
     private volatile bool _modelLoaded;
 
@@ -290,10 +277,8 @@ public sealed class VoiceFightService : IDisposable
     {
         if (e.BytesRecorded <= 0) return;
 
-        // Update VU meter from raw PCM (16-bit LE mono)
         UpdateMeter(e.Buffer, e.BytesRecorded);
 
-        // Enqueue PCM copy for worker
         var copy = new byte[e.BytesRecorded];
         Buffer.BlockCopy(e.Buffer, 0, copy, 0, e.BytesRecorded);
         _pcmQueue.Enqueue(copy);
@@ -318,7 +303,7 @@ public sealed class VoiceFightService : IDisposable
             sum += v * v;
         }
         float rms = (float)Math.Sqrt(sum / samples);
-        _meterLevel = Math.Min(1f, rms * 6f); // gain for visual responsiveness
+        _meterLevel = Math.Min(1f, rms * 6f);
     }
 
     private void WorkerLoop()
@@ -336,7 +321,6 @@ public sealed class VoiceFightService : IDisposable
             {
                 _workerEvent.WaitOne(20);
 
-                // Rebuild recognizer if model became available late
                 if (rec == null && _model != null)
                     rec = BuildRecognizer();
 
@@ -359,7 +343,6 @@ public sealed class VoiceFightService : IDisposable
                 }
             }
 
-            // Flush final result
             if (rec != null)
             {
                 var final = rec.FinalResult();
@@ -378,8 +361,6 @@ public sealed class VoiceFightService : IDisposable
 
     private VoskRecognizer BuildRecognizer()
     {
-        // Free recognition — no grammar so all speech is transcribed, not just keywords.
-        // Keyword matching happens in ProcessResult against the keyword map.
         var r = new VoskRecognizer(_model, 16000f);
         r.SetWords(false);
         r.SetMaxAlternatives(0);
@@ -413,7 +394,6 @@ public sealed class VoiceFightService : IDisposable
         }
     }
 
-    // Returns true if a keyword was triggered (used by caller to reset recognizer on partial).
     private bool ProcessResult(string json, bool partial)
     {
         if (string.IsNullOrWhiteSpace(json)) return false;
@@ -422,7 +402,6 @@ public sealed class VoiceFightService : IDisposable
         string? text = ExtractJsonString(json, key);
         if (string.IsNullOrWhiteSpace(text)) return false;
 
-        // Strip [unk] tokens before displaying
         var filtered = string.Join(' ', text.Split(' ', StringSplitOptions.RemoveEmptyEntries)
             .Where(w => !string.Equals(w, "[unk]", StringComparison.OrdinalIgnoreCase)));
         if (!string.IsNullOrWhiteSpace(filtered))
@@ -432,16 +411,13 @@ public sealed class VoiceFightService : IDisposable
             OnRecognized?.Invoke(displayHtml, cleanText, partial);
         }
 
-        // Normalize full text for phrase matching (supports multi-word triggers in sentences)
         var textNorm = NormalizeWord(text);
         if (textNorm.Length == 0) return false;
 
-        // Strip blocked words before any matching
         foreach (var blocked in _blockList)
             textNorm = RemoveWholeWord(textNorm, blocked);
         if (textNorm.Length == 0) return false;
 
-        // Check stop word (partial + final; returns true so recognizer resets on partial)
         string sw;
         lock (_stopWordLock) sw = _stopWord;
         if (sw.Length > 0 && ContainsPhrase(textNorm, sw))
@@ -455,7 +431,6 @@ public sealed class VoiceFightService : IDisposable
             return true;
         }
 
-        // Snapshot map to avoid holding lock during playback
         Dictionary<string, VoiceFightSettings.VfSoundItem> snapshot;
         lock (_keywordLock)
             snapshot = new Dictionary<string, VoiceFightSettings.VfSoundItem>(_keywordMap, StringComparer.OrdinalIgnoreCase);
@@ -464,7 +439,6 @@ public sealed class VoiceFightService : IDisposable
         {
             if (!ContainsPhrase(textNorm, kvp.Key)) continue;
 
-            // Cooldown check
             var now = DateTime.UtcNow;
             if (_lastTriggered.TryGetValue(kvp.Key, out var last) &&
                 (now - last).TotalMilliseconds < KeywordCooldownMs) continue;
@@ -474,7 +448,7 @@ public sealed class VoiceFightService : IDisposable
             var item = kvp.Value;
             var file = item.Files.Count == 1 ? item.Files[0] : item.Files[_rng.Next(item.Files.Count)];
             PlayFileInternal(file.FilePath, file.VolumePercent);
-            return true; // One trigger per recognition result
+            return true;
         }
 
         return false;
@@ -530,11 +504,9 @@ public sealed class VoiceFightService : IDisposable
         foreach (char c in s)
             if (char.IsLetterOrDigit(c)) buf.Append(c);
             else buf.Append(' ');
-        // Collapse multiple spaces so multi-word phrases match cleanly
         return string.Join(' ', buf.ToString().Split(' ', StringSplitOptions.RemoveEmptyEntries));
     }
 
-    // Builds display HTML: blocked words wrapped in <span class="vf-blocked">.
     private string BuildDisplayHtml(string text, HashSet<string> blockList)
     {
         if (blockList.Count == 0) return text;
@@ -551,7 +523,6 @@ public sealed class VoiceFightService : IDisposable
         return sb.ToString();
     }
 
-    // Builds clean text with blocked words removed (for OSC chatbox).
     private string BuildCleanText(string text, HashSet<string> blockList)
     {
         if (blockList.Count == 0) return text;
@@ -559,7 +530,6 @@ public sealed class VoiceFightService : IDisposable
             .Where(w => !blockList.Contains(NormalizeWord(w))));
     }
 
-    // Removes all whole-word occurrences of 'word' from 'text' (both already normalised).
     private static string RemoveWholeWord(string text, string word)
     {
         int idx = text.IndexOf(word, StringComparison.Ordinal);
@@ -582,7 +552,6 @@ public sealed class VoiceFightService : IDisposable
         return text;
     }
 
-    // True if 'phrase' (already normalised) appears in 'text' at a word boundary.
     private static bool ContainsPhrase(string text, string phrase)
     {
         if (phrase.Length == 0) return false;

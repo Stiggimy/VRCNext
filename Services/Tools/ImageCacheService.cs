@@ -2,13 +2,6 @@ using System.Security.Cryptography;
 using System.Text;
 using SkiaSharp;
 
-/// <summary>
-/// Disk-based image cache for VRChat images (avatars, worlds, groups).
-/// Cached images are served via an HttpListener virtual host for instant local access.
-/// Cache TTL: 7 days. Background download on cache miss; returns original URL while downloading.
-/// Supports JPEG, PNG, WebP, GIF, AVIF and any other format SkiaSharp can decode.
-/// All cached files are stored as JPEG at 50 % quality. No .tmp files are left on disk.
-/// </summary>
 public class ImageCacheService
 {
     private readonly string _dir;
@@ -17,17 +10,14 @@ public class ImageCacheService
     private readonly HashSet<string> _permanentFail = new();
     private readonly SemaphoreSlim _downloadSem = new(4, 4);
     private static readonly TimeSpan TTL      = TimeSpan.FromDays(7);
-    private static readonly TimeSpan TTL_LONG = TimeSpan.FromDays(14); // for world thumbnails
-    // Reverse map: fileName → original VRC URL — for resolving cached URLs back to originals
+    private static readonly TimeSpan TTL_LONG = TimeSpan.FromDays(14);
+
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> _reverseMap = new();
 
-    /// <summary>HttpListener port used to serve cached images.</summary>
     public int Port { get; set; } = 49152;
 
-    /// <summary>When false, Get() always returns the original URL and no files are written.</summary>
     public bool Enabled { get; set; } = true;
 
-    /// <summary>Maximum cache size in bytes. 0 = unlimited. Trim runs after each download.</summary>
     public long LimitBytes { get; set; } = 5L * 1024 * 1024 * 1024;
 
     public ImageCacheService(string cacheDir, HttpClient http)
@@ -35,11 +25,9 @@ public class ImageCacheService
         _dir = cacheDir;
         Directory.CreateDirectory(_dir);
         _http = http;
-        // Remove any leftover .tmp files from previous crashes
         CleanStaleTemps();
     }
 
-    /// <summary>Cache a world thumbnail with a 14-day TTL.</summary>
     public string GetWorld(string? url) => GetWithTtl(url, TTL_LONG);
 
     public string Get(string? url) => GetWithTtl(url, TTL);
@@ -63,7 +51,6 @@ public class ImageCacheService
         return url;
     }
 
-    /// <summary>Returns the current total size of the cache directory in bytes.</summary>
     public long GetCacheSizeBytes()
     {
         if (!Directory.Exists(_dir)) return 0;
@@ -73,10 +60,6 @@ public class ImageCacheService
             .Sum(f => f.Length);
     }
 
-    /// <summary>
-    /// Deletes the oldest cached files until total size is below <paramref name="limitBytes"/>.
-    /// Trims to 80 % of the limit to leave headroom for new downloads.
-    /// </summary>
     public void TrimIfNeeded(long limitBytes)
     {
         if (limitBytes <= 0 || !Directory.Exists(_dir)) return;
@@ -101,7 +84,6 @@ public class ImageCacheService
         catch { }
     }
 
-    /// <summary>Deletes all cached image files.</summary>
     public void ClearAll()
     {
         if (!Directory.Exists(_dir)) return;
@@ -143,13 +125,10 @@ public class ImageCacheService
                 return;
             }
 
-            // Download raw bytes into the .tmp file
             using (var stream = await resp.Content.ReadAsStreamAsync())
             using (var fs = File.Create(tmp))
                 await stream.CopyToAsync(fs);
 
-            // Decode (any format) → encode as JPEG 50 %
-            // On failure the .tmp is deleted; no broken or oversized files are ever kept.
             CompressToJpeg(tmp, filePath);
 
             if (LimitBytes > 0)
@@ -166,29 +145,20 @@ public class ImageCacheService
         }
     }
 
-    /// <summary>
-    /// Saves the downloaded image to <paramref name="destPath"/>:
-    /// - Already-JPEG sources are copied as-is (avoids double lossy compression / generation loss).
-    /// - All other formats (WebP, PNG, GIF, AVIF, …) are decoded and re-encoded as JPEG at 85 %.
-    /// On any failure both files are deleted so no broken or oversized files remain.
-    /// </summary>
     private static void CompressToJpeg(string sourcePath, string destPath)
     {
         try
         {
-            // Detect actual format from file magic bytes — not from the URL extension,
-            // which is unreliable (CDN may serve WebP under a .jpg URL).
+            // Magic bytes, not URL extension (CDN may serve WebP under .jpg)
             var format = DetectFormat(sourcePath);
 
             if (format == SKEncodedImageFormat.Jpeg)
             {
-                // Already JPEG — copy as-is to avoid generation loss from double compression
                 File.Copy(sourcePath, destPath, overwrite: true);
                 TryDelete(sourcePath);
                 return;
             }
 
-            // Non-JPEG (WebP, PNG, etc.) — decode and encode as JPEG 85 %
             using var bmp = SKBitmap.Decode(sourcePath);
             if (bmp == null) { TryDelete(sourcePath); return; }
 
@@ -208,7 +178,6 @@ public class ImageCacheService
         }
     }
 
-    /// <summary>Reads the first 12 bytes to identify the image format by magic number.</summary>
     private static SKEncodedImageFormat DetectFormat(string path)
     {
         try
@@ -217,22 +186,18 @@ public class ImageCacheService
             using var f = File.OpenRead(path);
             f.ReadAtLeast(hdr, hdr.Length, throwOnEndOfStream: false);
 
-            // JPEG: FF D8 FF
             if (hdr[0] == 0xFF && hdr[1] == 0xD8 && hdr[2] == 0xFF)
                 return SKEncodedImageFormat.Jpeg;
-            // PNG: 89 50 4E 47
             if (hdr[0] == 0x89 && hdr[1] == 0x50 && hdr[2] == 0x4E && hdr[3] == 0x47)
                 return SKEncodedImageFormat.Png;
-            // WebP: 52 49 46 46 ?? ?? ?? ?? 57 45 42 50
             if (hdr[0] == 0x52 && hdr[1] == 0x49 && hdr[2] == 0x46 && hdr[3] == 0x46 &&
                 hdr[8] == 0x57 && hdr[9] == 0x45 && hdr[10] == 0x42 && hdr[11] == 0x50)
                 return SKEncodedImageFormat.Webp;
-            // GIF: 47 49 46
             if (hdr[0] == 0x47 && hdr[1] == 0x49 && hdr[2] == 0x46)
                 return SKEncodedImageFormat.Gif;
         }
         catch { }
-        return (SKEncodedImageFormat)(-1); // unknown
+        return (SKEncodedImageFormat)(-1);
     }
 
     private static void TryDelete(string path)
@@ -240,10 +205,6 @@ public class ImageCacheService
         try { if (File.Exists(path)) File.Delete(path); } catch { }
     }
 
-    /// <summary>
-    /// If <paramref name="url"/> is a localhost imgcache URL, returns the original VRC CDN URL.
-    /// Otherwise returns the input unchanged.
-    /// </summary>
     public string GetOriginalUrl(string url)
     {
         if (string.IsNullOrEmpty(url)) return url;
@@ -256,7 +217,6 @@ public class ImageCacheService
     private static string GetFileName(string url)
     {
         var hash = MD5.HashData(Encoding.UTF8.GetBytes(url));
-        // Always store as .jpg — SkiaSharp always encodes to JPEG regardless of source format
         return Convert.ToHexString(hash).ToLower() + ".jpg";
     }
 }

@@ -183,7 +183,6 @@ public class AppSettings
         new() { Name = "Channel 3" },
         new() { Name = "Channel 4" },
     };
-    /// <summary>Persistent HTTP server port — reused across restarts so stored localhost URLs stay valid.</summary>
     public int LocalHttpPort { get; set; } = 0;
     public List<string> WatchFolders { get; set; } = new();
     public List<string> MyInstances { get; set; } = new();
@@ -478,11 +477,7 @@ public class VoiceFightSettings
     }
 }
 
-/// <summary>
-/// Tracks time spent with users (same instance) and last-seen timestamps.
-/// Persisted in the shared timeline.db (SQLite), user_tracking table.
-/// Automatically migrates from legacy user_tracking.json on first run.
-/// </summary>
+// tracks time spent with users (same instance) and last-seen timestamps. persisted in SQLite.
 public class UserTimeTracker : IDisposable
 {
     public class UserRecord
@@ -598,8 +593,7 @@ public class UserTimeTracker : IDisposable
             };
     }
 
-    /// <summary>Stores display name and image for a user so they appear in the Time Spent list
-    /// even when they are not friends and not in the timeline top-200.</summary>
+    // stores display name and image so non-friend users still appear in the Time Spent list
     public void UpdateUserInfo(string userId, string displayName, string image)
     {
         if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(displayName)) return;
@@ -629,9 +623,7 @@ public class UserTimeTracker : IDisposable
 
     public void SetMyLocation(string location) => _myCurrentLocation = location ?? "";
 
-    /// <summary>
-    /// Called every poll tick. Updates in-memory cache and persists changed records to SQLite.
-    /// </summary>
+    // called every poll tick. updates in-memory cache and persists changed records.
     public void Tick(IEnumerable<(string userId, string location, string presence)> onlineFriends)
     {
         var now = DateTime.UtcNow;
@@ -733,7 +725,7 @@ public class UserTimeTracker : IDisposable
         return (total, rec.LastSeen);
     }
 
-    /// <summary>Merges imported friend-time data (e.g. from VRCX) into the tracker. Adds to existing totals.</summary>
+    // merges imported friend-time data (e.g. from VRCX). adds to existing totals.
     public void BulkMerge(IEnumerable<(string userId, string displayName, long seconds, string lastSeen)> entries)
     {
         try
@@ -768,7 +760,6 @@ public class UserTimeTracker : IDisposable
         catch { }
     }
 
-    /// <summary>No-op. Writes happen in Tick(). Kept for API compatibility.</summary>
     public void Save() { }
 
     public void Dispose()
@@ -780,10 +771,7 @@ public class UserTimeTracker : IDisposable
         _db.Dispose();
     }
 
-    /// <summary>
-    /// Saves pending elapsed time (since last Tick) for all co-present users.
-    /// Called on app close so the current session is not lost.
-    /// </summary>
+    // saves pending elapsed time for all co-present users on app close
     private void FlushCoPresentUsers()
     {
         if (_lastCoPresentIds.Count == 0) return;
@@ -829,11 +817,7 @@ public class UserTimeTracker : IDisposable
     }
 }
 
-/// <summary>
-/// Tracks total time spent in each VRChat world.
-/// Persisted in the shared timeline.db (SQLite), world_tracking table.
-/// Automatically migrates from legacy world_tracking.json on first run.
-/// </summary>
+// tracks total time spent in each VRChat world. persisted in SQLite.
 public class WorldTimeTracker : IDisposable
 {
     public class WorldRecord
@@ -964,9 +948,7 @@ public class WorldTimeTracker : IDisposable
         UpsertWorld(_currentWorldId, rec);
     }
 
-    /// <summary>
-    /// Resume tracking a world after app restart. Does NOT increment visit count.
-    /// </summary>
+    // resume tracking a world after app restart, does not increment visit count
     public void ResumeWorld(string worldId)
     {
         _currentWorldId = worldId ?? "";
@@ -1029,7 +1011,6 @@ public class WorldTimeTracker : IDisposable
         catch { }
     }
 
-    /// <summary>Updates world name and thumbnail when resolved from the API.</summary>
     public void UpdateWorldInfo(string worldId, string name, string thumb)
     {
         if (string.IsNullOrEmpty(worldId) || string.IsNullOrEmpty(name)) return;
@@ -1058,7 +1039,7 @@ public class WorldTimeTracker : IDisposable
         return (total, rec.VisitCount, rec.LastVisited);
     }
 
-    /// <summary>Merges imported world-time data (e.g. from VRCX) into the tracker. Adds to existing totals.</summary>
+    // merges imported world-time data (e.g. from VRCX). adds to existing totals.
     public void BulkMerge(IEnumerable<(string worldId, string worldName, long seconds, int visitCount, string lastVisited)> entries)
     {
         try
@@ -1097,7 +1078,6 @@ public class WorldTimeTracker : IDisposable
         catch { }
     }
 
-    /// <summary>No-op. Writes happen in SetCurrentWorld/Tick. Kept for API compatibility.</summary>
     public void Save() { }
 
     public void Dispose()
@@ -1114,11 +1094,7 @@ public class WorldTimeTracker : IDisposable
         public Dictionary<string, WorldRecord>? Worlds { get; set; }
     }
 
-    /// <summary>
-    /// Extract world ID from a VRChat PNG file's tEXt metadata chunks.
-    /// VRChat stores world info in various formats: direct tEXt keys,
-    /// JSON in Description, etc.
-    /// </summary>
+    // extract world ID from a VRChat PNG file's tEXt metadata chunks
     public static string? ExtractWorldIdFromPng(string filePath)
     {
         try
@@ -1172,11 +1148,7 @@ public class WorldTimeTracker : IDisposable
     }
 }
 
-/// <summary>
-/// Stores which players were in the instance when a photo was taken.
-/// Persisted to the shared timeline.db (SQLite), photo_records + photo_record_players tables.
-/// Automatically migrates from the legacy photo_players.json on first run.
-/// </summary>
+// stores which players were in the instance when a photo was taken. persisted in SQLite.
 public class PhotoPlayersStore : IDisposable
 {
     public class PhotoPlayerInfo
@@ -1363,7 +1335,6 @@ public class PhotoPlayersStore : IDisposable
     public PhotoRecord? GetPhotoRecord(string fileName)
         => Photos.TryGetValue(fileName, out var rec) ? rec : null;
 
-    /// <summary>No-op. Writes are immediate in SQLite. Kept for API compatibility.</summary>
     public void Save() { }
 
     public void Dispose()

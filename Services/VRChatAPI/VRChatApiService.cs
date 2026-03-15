@@ -30,7 +30,6 @@ public class VRChatApiService
         public JObject? User { get; set; }
     }
 
-    /// <summary>Logs every HTTP request and response status for full visibility.</summary>
     private class LoggingHandler : DelegatingHandler
     {
         private readonly Action<string> _log;
@@ -59,7 +58,6 @@ public class VRChatApiService
         _http.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", UA);
     }
 
-    // Cookie persistence for session resume
     public void RestoreCookies(string? authCookie, string? twoFactorAuthCookie)
     {
         var uri = new Uri("https://api.vrchat.cloud");
@@ -81,9 +79,6 @@ public class VRChatApiService
         return (auth, tfa);
     }
 
-    /// <summary>
-    /// Try to resume a session using stored cookies (no 2FA needed).
-    /// </summary>
     public async Task<LoginResult> TryResumeSessionAsync()
     {
         try
@@ -112,7 +107,6 @@ public class VRChatApiService
         }
     }
 
-    // Login & 2FA
     public async Task<LoginResult> LoginAsync(string username, string password)
     {
         try
@@ -216,7 +210,6 @@ public class VRChatApiService
         }
     }
 
-    // Friends — 3 parallel workers, no artificial delays
     public Task<List<JObject>> GetOnlineFriendsAsync()  => FetchFriendsParallelAsync(offline: false);
     public Task<List<JObject>> GetOfflineFriendsAsync() => FetchFriendsParallelAsync(offline: true);
 
@@ -262,7 +255,6 @@ public class VRChatApiService
         return all;
     }
 
-    // Update own status and statusDescription
     public async Task<JObject?> UpdateStatusAsync(string status, string statusDescription)
     {
         if (!IsLoggedIn || CurrentUserId == null) return null;
@@ -300,7 +292,6 @@ public class VRChatApiService
         catch (Exception ex) { Log($"SetHomeWorld exception: {ex.Message}"); return false; }
     }
 
-    // Update own profile (bio, pronouns, links, tags, icon, banner)
     public async Task<JObject?> UpdateProfileAsync(string? bio, string? pronouns, List<string>? bioLinks, List<string>? tags, string? userIcon = null, string? profilePicOverride = null)
     {
         if (!IsLoggedIn || CurrentUserId == null) return null;
@@ -329,7 +320,6 @@ public class VRChatApiService
         return null;
     }
 
-    // Get user profile by ID — in-flight deduplication (same userId → shared Task)
     private readonly Dictionary<string, Task<JObject?>> _userFetchTasks = new();
 
     public Task<JObject?> GetUserAsync(string userId)
@@ -610,21 +600,13 @@ public class VRChatApiService
         catch (Exception ex) { Log($"InviteSelf exception: {ex.Message}"); return false; }
     }
 
-    /// <summary>
-    /// Build a vrchat:// launch URI that can be opened with Process.Start
-    /// to make the VRChat client join an instance directly.
-    /// Format: vrchat://launch?ref=vrchat.com&amp;id={worldId}:{instanceId}
-    /// </summary>
+    // build a vrchat:// launch URI for joining an instance directly
     public static string BuildLaunchUri(string location)
     {
         return $"vrchat://launch?ref=vrchat.com&id={location}";
     }
 
-    /// <summary>
-    /// Build a VRChat instance location string.
-    /// type: "public", "friends", "hidden" (invite+), "private" (invite)
-    /// region: "us", "use", "eu", "jp"
-    /// </summary>
+    // build a VRChat instance location string (type: public/friends/hidden/private, region: us/use/eu/jp)
     public string BuildInstanceLocation(string worldId, string type, string region)
     {
         var rng = new Random();
@@ -730,7 +712,7 @@ public class VRChatApiService
         return all;
     }
 
-    /// <summary>Adds an avatar to a favorite group. If oldFvrtId is set, removes it first (move between groups).</summary>
+    // adds an avatar to a favorite group. if oldFvrtId is set, removes it first (move between groups).
     public async Task<(bool ok, string result)> AddAvatarFavoriteAsync(string avatarId, string groupName, string groupType = "avatar", string? oldFvrtId = null)
     {
         if (!IsLoggedIn) return (false, "Not logged in");
@@ -884,7 +866,7 @@ public class VRChatApiService
         catch (Exception ex) { Log($"InviteWithPhoto exception: {ex.Message}"); return false; }
     }
 
-    // ── VRCN Messenger ────────────────────────────────────────────────────────
+    //  VRCN Messenger 
     // Protocol: invites to the VRChat home world whose slot text starts with
     // "msg " are intercepted by VRCN as chat messages (auto-hidden, stored locally).
     //
@@ -897,12 +879,10 @@ public class VRChatApiService
 
     private const int ChatTotalSlots = 24;
 
-    /// How many of the 24 slots are currently in cooldown.
     public int ChatSlotsUsed =>
         _chatSlotTimestamps.Count(x => DateTime.Now - x.Value < TimeSpan.FromMinutes(60));
 
-    /// Fetch real cooldown state from VRChat API for both slot types and populate _chatSlotTimestamps.
-    /// Returns (slotsUsed, total).
+    // fetch real cooldown state from VRChat API for both slot types
     public async Task<(int used, int total)> LoadChatSlotStatusAsync()
     {
         if (!IsLoggedIn || CurrentUserId == null) return (0, ChatTotalSlots);
@@ -951,7 +931,6 @@ public class VRChatApiService
         return (ChatSlotsUsed, ChatTotalSlots);
     }
 
-    /// Returns the first virtual slot (0-23) not currently in cooldown. -1 if all busy.
     private int GetNextFreeSlot()
     {
         for (int i = 0; i < ChatTotalSlots; i++)
@@ -1512,10 +1491,7 @@ public class VRChatApiService
         return new JArray();
     }
 
-    /// <summary>
-    /// Searches group members by displayName — fetches pages until 50 matches found or 10 pages exhausted.
-    /// VRChat has no server-side search for group members, so we paginate and filter client-side.
-    /// </summary>
+    // searches group members by displayName, paginating client-side since VRChat has no server-side search
     public async Task<JArray> SearchGroupMembersAsync(string groupId, string query)
     {
         if (!IsLoggedIn) return new JArray();
@@ -1864,7 +1840,7 @@ public class VRChatApiService
         catch (Exception ex) { Log($"DeleteGroupEvent exception: {ex.Message}"); return false; }
     }
 
-    /// <summary>Create a group calendar event via POST /calendar/{groupId}/event. Returns the created event JObject or null on failure.</summary>
+    // create a group calendar event. returns the created event JObject or null on failure.
     public async Task<JObject?> CreateGroupEventAsync(string groupId, string title, string description, string startsAt, string endsAt, string category, string accessType, bool sendCreationNotification, string? imageId)
     {
         if (!IsLoggedIn) return null;
@@ -1893,7 +1869,7 @@ public class VRChatApiService
         catch (Exception ex) { Log($"CreateGroupEvent exception: {ex.Message}"); return null; }
     }
 
-    /// <summary>Upload an image to VRChat via POST /file/image multipart. Returns fileId or null on failure.</summary>
+    // upload an image to VRChat via multipart POST. returns fileId or null on failure.
     public async Task<string?> UploadImageAsync(byte[] imageBytes, string mimeType = "image/png", string ext = ".png")
     {
         if (!IsLoggedIn) return null;
@@ -1917,7 +1893,7 @@ public class VRChatApiService
         catch (Exception ex) { Log($"UploadImage exception: {ex.Message}"); return null; }
     }
 
-    /// <summary>Create a group instance via POST /instances and return the location string.</summary>
+    // create a group instance and return the location string
     public async Task<string?> CreateGroupInstanceAsync(string worldId, string groupId, string groupAccessType, string region)
     {
         if (!IsLoggedIn) return null;
@@ -2002,7 +1978,6 @@ public class VRChatApiService
     private bool _notifV2Supported = true;
     private bool _requestMessageSupported = true;
 
-    /// <summary>Returns the user's VRChat credit balance, or -1 on failure.</summary>
     public async Task<int> GetBalanceAsync()
     {
         if (!IsLoggedIn) return -1;
@@ -2091,7 +2066,7 @@ public class VRChatApiService
         catch (Exception ex) { Log($"RespondGroupJoinRequest exception: {ex.Message}"); return false; }
     }
 
-    /// <summary>Finds the grp_xxx groupId for a group by its shortCode among the current user's groups.</summary>
+    // finds the grp_xxx groupId for a group by its shortCode among the current user's groups
     public async Task<string?> FindGroupIdByShortCodeAsync(string shortCode)
     {
         var groups = await GetUserGroupsAsync();
@@ -2178,12 +2153,11 @@ public class VRChatApiService
         CurrentUserRaw = null;
     }
 
-    /// Exposes the authenticated HttpClient for use by ImageCacheService.
     public HttpClient GetHttpClient() => _http;
 
     // Inventory - Files (icons, gallery, stickers, emojis)
 
-    /// <summary>List files by tag. tag = gallery | icon | sticker | emoji | emojianimated</summary>
+    // list files by tag (gallery, icon, sticker, emoji, emojianimated)
     public async Task<JArray> GetInventoryFilesAsync(string tag, int n = 100, int offset = 0)
     {
         if (!IsLoggedIn) return new JArray();
@@ -2202,7 +2176,7 @@ public class VRChatApiService
         return new JArray();
     }
 
-    /// <summary>Upload a PNG image as icon/gallery/sticker/emoji/emojianimated.</summary>
+    // upload a PNG image as icon/gallery/sticker/emoji/emojianimated
     public async Task<(bool ok, JObject? file, string error)> UploadInventoryImageAsync(byte[] bytes, string tag, string animationStyle = "", string maskTag = "")
     {
         if (!IsLoggedIn) return (false, null, "Not logged in");
@@ -2230,7 +2204,7 @@ public class VRChatApiService
         catch (Exception ex) { Log($"UploadInventoryImage exception: {ex.Message}"); return (false, null, ex.Message); }
     }
 
-    /// <summary>Delete an entire file (gallery/icon/emoji/sticker). Uses DELETE /file/{fileId}, same as VRCX.</summary>
+    // delete a file (gallery/icon/emoji/sticker)
     public async Task<bool> DeleteInventoryFileAsync(string fileId)
     {
         if (!IsLoggedIn) return false;
@@ -2327,7 +2301,6 @@ public class VRChatApiService
 
     // Favorite Friends
 
-    /// <summary>Returns all favorited friends as Favorite objects {id, favoriteId, type, tags}.</summary>
     public async Task<JArray> GetFavoriteFriendsAsync()
     {
         if (!IsLoggedIn) return new JArray();
@@ -2349,7 +2322,6 @@ public class VRChatApiService
         catch (Exception ex) { Log($"GetFavoriteFriends exception: {ex.Message}"); return new JArray(); }
     }
 
-    /// <summary>Adds a friend to favorites (group_0). Returns the Favorite object or null on error.</summary>
     public async Task<JObject?> AddFavoriteFriendAsync(string userId)
     {
         if (!IsLoggedIn) return null;
@@ -2365,7 +2337,7 @@ public class VRChatApiService
         catch (Exception ex) { Log($"AddFavoriteFriend exception: {ex.Message}"); return null; }
     }
 
-    /// <summary>Adds a world to a favorite group. If oldFvrtId is set, removes it first (move between groups).</summary>
+    // adds a world to a favorite group. if oldFvrtId is set, removes it first (move between groups).
     public async Task<(bool ok, string error)> AddWorldFavoriteAsync(string worldId, string groupName, string groupType = "world", string? oldFvrtId = null)
     {
         if (!IsLoggedIn) return (false, "Not logged in");
@@ -2394,7 +2366,6 @@ public class VRChatApiService
         catch (Exception ex) { Log($"AddWorldFavorite exception: {ex.Message}"); return (false, ex.Message); }
     }
 
-    /// <summary>Removes a favorite by its fvrt_xxx id.</summary>
     public async Task<bool> RemoveFavoriteFriendAsync(string fvrtId)
     {
         if (!IsLoggedIn) return false;

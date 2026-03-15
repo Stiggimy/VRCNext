@@ -3,19 +3,13 @@ using Newtonsoft.Json;
 
 namespace VRCNext.Services;
 
-/// <summary>
-/// Persists timeline events to AppData\Roaming\VRCNext\VRCNData.db (SQLite).
-/// Keeps in-memory caches for fast lookups; writes are incremental (no full-file rewrite).
-/// Automatically migrates from the legacy JSON files on first run.
-/// </summary>
+// persists timeline events to SQLite. in-memory caches for fast lookups, incremental writes, auto-migrates from legacy JSON.
 public class TimelineService : IDisposable
 {
-    // Public data classes
-
     public class FriendTimelineEvent
     {
         public string Id          { get; set; } = Guid.NewGuid().ToString("N")[..8];
-        public string Type        { get; set; } = ""; // friend_gps | friend_status | friend_offline | friend_online | friend_bio
+        public string Type        { get; set; } = "";
         public string Timestamp   { get; set; } = DateTime.UtcNow.ToString("o");
         public string FriendId    { get; set; } = "";
         public string FriendName  { get; set; } = "";
@@ -24,8 +18,8 @@ public class TimelineService : IDisposable
         public string WorldName   { get; set; } = "";
         public string WorldThumb  { get; set; } = "";
         public string Location    { get; set; } = "";
-        public string OldValue    { get; set; } = ""; // old status (status events) or old bio (bio events)
-        public string NewValue    { get; set; } = ""; // new status or new bio
+        public string OldValue    { get; set; } = "";
+        public string NewValue    { get; set; } = "";
     }
 
     public class PlayerSnap
@@ -41,25 +35,16 @@ public class TimelineService : IDisposable
         public string Type      { get; set; } = "";
         public string Timestamp { get; set; } = DateTime.UtcNow.ToString("o");
 
-        // World context
         public string WorldId    { get; set; } = "";
         public string WorldName  { get; set; } = "";
         public string WorldThumb { get; set; } = "";
         public string Location   { get; set; } = "";
-
-        // Players present (instance_join, photo)
         public List<PlayerSnap> Players { get; set; } = new();
-
-        // Photo event fields
         public string PhotoPath { get; set; } = "";
         public string PhotoUrl  { get; set; } = "";
-
-        // First meet / user event fields
         public string UserId    { get; set; } = "";
         public string UserName  { get; set; } = "";
         public string UserImage { get; set; } = "";
-
-        // Notification event fields
         public string NotifId      { get; set; } = "";
         public string NotifType    { get; set; } = "";
         public string NotifTitle   { get; set; } = "";
@@ -69,22 +54,17 @@ public class TimelineService : IDisposable
         public string Message      { get; set; } = "";
     }
 
-    // In-memory caches
-
     private readonly List<TimelineEvent>       _events       = new();
     private readonly List<FriendTimelineEvent> _friendEvents = new();
     private readonly HashSet<string>           _knownUserIds = new();
     private readonly HashSet<string>           _loggedNotifs = new();
-    private readonly Dictionary<string, string> _userImgCache = new(); // userId → image URL (persistent)
+    private readonly Dictionary<string, string> _userImgCache = new();
     private readonly object                    _lock         = new();
     private bool                               _knownUsersSeeded;
     private bool                               _disposed;
 
-    // Database
-
     private readonly SqliteConnection _db;
 
-    // Legacy JSON paths (migration only)
     private static readonly string LegacyEventsJson = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
         "VRCNext", "timeline_events.json");
@@ -92,13 +72,9 @@ public class TimelineService : IDisposable
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
         "VRCNext", "timeline_known_users.json");
 
-    // Public properties
-
     public bool KnownUsersSeeded => _knownUsersSeeded;
 
     public HashSet<string> GetKnownUserIds() { lock (_lock) return new HashSet<string>(_knownUserIds); }
-
-    // Constructor / factory
 
     private TimelineService(SqliteConnection db) { _db = db; }
 
@@ -112,8 +88,6 @@ public class TimelineService : IDisposable
         svc.LoadFromDb();
         return svc;
     }
-
-    // Schema
 
     private void InitSchema()
     {
@@ -175,17 +149,13 @@ public class TimelineService : IDisposable
             CREATE INDEX IF NOT EXISTS idx_fe_friend ON friend_events(friend_id);
         ";
         cmd.ExecuteNonQuery();
-        // Column migration (safe — SQLite ignores ADD COLUMN if caught)
+        // Column migration — SQLite ADD COLUMN is idempotent with catch
         try { using var mc = _db.CreateCommand(); mc.CommandText = "ALTER TABLE events ADD COLUMN notif_title TEXT NOT NULL DEFAULT ''"; mc.ExecuteNonQuery(); } catch { }
-        // Persistent user image lookup (survives app restarts — keyed by userId)
         try { using var mc = _db.CreateCommand(); mc.CommandText = "CREATE TABLE IF NOT EXISTS user_image_cache (user_id TEXT PRIMARY KEY, image TEXT NOT NULL DEFAULT '', updated_at TEXT NOT NULL DEFAULT '')"; mc.ExecuteNonQuery(); } catch { }
     }
 
-    // JSON to SQLite migration
-
     private void MigrateFromJson()
     {
-        // timeline_events.json
         if (File.Exists(LegacyEventsJson))
         {
             try
@@ -201,10 +171,9 @@ public class TimelineService : IDisposable
                 }
                 File.Delete(LegacyEventsJson);
             }
-            catch { /* Leave JSON intact if migration fails */ }
+            catch { }
         }
 
-        // timeline_known_users.json
         if (File.Exists(LegacyKnownUsersJson))
         {
             try
@@ -228,11 +197,8 @@ public class TimelineService : IDisposable
         }
     }
 
-    // Load from DB into memory
-
     private void LoadFromDb()
     {
-        // Load all events + their players
         var playerMap = new Dictionary<string, List<PlayerSnap>>();
         using (var cmd = _db.CreateCommand())
         {
@@ -291,7 +257,6 @@ public class TimelineService : IDisposable
             }
         }
 
-        // Load known users
         using (var cmd = _db.CreateCommand())
         {
             cmd.CommandText = "SELECT user_id FROM known_users";
@@ -300,7 +265,6 @@ public class TimelineService : IDisposable
         }
         if (_knownUserIds.Count > 0) _knownUsersSeeded = true;
 
-        // Load logged notif IDs (beyond what's in events)
         using (var cmd = _db.CreateCommand())
         {
             cmd.CommandText = "SELECT notif_id FROM logged_notifs";
@@ -308,7 +272,6 @@ public class TimelineService : IDisposable
             while (r.Read()) _loggedNotifs.Add(r.GetString(0));
         }
 
-        // Load persistent user image cache
         using (var cmd = _db.CreateCommand())
         {
             cmd.CommandText = "SELECT user_id, image FROM user_image_cache WHERE image != ''";
@@ -322,7 +285,6 @@ public class TimelineService : IDisposable
             }
         }
 
-        // Load friend timeline events
         using (var cmd = _db.CreateCommand())
         {
             cmd.CommandText = @"SELECT id,type,timestamp,friend_id,friend_name,friend_image,
@@ -350,8 +312,6 @@ public class TimelineService : IDisposable
         }
     }
 
-    // Public API
-
     public void AddEvent(TimelineEvent ev)
     {
         lock (_lock)
@@ -361,7 +321,6 @@ public class TimelineService : IDisposable
         }
     }
 
-    /// <summary>Bulk-imports events (e.g. from VRCX). Skips duplicates via INSERT OR IGNORE on id.</summary>
     public void BulkImportEvents(IEnumerable<TimelineEvent> events)
     {
         lock (_lock)
@@ -380,7 +339,6 @@ public class TimelineService : IDisposable
         }
     }
 
-    /// <summary>Bulk-imports friend events (e.g. from VRCX). Skips duplicates via INSERT OR IGNORE on id.</summary>
     public void BulkImportFriendEvents(IEnumerable<FriendTimelineEvent> events)
     {
         lock (_lock)
@@ -417,12 +375,6 @@ public class TimelineService : IDisposable
             return _events.OrderByDescending(e => e.Timestamp).ToList();
     }
 
-    // ── Persistent user image cache ──────────────────────────────────────────
-
-    /// <summary>
-    /// Store (or refresh) the profile image URL for a user.
-    /// Persists to DB so images survive app restarts.
-    /// </summary>
     public void SetUserImage(string userId, string image)
     {
         if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(image)) return;
@@ -440,19 +392,12 @@ public class TimelineService : IDisposable
         catch { }
     }
 
-    /// <summary>
-    /// Returns the cached profile image URL for a user, or "" if not cached.
-    /// </summary>
     public string GetCachedUserImage(string userId)
     {
         if (string.IsNullOrEmpty(userId)) return "";
         lock (_lock) return _userImgCache.TryGetValue(userId, out var img) ? img : "";
     }
 
-    /// <summary>
-    /// Returns all unique user IDs that appear in timeline events (event_players or events table)
-    /// but have no entry in user_image_cache yet. Used for one-time backfill on startup.
-    /// </summary>
     public List<(string UserId, string DisplayName)> GetUsersWithMissingImages()
     {
         var result = new Dictionary<string, string>(); // userId → displayName
@@ -489,7 +434,6 @@ public class TimelineService : IDisposable
         catch { }
         lock (_lock)
         {
-            // Exclude users we already have in memory (loaded from DB at startup)
             return result
                 .Where(kv => !_userImgCache.ContainsKey(kv.Key))
                 .Select(kv => (kv.Key, kv.Value))
@@ -497,8 +441,6 @@ public class TimelineService : IDisposable
         }
     }
 
-    /// <summary>Returns the total count of personal timeline events, optionally filtered by type.</summary>
-    /// <summary>Returns the total number of meet_again events for a specific userId.</summary>
     public long GetMeetAgainCount(string userId)
     {
         if (string.IsNullOrEmpty(userId)) return 0;
@@ -525,7 +467,6 @@ public class TimelineService : IDisposable
         catch { return 0; }
     }
 
-    /// <summary>Returns the total count of friend timeline events, optionally filtered by type.</summary>
     public long GetFriendEventCount(string typeFilter = "")
     {
         try
@@ -540,7 +481,6 @@ public class TimelineService : IDisposable
         catch { return 0; }
     }
 
-    /// <summary>Returns the exact total count of events matching a search query (same WHERE as SearchEvents).</summary>
     public long SearchEventsCount(string query, string typeFilter = "", string date = "")
     {
         if (string.IsNullOrWhiteSpace(query)) return 0;
@@ -583,7 +523,6 @@ public class TimelineService : IDisposable
         catch { return 0; }
     }
 
-    /// <summary>Returns the exact total count of friend events matching a search query (same WHERE as SearchFriendEvents).</summary>
     public long SearchFriendEventsCount(string query, string date = "", string typeFilter = "")
     {
         if (string.IsNullOrWhiteSpace(query)) return 0;
@@ -625,7 +564,6 @@ public class TimelineService : IDisposable
         catch { return 0; }
     }
 
-    /// <summary>Returns a page of personal timeline events directly from DB (newest first). HasMore=true if more exist beyond this page.</summary>
     public (List<TimelineEvent> Events, bool HasMore) GetEventsPaged(int limit, int offset, string typeFilter = "")
     {
         var ids = new List<string>();
@@ -706,16 +644,11 @@ public class TimelineService : IDisposable
         return (result, hasMore);
     }
 
-    /// <summary>
-    /// Full-DB search: returns a page of events whose user_name, world_name, message,
-    /// or any player display_name matches the query. Optionally filtered by type.
-    /// </summary>
     public (List<TimelineEvent> Events, bool HasMore) SearchEvents(string query, string typeFilter = "", string date = "", int offset = 0)
     {
         if (string.IsNullOrWhiteSpace(query)) return (new List<TimelineEvent>(), false);
         var like = "%" + query.Replace("%", "\\%").Replace("_", "\\_") + "%";
 
-        // Optional date range (local calendar day → UTC window)
         string utcStart = "", utcEnd = "";
         if (!string.IsNullOrEmpty(date) && DateTime.TryParse(date, out var localDate))
         {
@@ -765,7 +698,6 @@ public class TimelineService : IDisposable
         if (hasMore) ids.RemoveAt(ids.Count - 1);
         if (ids.Count == 0) return (new List<TimelineEvent>(), hasMore);
 
-        // Load players for matched events
         var playerMap = new Dictionary<string, List<PlayerSnap>>();
         try
         {
@@ -826,7 +758,6 @@ public class TimelineService : IDisposable
         return (result, hasMore);
     }
 
-    /// <summary>Returns all personal timeline events for a specific local calendar date.</summary>
     public List<TimelineEvent> GetEventsByDate(DateTime localDate)
     {
         var utcStart = localDate.ToUniversalTime().ToString("o");
@@ -906,7 +837,7 @@ public class TimelineService : IDisposable
         return result;
     }
 
-    // Friend timeline events
+    // Friend timeline
 
     public void AddFriendEvent(FriendTimelineEvent ev)
     {
@@ -923,7 +854,6 @@ public class TimelineService : IDisposable
             return _friendEvents.OrderByDescending(e => e.Timestamp).ToList();
     }
 
-    /// <summary>Returns a page of friend events directly from DB (newest first). HasMore=true if more exist beyond this page.</summary>
     public (List<FriendTimelineEvent> Events, bool HasMore) GetFriendEventsPaged(
         int limit, int offset, string? type = null)
     {
@@ -968,7 +898,6 @@ public class TimelineService : IDisposable
         return (result, hasMore);
     }
 
-    /// <summary>Returns all friend timeline events for a specific local calendar date, with optional type filter.</summary>
     public List<FriendTimelineEvent> GetFriendEventsByDate(DateTime localDate, string? type = null)
     {
         var utcStart = localDate.ToUniversalTime().ToString("o");
@@ -1097,10 +1026,9 @@ public class TimelineService : IDisposable
         catch { }
     }
 
-    /// <summary>Returns other friend_gps events at the same location (base, nonce stripped), excluding <paramref name="excludeId"/>.</summary>
     public List<FriendTimelineEvent> GetFriendGpsColocated(string location, string excludeId)
     {
-        // Match on the base location (before first ~) so nonce differences don't block matching
+        // Match on base location (before first ~) so nonce differences don't block matching
         var colon = location.IndexOf('~');
         var locBase = colon > 0 ? location[..colon] : location;
         if (string.IsNullOrEmpty(locBase)) return new();
@@ -1152,7 +1080,7 @@ public class TimelineService : IDisposable
         catch { }
     }
 
-    // Known users
+    // Known users tracking
 
     public bool IsKnownUser(string userId)
     {
@@ -1195,7 +1123,7 @@ public class TimelineService : IDisposable
         catch { }
     }
 
-    // Notification dedup
+    // Notification deduplication
 
     public bool IsLoggedNotif(string notifId)
     {
@@ -1255,7 +1183,6 @@ public class TimelineService : IDisposable
             cmd.Parameters.AddWithValue("$msg",  ev.Message);
             cmd.ExecuteNonQuery();
 
-            // Insert players
             if (ev.Players.Count > 0)
             {
                 using var pcmd = _db.CreateCommand();
@@ -1302,7 +1229,6 @@ public class TimelineService : IDisposable
             cmd.Parameters.AddWithValue("$id",  ev.Id);
             cmd.ExecuteNonQuery();
 
-            // Replace all players for this event
             using var del = _db.CreateCommand();
             del.Transaction = tx;
             del.CommandText = "DELETE FROM event_players WHERE event_id=$eid";
@@ -1446,7 +1372,7 @@ public class TimelineService : IDisposable
         catch { }
     }
 
-    // Time Spent statistics (computed from instance_join events)
+    // Time Spent statistics
 
     public class WorldTimeEntry
     {
@@ -1473,16 +1399,10 @@ public class TimelineService : IDisposable
         public long TotalSeconds { get; set; }
     }
 
-    /// <summary>
-    /// Calculates time spent per world and per person from instance_join events.
-    /// Duration per session = time until next join, capped at 8 hours.
-    /// The current user (selfId) is excluded from the persons list.
-    /// </summary>
     public TimeSpentStats GetTimeSpentStats(string selfId = "")
     {
         const long MAX_SESSION = 8L * 3600;
 
-        // Fetch all instance_join events in chronological order
         var joins = new List<(string Id, DateTime Timestamp, string WorldId, string WorldName, string WorldThumb)>();
         try
         {
@@ -1502,7 +1422,6 @@ public class TimelineService : IDisposable
         if (joins.Count == 0)
             return new TimeSpentStats();
 
-        // Fetch players for all those events
         var playerMap = new Dictionary<string, List<(string UserId, string Name, string Image)>>();
         try
         {
@@ -1528,7 +1447,6 @@ public class TimelineService : IDisposable
         {
             var ev = joins[i];
 
-            // Estimate session duration
             long sec;
             if (i + 1 < joins.Count)
                 sec = (long)(joins[i + 1].Timestamp - ev.Timestamp).TotalSeconds;
@@ -1539,17 +1457,14 @@ public class TimelineService : IDisposable
 
             totalSec += sec;
 
-            // World
             if (!string.IsNullOrEmpty(ev.WorldId))
             {
                 worldStats.TryGetValue(ev.WorldId, out var ws);
-                // Keep the most recent (non-empty) world name/thumb
                 var wName  = string.IsNullOrEmpty(ev.WorldName)  ? ws.Name  : ev.WorldName;
                 var wThumb = string.IsNullOrEmpty(ev.WorldThumb) ? ws.Thumb : ev.WorldThumb;
                 worldStats[ev.WorldId] = (wName, wThumb, ws.Sec + sec, ws.Visits + 1);
             }
 
-            // Persons
             if (playerMap.TryGetValue(ev.Id, out var players))
             {
                 foreach (var p in players)

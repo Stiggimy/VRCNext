@@ -1,30 +1,135 @@
 using Photino.NET;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System.Diagnostics;
 using VRCNext.Services;
 using VRCNext.Services.Helpers;
 
 namespace VRCNext;
 
-public partial class MainForm
+public partial class AppShell
 {
-    public MainForm(string[] args)
+    // Fields
+
+    private PhotinoWindow _window = null!;
+    private string _imgCacheDir = "";
+    private string _thumbCacheDir = "";
+    private int _httpPort;
+    private System.Net.HttpListener? _httpListener;
+    private System.Threading.Timer? _uptimeTimer2;
+    private bool _minimized;
+    private StreamWriter? _activityLogWriter;
+    private string _activityLogPath = "";
+    private string _activityLogDir  = "";
+
+    private readonly AppSettings _settings;
+    private readonly WebhookService _webhook = new();
+    private readonly FileWatcherService _fileWatcher = new();
+    private readonly VRChatApiService _vrcApi = new();
+    private readonly VRChatLogWatcher _logWatcher = new();
+    // Domain controllers
+    private CoreLibrary _core = null!;
+    private AuthController _authCtrl = null!;
+    private FriendsController _friends = null!;
+    private InstanceController _instance = null!;
+    private NotificationsController _notifications = null!;
+    private GroupsController _groups = null!;
+    private PhotosController _photos = null!;
+    private TimelineController _timelineCtrl = null!;
+    private VROverlayController _vroCtrl = null!;
+    private SpaceFlightController _sfCtrl = null!;
+    private DiscordController _discordCtrl = null!;
+    private ChatboxController _chatboxCtrl = null!;
+    private VoiceFightController _vfCtrl = null!;
+    private RelayController _relayCtrl = null!;
+    private WindowController _windowCtrl = null!;
+    private ImageCacheService? _imgCache;
+    private readonly CacheHandler _cache = new();
+    private static readonly System.Text.RegularExpressions.Regex _vrcImgUrlRegex = new(
+        @"""(https://(?:api\.vrchat\.cloud|assets\.vrchat\.com|files\.vrchat\.cloud)[^""]+)""",
+        System.Text.RegularExpressions.RegexOptions.Compiled);
+    private readonly UserTimeTracker _timeTracker;
+    private readonly WorldTimeTracker _worldTimeTracker;
+    private readonly PhotoPlayersStore _photoPlayersStore;
+    private readonly TimelineService _timeline;
+    private readonly UpdateService _updateService = new();
+    private readonly MemoryTrimService _memTrim = new();
+
+    // VR overlay world name+thumb cache (worldId → name, localUrl)
+    private readonly Dictionary<string, (string name, string thumb)> _vrWorldCache = new();
+
+    // Helpers
+
+    // Photino compatibility shim: SendWebMessage is thread-safe, so Invoke is a direct call
+    private static void Invoke(Action action) => action();
+    private static T Invoke<T>(Func<T> func) => func();
+
+
+    // Helper: always returns ISO 8601 date string from a JToken
+    private static string IsoDate(JToken? t)
+    {
+        if (t == null) return "";
+        if (t.Type == JTokenType.Date)
+            return t.Value<DateTime>().ToUniversalTime().ToString("o");
+        return t.ToString();
+    }
+
+    // Constructor
+
+    public AppShell(string[] args)
     {
         _settings = AppSettings.Load();
         MigrationHelper.MigrateFavorites(_settings); // silently moves Favorites → favorited_images.json
-        _favorites = FavoritedImagesStore.Load();
         if (_settings.MemoryTrimEnabled) _memTrim.SetEnabled(true);
         _timeTracker = UserTimeTracker.Load();
         _worldTimeTracker = WorldTimeTracker.Load();
         _photoPlayersStore = PhotoPlayersStore.Load();
         _timeline = TimelineService.Load();
         _minimized = args.Contains("--minimized");
-        _fileWatcher.NewFile += OnNewFile;
+
+        // Create shared service container and domain controllers
+        _core = new CoreLibrary(
+            _vrcApi, _logWatcher, _timeline, _settings, _cache,
+            _timeTracker, _worldTimeTracker, _photoPlayersStore,
+            _webhook, _fileWatcher, _memTrim, _updateService,
+            (type, payload) => SendToJS(type, payload));
+        _core.IsVrcRunning = RelayController.IsVrcRunning;
+        _core.IsSteamVrRunning = RelayController.IsSteamVrRunning;
+        _core.DispatchMessage = rawMsg => OnWebMessage(rawMsg);
+        _core.LoadPage = path => _window.Load(path);
+        _friends = new FriendsController(_core);
+        _instance = new InstanceController(_core, _friends);
+        _notifications = new NotificationsController(_core, _friends, _instance);
+        _groups = new GroupsController(_core);
+        _photos = new PhotosController(_core, _friends, _instance);
+        _timelineCtrl = new TimelineController(_core, _friends, _instance, _photos);
+        _vroCtrl = new VROverlayController(_core, _friends);
+        _sfCtrl = new SpaceFlightController(_core, _vroCtrl);
+        _discordCtrl = new DiscordController(_core, _instance, _vroCtrl);
+        _chatboxCtrl = new ChatboxController(_core, _vroCtrl);
+        _vfCtrl = new VoiceFightController(_core, _vroCtrl);
+        _relayCtrl = new RelayController(_core, _friends, _instance, _notifications, _vroCtrl);
+        _windowCtrl = new WindowController(_core);
+        _authCtrl = new AuthController(_core, _friends, _instance, _photos, _relayCtrl, _groups, _discordCtrl);
+        _relayCtrl.OnOwnUserUpdated = user => _authCtrl.SendVrcUserData(user);
+        _core.PushDiscordPresence = () => _discordCtrl.PushPresence();
+        _vroCtrl.OnToolToggle = ToggleToolFromOverlay;
+        _vroCtrl.GetToolStates = () => (
+            _discordCtrl.IsConnected,
+            _vfCtrl.IsRunning,
+            _relayCtrl.IsVcRunning,
+            _sfCtrl.IsConnected,
+            _relayCtrl.IsRunning,
+            _chatboxCtrl.IsEnabled);
+        _fileWatcher.NewFile += _photos.OnNewFile;
     }
+
+    // Run
 
     public void Run()
     {
         StartHttpListener();
+        _core.HttpPort = _httpPort;
 
         _imgCacheDir = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
@@ -48,6 +153,8 @@ public partial class MainForm
             LimitBytes = (long)_settings.ImgCacheLimitGb * 1024 * 1024 * 1024,
             Port       = _httpPort,
         };
+        _core.ImgCache = _imgCache;
+        _core.GetVirtualMediaUrl = _photos.GetVirtualMediaUrl;
 
         var wwwroot   = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wwwroot");
         var startPage = _settings.SetupComplete
@@ -58,14 +165,14 @@ public partial class MainForm
         int uptimeTick = 0;
         _uptimeTimer2 = new System.Threading.Timer(_ =>
         {
-            if (_voiceFight?.IsRunning == true)
-                SendToJS("vfMeter", new { level = _voiceFight.MeterLevel });
-            if (Interlocked.Increment(ref uptimeTick) % 10 == 0 && _relayRunning)
-                SendToJS("uptimeTick", (DateTime.Now - _relayStart).ToString(@"hh\:mm\:ss"));
+            if (_vfCtrl.IsRunning)
+                SendToJS("vfMeter", new { level = _vfCtrl.MeterLevel });
+            if (Interlocked.Increment(ref uptimeTick) % 10 == 0 && _relayCtrl.IsRunning)
+                SendToJS("uptimeTick", (DateTime.Now - _relayCtrl.RelayStart).ToString(@"hh\:mm\:ss"));
         }, null, 100, 100);
 
         // Chromeless on Windows requires explicit location (Center() sets a flag, not coordinates)
-        var (startX, startY) = GetCenteredLocation(1100, 700);
+        var (startX, startY) = WindowController.GetCenteredLocation(1100, 700);
 
 #if !WINDOWS
         // Auto-install missing GStreamer plugins required by WebKit2GTK (blank window without them)
@@ -99,6 +206,7 @@ public partial class MainForm
             .RegisterWebMessageReceivedHandler((_, message) => { _ = OnWebMessage(message); });
         if (File.Exists(iconPath)) windowBuilder.SetIconFile(iconPath);
         _window = windowBuilder.Load(startPage);
+        _core.Window = _window;
 
         if (_minimized) _window.SetMinimized(true);
         _window.WaitForClose();
@@ -152,31 +260,31 @@ public partial class MainForm
     }
 #endif
 
+    // OnClose
+
     private void OnClose()
     {
-        try { _vcProcess?.Kill(entireProcessTree: true); } catch { }
-        _wsService?.Dispose();
+        _relayCtrl?.Dispose();
         _fileWatcher.Dispose();
         _uptimeTimer2?.Dispose();
-        _steamVR?.Dispose();
-        _voiceFight?.Dispose();
-        _discordPresence?.Dispose();
-#if WINDOWS
-        _vrOverlay?.Dispose();
-#endif
-        _osc?.Dispose();
+        _sfCtrl?.Dispose();
+        _vfCtrl?.Dispose();
+        _discordCtrl?.Dispose();
+        _chatboxCtrl?.Dispose();
+        _vroCtrl?.Dispose();
         _timeline.Dispose();
         _photoPlayersStore.Dispose();
         _timeTracker.Dispose();
         _worldTimeTracker.Dispose();
-        _vrcPhotoWatcher?.Dispose();
-        _friendsRefreshLock.Dispose();
+        _photos.VrcPhotoWatcher?.Dispose();
         _webhook.Dispose();
         _logWatcher.Dispose();
         _memTrim.Dispose();
         _httpListener?.Stop();
         _activityLogWriter?.Dispose();
     }
+
+    // SendToJS
 
     private void SendToJS(string type, object? payload = null)
     {
@@ -197,7 +305,7 @@ public partial class MainForm
 
 #if WINDOWS
         // Forward friend timeline events to the VR wrist overlay
-        if (type == "friendTimelineEvent" && payload != null && _vrOverlay != null)
+        if (type == "friendTimelineEvent" && payload != null && _core.VrOverlay != null)
         {
             try
             {
@@ -228,7 +336,7 @@ public partial class MainForm
                 };
                 if (evText == null) return;
 
-                _vrOverlay.AddNotification(evType, name, evText, DateTime.Now.ToString("HH:mm"), friendImage, friendId, location);
+                _core.VrOverlay.AddNotification(evType, name, evText, DateTime.Now.ToString("HH:mm"), friendImage, friendId, location);
             }
             catch { }
         }
@@ -236,135 +344,41 @@ public partial class MainForm
     }
 
 #if WINDOWS
-    // ── VR Overlay tool-state sync ────────────────────────────────────────────
-
-    internal void UpdateVroToolStates()
-    {
-        if (_vrOverlay == null) return;
-        bool discord  = _discordPresence != null;
-        bool voice    = _voiceFight      != null;
-        bool ytFix    = _vcProcess       != null && !_vcProcess.HasExited;
-        bool space    = _steamVR         != null;
-        bool relay    = _relayRunning;
-        bool chatbox  = _chatbox?.Enabled == true;
-        _vrOverlay.SetToolStates(discord, voice, ytFix, space, relay, chatbox);
-    }
-#else
-    internal void UpdateVroToolStates() { }
-#endif
-
-#if WINDOWS
-    // ── VR Overlay tool toggle (fired by overlay card click) ──────────────────
+    // VR Overlay tool toggle (fired by overlay card click)
 
     private void ToggleToolFromOverlay(int idx)
     {
         switch (idx)
         {
             case 0: // Discord Presence
-                if (_discordPresence != null)
-                {
-                    _discordPresence.Disconnect();
-                    _discordPresence.Dispose();
-                    _discordPresence = null;
-                    SendToJS("dpState", new { running = false });
-                }
-                else
-                {
-                    _discordPresence = new Services.DiscordPresenceService("1480822566854852762");
-                    _discordPresence.OnLog += s => Invoke(() => SendToJS("log", new { msg = s, color = "sec" }));
-                    bool ok = _discordPresence.Connect();
-                    SendToJS("dpState", new { running = ok });
-                    if (ok) PushDiscordPresence();
-                }
+                _discordCtrl.Toggle();
                 break;
 
             case 1: // Voice Fight
-                if (_voiceFight != null)
-                {
-                    _voiceFight.Stop();
-                    _voiceFight = null;
-                    SendToJS("vfState", new { running = false });
-                    SendToJS("vfMeter", new { level = 0f });
-                }
-                else
-                {
-                    _voiceFight = new VoiceFightService();
-                    _voiceFight.OnLog += s => Invoke(() => SendToJS("log", new { msg = s, color = "sec" }));
-                    _voiceFight.OnKeywordTriggered += word => Invoke(() => SendToJS("vfKeyword", new { word }));
-                    _voiceFight.OnRecognized += (displayHtml, cleanText, isPartial) =>
-                    {
-                        Invoke(() => SendToJS("vfRecognized", new { text = displayHtml, isPartial }));
-                        if (!isPartial && _vfSettings.MuteTalk)
-                            ThreadPool.QueueUserWorkItem(_ => VfSendChatbox(cleanText));
-                    };
-                    _voiceFight.SetKeywords(_vfSettings.Items);
-                    _voiceFight.SetStopWord(_vfSettings.StopWord);
-                    _voiceFight.Start(_vfSettings.InputDeviceIndex, _vfSettings.OutputDeviceIndex);
-                    SendToJS("vfState", new { running = true });
-                }
+                _vfCtrl.Toggle();
                 break;
 
             case 2: // YouTube Fix
-                if (_vcProcess != null && !_vcProcess.HasExited)
-                    StopVcProcess();
-                else
-                    StartVcProcess();
+                _relayCtrl.ToggleVc();
                 break;
 
             case 3: // Space Flight
-                if (_steamVR != null)
-                {
-                    _steamVR.Disconnect();
-                    _steamVR = null;
-                    SendToJS("sfUpdate", new { connected = false, dragging = false,
-                        offsetX = 0, offsetY = 0, offsetZ = 0,
-                        leftController = false, rightController = false, error = (string?)null });
-                }
-                else
-                {
-                    _steamVR ??= new SteamVRService(s => Invoke(() => SendToJS("log", new { msg = s, color = "sec" })));
-                    _steamVR.SetUpdateCallback(data => { try { Invoke(() => SendToJS("sfUpdate", data)); } catch { } });
-                    bool sfOk = _steamVR.Connect();
-                    if (sfOk)
-                    {
-                        _steamVR.ApplyConfig(_settings.SfMultiplier, _settings.SfLockX, _settings.SfLockY, _settings.SfLockZ,
-                            _settings.SfLeftHand, _settings.SfRightHand, _settings.SfUseGrip);
-                        _steamVR.StartPolling();
-                    }
-                    SendToJS("sfUpdate", new { connected = sfOk, dragging = false,
-                        offsetX = 0, offsetY = 0, offsetZ = 0,
-                        leftController = false, rightController = false, error = sfOk ? (string?)null : _steamVR.LastError });
-                }
+                _sfCtrl.Toggle();
                 break;
 
             case 4: // Media Relay
-                if (_relayRunning) StopRelay();
-                else               StartRelay();
+                _relayCtrl.ToggleRelay();
                 break;
 
             case 5: // Custom Chatbox
-                if (_chatbox != null)
-                {
-                    _chatbox.Stop();
-                    _chatbox = null;
-                    SendToJS("chatboxUpdate", new { enabled = false });
-                }
-                else
-                {
-                    _chatbox = new ChatboxService(s => Invoke(() => SendToJS("log", new { msg = s, color = "sec" })));
-                    _chatbox.SetUpdateCallback(data => { try { Invoke(() => SendToJS("chatboxUpdate", data)); } catch { } });
-                    _chatbox.ApplyConfig(true, _settings.CbShowTime, _settings.CbShowMedia, _settings.CbShowPlaytime,
-                        _settings.CbShowCustomText, _settings.CbShowSystemStats, _settings.CbShowAfk, _settings.CbAfkMessage,
-                        _settings.CbSuppressSound, _settings.CbTimeFormat, _settings.CbSeparator, _settings.CbIntervalMs, _settings.CbCustomLines);
-                    SendToJS("chatboxUpdate", new { enabled = true });
-                }
+                _chatboxCtrl.Toggle();
                 break;
         }
-        UpdateVroToolStates();
+        _vroCtrl.UpdateToolStates();
     }
 #endif
 
-    // ── HttpListener (replaces WebView2 virtual hosts) ────────────────────────
+    // HttpListener (replaces WebView2 virtual hosts)
 
     private readonly List<string> _mappedHosts = new();
 
@@ -425,9 +439,9 @@ public partial class MainForm
                 await ServeFileAsync(ctx, Path.Combine(_imgCacheDir, Uri.UnescapeDataString(path["/imgcache/".Length..])));
             else if (path.StartsWith("/vrcphotos/"))
             {
-                if (!string.IsNullOrEmpty(_vrcPhotoDir))
+                if (!string.IsNullOrEmpty(_photos.VrcPhotoDir))
                 {
-                    var file = Path.Combine(_vrcPhotoDir, Uri.UnescapeDataString(path["/vrcphotos/".Length..]));
+                    var file = Path.Combine(_photos.VrcPhotoDir, Uri.UnescapeDataString(path["/vrcphotos/".Length..]));
                     if (isThumb) await ServeThumbAsync(ctx, file); else await ServeFileAsync(ctx, file);
                 }
                 else ctx.Response.StatusCode = 404;

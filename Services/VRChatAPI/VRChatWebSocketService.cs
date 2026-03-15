@@ -6,7 +6,6 @@ using Newtonsoft.Json.Linq;
 
 namespace VRCNext.Services;
 
-/// <summary>Event args for typed friend WebSocket events.</summary>
 public class FriendEventArgs : EventArgs
 {
     public string  UserId   { get; init; } = "";
@@ -16,57 +15,38 @@ public class FriendEventArgs : EventArgs
     public string  Platform { get; init; } = "";
 }
 
-/// <summary>Event args for WebSocket notification events.</summary>
 public class NotificationEventArgs : EventArgs
 {
-    /// <summary>"notification", "notification-v2", "notification-v2-update", "notification-v2-delete"</summary>
     public string  WsType { get; init; } = "";
-    /// <summary>Parsed content object from the WS message. Null if parsing failed.</summary>
     public JObject? Data  { get; init; }
 }
 
-/// <summary>
-/// Persistent WebSocket connection to wss://pipeline.vrchat.cloud/
-/// Fires events for friend changes, new notifications, and own location changes.
-/// </summary>
-internal sealed class VRChatWebSocketService : IDisposable
+public sealed class VRChatWebSocketService : IDisposable
 {
     // Public events
 
-    /// <summary>Friend state changed (status/location/bio). Update store from WS data — no REST needed.</summary>
     public event EventHandler? FriendsChanged;
 
-    /// <summary>Friend was added or removed. Requires a full REST refresh of the friend list.</summary>
     public event EventHandler? FriendListChanged;
 
-    /// <summary>A new notification arrived via WebSocket. Data contains the full notification payload.</summary>
     public event EventHandler<NotificationEventArgs>? NotificationArrived;
 
-    /// <summary>Own location changed (contains the new instance location string).</summary>
     public event EventHandler<string>? OwnLocationChanged;
 
-    /// <summary>Own profile updated via user-update event (status, bio, statusDescription, etc.).</summary>
     public event EventHandler<JObject>? OwnUserUpdated;
 
-    /// <summary>WebSocket connected successfully.</summary>
     public event EventHandler? Connected;
 
-    /// <summary>WebSocket disconnected (will attempt reconnect).</summary>
     public event EventHandler? Disconnected;
 
-    /// <summary>Connection error message for logging.</summary>
     public event EventHandler<string>? ConnectError;
 
-    /// <summary>A friend moved to a different world.</summary>
     public event EventHandler<FriendEventArgs>? FriendLocationChanged;
 
-    /// <summary>A friend went offline.</summary>
     public event EventHandler<FriendEventArgs>? FriendWentOffline;
 
-    /// <summary>A friend came online.</summary>
     public event EventHandler<FriendEventArgs>? FriendWentOnline;
 
-    /// <summary>A friend's profile data changed (status, bio, etc.).</summary>
     public event EventHandler<FriendEventArgs>? FriendUpdated;
 
     // State
@@ -74,10 +54,6 @@ internal sealed class VRChatWebSocketService : IDisposable
     private string _authToken = "";
     private string _tfaToken  = "";
 
-    /// <summary>
-    /// Optional delegate called before every connect attempt to get fresh auth cookies.
-    /// Avoids using a stale token when the VRChat session rotates mid-run.
-    /// </summary>
     private Func<(string auth, string tfa)>? _getTokens;
 
     private CancellationTokenSource _cts = new();
@@ -85,21 +61,14 @@ internal sealed class VRChatWebSocketService : IDisposable
     private bool _running;
     private bool _disposed;
 
-    // Debounce: collect rapid friend events, fire once after a short delay
     private System.Threading.Timer? _friendsDebounce;
     private const int FriendsDebounceMs = 500;
 
-    // Heartbeat watchdog: if no data is received for this long, the TCP connection
-    // is considered silently dead and the loop forces a reconnect.
-    private long _lastReceiveTicks = DateTime.UtcNow.Ticks; // written/read via Interlocked
-    private const int HeartbeatTimeoutSec = 75; // VRChat pipeline sends events regularly
+    private long _lastReceiveTicks = DateTime.UtcNow.Ticks;
+    private const int HeartbeatTimeoutSec = 75;
 
     // Public API
 
-    /// <summary>
-    /// Start (or restart) the WebSocket loop.
-    /// Pass <paramref name="getTokens"/> so fresh cookies are used on every internal reconnect.
-    /// </summary>
     public void Start(string authToken, string tfaToken = "",
                       Func<(string auth, string tfa)>? getTokens = null)
     {
@@ -116,7 +85,6 @@ internal sealed class VRChatWebSocketService : IDisposable
         prevTask?.ContinueWith(t => { _ = t.Exception; }, TaskContinuationOptions.OnlyOnFaulted);
     }
 
-    /// <summary>Stop and disconnect. Does not dispose.</summary>
     public void Stop()
     {
         _running = false;
@@ -133,7 +101,6 @@ internal sealed class VRChatWebSocketService : IDisposable
 
         while (_running && !ct.IsCancellationRequested)
         {
-            // Refresh tokens before each attempt so a rotated session cookie is picked up
             if (_getTokens != null)
             {
                 try
@@ -145,7 +112,7 @@ internal sealed class VRChatWebSocketService : IDisposable
                         _tfaToken  = t ?? "";
                     }
                 }
-                catch { /* ignore, use last known tokens */ }
+                catch { }
             }
 
             try
@@ -153,7 +120,6 @@ internal sealed class VRChatWebSocketService : IDisposable
                 using var ws = new ClientWebSocket();
                 ws.Options.SetRequestHeader("User-Agent", "VRCNext/1.01.0 contact@vrcnext.app");
 
-                // Send auth cookies in the WebSocket handshake headers
                 var jar = new CookieContainer();
                 var pipeUri = new Uri("https://pipeline.vrchat.cloud");
                 jar.Add(pipeUri, new Cookie("auth", _authToken));
@@ -164,21 +130,17 @@ internal sealed class VRChatWebSocketService : IDisposable
                 var uri = new Uri($"wss://pipeline.vrchat.cloud/?authToken={Uri.EscapeDataString(_authToken)}");
                 await ws.ConnectAsync(uri, ct);
 
-                delaySec = 1; // reset backoff on successful connect
+                delaySec = 1;
                 Interlocked.Exchange(ref _lastReceiveTicks, DateTime.UtcNow.Ticks);
                 Connected?.Invoke(this, EventArgs.Empty);
 
-                // Run receive loop and watchdog concurrently.
-                // Watchdog aborts ws if no data arrives for HeartbeatTimeoutSec seconds,
-                // which causes ReceiveLoopAsync to exit so the outer loop can reconnect.
                 using var wdCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 var receiveTask = ReceiveLoopAsync(ws, ct);
                 var watchdogTask = WatchdogAsync(ws, wdCts.Token);
 
                 await Task.WhenAny(receiveTask, watchdogTask);
-                wdCts.Cancel(); // stop watchdog when receive loop ends (or vice-versa)
+                wdCts.Cancel();
 
-                // Observe any exception to prevent UnobservedTaskException
                 try { await receiveTask; } catch { }
             }
             catch (OperationCanceledException) { break; }
@@ -215,18 +177,12 @@ internal sealed class VRChatWebSocketService : IDisposable
             }
             while (!result.EndOfMessage);
 
-            // Update heartbeat timestamp on every received message
             Interlocked.Exchange(ref _lastReceiveTicks, DateTime.UtcNow.Ticks);
 
             HandleMessage(sb.ToString());
         }
     }
 
-    /// <summary>
-    /// Runs alongside ReceiveLoopAsync. Checks every 30 s whether any data was received
-    /// within HeartbeatTimeoutSec. If not, the TCP connection is silently dead and we
-    /// abort the socket to force an immediate reconnect.
-    /// </summary>
     private async Task WatchdogAsync(ClientWebSocket ws, CancellationToken ct)
     {
         while (!ct.IsCancellationRequested && ws.State == WebSocketState.Open)
@@ -255,7 +211,6 @@ internal sealed class VRChatWebSocketService : IDisposable
             var msg = JObject.Parse(json);
             var type = msg["type"]?.Value<string>() ?? "";
 
-            // VRChat double-encodes the content field as a JSON string
             var contentStr = msg["content"]?.Value<string>() ?? "{}";
 
             switch (type)
@@ -315,7 +270,7 @@ internal sealed class VRChatWebSocketService : IDisposable
                     try
                     {
                         var c = JObject.Parse(contentStr);
-                        // VRChat uses lowercase "userid" in friend-active (unlike other events)
+                        // VRChat uses lowercase "userid" in friend-active
                         var uid = c["userid"]?.Value<string>() ?? c["userId"]?.Value<string>() ?? "";
                         var plt = c["platform"]?.Value<string>() ?? "";
                         var usr = c["user"] as JObject;
@@ -367,7 +322,7 @@ internal sealed class VRChatWebSocketService : IDisposable
                     break;
             }
         }
-        catch { /* ignore malformed messages */ }
+        catch { }
     }
 
     private void DebounceFriendsRefresh()

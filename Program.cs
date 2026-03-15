@@ -6,6 +6,6 @@ static class Program
     static void Main(string[] args)
     {
         Velopack.VelopackApp.Build().Run();
-        new MainForm(args).Run();
+        new AppShell(args).Run();
     }
 }

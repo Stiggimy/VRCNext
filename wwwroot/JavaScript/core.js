@@ -213,7 +213,18 @@ function renderThemeChips() {
     const addBtn = currentSpecialTheme === 'auto'
         ? `<button class="theme-chip theme-chip-add" onclick="addCustomThemeFromAuto()"><span class="theme-dot" style="background:var(--accent)"></span>Add +</button>`
         : '';
-    document.getElementById('themeGrid').innerHTML = builtIn + custom + addBtn;
+
+    const themeGrid = document.getElementById('themeGrid');
+    if (themeGrid) themeGrid.innerHTML = builtIn;
+
+    const customGrid = document.getElementById('customThemeGrid');
+    const customSection = document.getElementById('customThemeSection');
+    const showCustom = customThemes.length > 0 || !!addBtn;
+    if (customSection) customSection.style.display = showCustom ? 'block' : 'none';
+
+    // Backward-compatible fallback: if the new grid doesn't exist, append custom chips into themeGrid.
+    if (customGrid) customGrid.innerHTML = custom + addBtn;
+    else if (themeGrid) themeGrid.innerHTML = builtIn + custom + addBtn;
 }
 
 function selectTheme(n) {
