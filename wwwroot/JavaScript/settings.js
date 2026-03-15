@@ -108,7 +108,10 @@ function saveSettings() {
             relayAutoStartVR:        document.getElementById('setAutoStartVR')?.checked       ?? false,
             relayAutoStartDesktop:   document.getElementById('setAutoStartDesktop')?.checked  ?? false,
             startWithWindows: document.getElementById('setStartWithWindows').checked,
-            notifySound: document.getElementById('setNotifySound').checked,
+            notifySound: false, // legacy — kept for JSON compat
+            notifySoundEnabled: document.getElementById('setNotifySoundEnabled').checked,
+            messageSoundEnabled: document.getElementById('setMessageSoundEnabled').checked,
+            mediaRelaySoundEnabled: document.getElementById('setMediaRelaySoundEnabled').checked,
             theme: currentTheme,
             specialTheme: currentSpecialTheme,
             autoColorAccuracy: autoColorAccuracy,
@@ -189,7 +192,8 @@ function autoSave() {
 // Attach autosave listeners after DOM ready
 function initAutoSave() {
     const ids = ['setBotName','setBotAvatar','setVrcPath','setStartWithWindows',
-        'setNotifySound','setDashOpacity','setRandomBg',
+        'setNotifySoundEnabled','setMessageSoundEnabled','setMediaRelaySoundEnabled',
+        'setDashOpacity','setRandomBg',
         'setVrcUser','setVrcPass',
         'setAutoStartVR','setAutoStartDesktop',
         'setCbAutoStartVR','setCbAutoStartDesktop',
@@ -229,10 +233,14 @@ function loadSettingsToUI(s) {
     const _asVR  = document.getElementById('setAutoStartVR');  if (_asVR)  _asVR.checked  = s.RelayAutoStartVR  ?? s.relayAutoStartVR  ?? false;
     const _asDT  = document.getElementById('setAutoStartDesktop'); if (_asDT) _asDT.checked = s.RelayAutoStartDesktop ?? s.relayAutoStartDesktop ?? false;
     document.getElementById('setStartWithWindows').checked = s.StartWithWindows || s.startWithWindows || false;
-    document.getElementById('setNotifySound').checked = s.NotifySound || s.notifySound || false;
+    document.getElementById('setNotifySoundEnabled').checked = s.NotifySoundEnabled ?? s.notifySoundEnabled ?? false;
+    document.getElementById('setMessageSoundEnabled').checked = s.MessageSoundEnabled ?? s.messageSoundEnabled ?? false;
+    document.getElementById('setMediaRelaySoundEnabled').checked = s.MediaRelaySoundEnabled ?? s.mediaRelaySoundEnabled ?? false;
     settings.folders = s.WatchFolders || s.watchFolders || s.folders || [];
     settings.extraExe = s.ExtraExe || s.extraExe || [];
-    settings.notifySound = s.NotifySound || s.notifySound || false;
+    settings.notifySoundEnabled = s.NotifySoundEnabled ?? s.notifySoundEnabled ?? false;
+    settings.messageSoundEnabled = s.MessageSoundEnabled ?? s.messageSoundEnabled ?? false;
+    settings.mediaRelaySoundEnabled = s.MediaRelaySoundEnabled ?? s.mediaRelaySoundEnabled ?? false;
     dashBgPath = s.DashBgPath || s.dashBgPath || '';
     dashOpacity = s.DashOpacity || s.dashOpacity || 40;
     document.getElementById('setDashOpacity').value = dashOpacity;

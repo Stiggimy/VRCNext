@@ -649,7 +649,10 @@ public class AuthController
             ApplyStartWithWindows(_core.Settings.StartWithWindows);
             _core.Settings.PostAll = data["postAll"]?.Value<bool>() ?? false;
             _core.Settings.Notifications = data["notifications"]?.Value<bool>() ?? true;
-            _core.Settings.NotifySound = data["notifySound"]?.Value<bool>() ?? false;
+            _core.Settings.NotifySound = data["notifySound"]?.Value<bool>() ?? false; // legacy
+            _core.Settings.NotifySoundEnabled = data["notifySoundEnabled"]?.Value<bool>() ?? false;
+            _core.Settings.MessageSoundEnabled = data["messageSoundEnabled"]?.Value<bool>() ?? false;
+            _core.Settings.MediaRelaySoundEnabled = data["mediaRelaySoundEnabled"]?.Value<bool>() ?? false;
             _core.Settings.MinimizeToTray = data["minimizeToTray"]?.Value<bool>() ?? false;
             _core.Settings.Theme = data["theme"]?.ToString() ?? "midnight";
             _core.Settings.SpecialTheme = data["specialTheme"]?.ToString() ?? "";

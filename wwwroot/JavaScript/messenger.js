@@ -221,11 +221,13 @@ function handleChatMessage(msg) {
     // Append to open conversation
     if (document.getElementById('messengerPanel') &&
         (msg.from === _messengerUserId || msg.from === 'me')) {
+        if (msg.from !== 'me') playMessageSound();
         appendChatMessage(msg, true);
         return;
     }
     // Incoming while messenger is closed → add to inbox
     if (msg.from === 'me') return;
+    playMessageSound();
     const f = (typeof vrcFriendsData !== 'undefined') && vrcFriendsData.find(x => x.id === msg.from);
     const existing = _chatInbox.get(msg.from) || {
         userId: msg.from,

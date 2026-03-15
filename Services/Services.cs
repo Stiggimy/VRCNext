@@ -194,7 +194,10 @@ public class AppSettings
     public bool PostAll { get; set; }
     public int SelectedChannel { get; set; }
     public bool Notifications { get; set; } = true;
-    public bool NotifySound { get; set; }
+    public bool NotifySound { get; set; } // legacy — kept for JSON compat
+    public bool NotifySoundEnabled { get; set; }
+    public bool MessageSoundEnabled { get; set; }
+    public bool MediaRelaySoundEnabled { get; set; }
     public bool MinimizeToTray { get; set; }
     public string Theme { get; set; } = "midnight";
     public string SpecialTheme { get; set; } = "";

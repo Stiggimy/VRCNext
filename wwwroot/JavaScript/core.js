@@ -4,7 +4,7 @@ let _prevTab = -1;
 let hiddenMedia = new Set();
 try { hiddenMedia = new Set(JSON.parse(localStorage.getItem('vrcnext_hidden') || '[]')); } catch {}
 const thumbCache = {};
-let currentTheme = 'midnight', currentSpecialTheme = '', autoColorAccuracy = 50, notifyAudio = null, currentVrcUser = null;
+let currentTheme = 'midnight', currentSpecialTheme = '', autoColorAccuracy = 50, notifyAudio = null, messageAudio = null, mediaRelayAudio = null, currentVrcUser = null;
 let customThemes = []; // user-saved themes from auto color
 let currentPlayBtnTheme = '';
 let currentCursorTheme = '';
@@ -516,18 +516,40 @@ function tryLoadLogo() {
     i.src = 'Logo.png';
 }
 
-function tryInitNotifySound() {
-    const a = new Audio('notify.ogg');
+function _initAudio(path) {
+    const a = new Audio(path);
     a.volume = 0.5;
-    a.addEventListener('canplaythrough', () => { notifyAudio = a; }, { once: true });
-    a.addEventListener('error', () => { notifyAudio = null; });
+    a._ready = false;
+    a.addEventListener('canplaythrough', () => { a._ready = true; }, { once: true });
+    a.addEventListener('error', () => { a._ready = false; });
     a.load();
+    return a;
 }
 
-function playNotifySound() {
-    if (notifyAudio && settings.notifySound) {
+function tryInitNotifySound() {
+    notifyAudio = _initAudio('sounds/notifications/Notification.wav');
+    messageAudio = _initAudio('sounds/notifications/Message.wav');
+    mediaRelayAudio = _initAudio('sounds/notifications/MediaRelay.wav');
+}
+
+function playNotificationSound() {
+    if (notifyAudio?._ready && settings.notifySoundEnabled) {
         notifyAudio.currentTime = 0;
         notifyAudio.play().catch(() => {});
+    }
+}
+
+function playMessageSound() {
+    if (messageAudio?._ready && settings.messageSoundEnabled) {
+        messageAudio.currentTime = 0;
+        messageAudio.play().catch(() => {});
+    }
+}
+
+function playMediaRelaySound() {
+    if (mediaRelayAudio?._ready && settings.mediaRelaySoundEnabled) {
+        mediaRelayAudio.currentTime = 0;
+        mediaRelayAudio.play().catch(() => {});
     }
 }
 

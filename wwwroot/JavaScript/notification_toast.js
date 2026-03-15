@@ -6,11 +6,16 @@
 const _shownNotifCardIds = new Set();
 
 function showNotificationToasts(notifList) {
-    const fresh = (notifList || []).filter(n => !n.seen && !_shownNotifCardIds.has(n.id) && n.type !== 'boop'); // boops only in messenger
+    const all = (notifList || []).filter(n => !n.seen && !_shownNotifCardIds.has(n.id));
+    const boops = all.filter(n => n.type === 'boop');
+    const fresh = all.filter(n => n.type !== 'boop'); // boops only in messenger
+    if (boops.length) playMessageSound();
+    if (fresh.length) playNotificationSound();
     fresh.forEach(n => {
         _shownNotifCardIds.add(n.id);
         _showNotifCard(n);
     });
+    boops.forEach(n => _shownNotifCardIds.add(n.id));
 }
 
 function _showNotifCard(n) {

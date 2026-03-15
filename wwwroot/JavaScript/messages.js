@@ -55,7 +55,7 @@ window.external.receiveMessage(rawMsg => {
                 document.getElementById('winMaxIcon').textContent = payload ? 'close_fullscreen' : 'open_in_full';
                 document.body.classList.toggle('maximized', !!payload);
                 break;
-            case 'filePosted': addFileToList(payload); playNotifySound(); break;
+            case 'filePosted': addFileToList(payload); playMediaRelaySound(); break;
             case 'deleteResult':
                 if (payload.success) {
                     postedFiles = postedFiles.filter(f => f.messageId !== payload.messageId);
