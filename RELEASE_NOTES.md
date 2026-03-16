@@ -1,16 +1,12 @@
-2026.10.15 HOTFIX! (BETA)
+2026.10.16
 
-Fixes
-- Fixed an issue where the timeline did not show the location of first meet events
-- Fixed an issue where the timeline did not show the location of meet again events
-- Fixed an issue where VRCN tried to read .unitypackages from MY Avatars and compress them into cache which caused an enormous amount of GET Requests on each startup
+**Added**
 
+* **World Insights:** If you have a world uploaded, you will now see an *Insights* tab showing statistics. Data is only collected while VRCN is running.
 
-Changes:
-- Moved Custom Added themes to "CUSTOM THEME" section below "THEME"
+**Fixes**
 
-Notification Sounds
-- Added Notification sounds. They can be found in settings
-1. Sound for Messages
-2. Sound for Notifications
-3. Sound for successful sound when an image was sent using media relay
+* Fixed a compression issue.
+* Fixed a Steam Overlay issue that caused locations to not update.
+* Fixed a cache problem with PNG files.
+* Fixed an issue where badges were converted to JPG instead of remaining alpha PNG.
