@@ -25,21 +25,26 @@ function wiLoadInsights(worldId) {
 // ── Date range helpers ──────────────────────────────────────────────────
 
 function _wiRange() {
-    const to = new Date(_wiAnchor);
-    to.setHours(23, 59, 59, 999);
-    const from = new Date(to);
+    const a = new Date(_wiAnchor);
+    let from, to;
     if (_wiMode === 'day') {
-        from.setHours(0, 0, 0, 0);
+        from = new Date(a.getFullYear(), a.getMonth(), a.getDate());
+        to = new Date(from);
+        to.setHours(23, 59, 59, 999);
     } else if (_wiMode === 'week') {
-        from.setDate(from.getDate() - 6);
-        from.setHours(0, 0, 0, 0);
+        // Monday–Sunday (ISO week)
+        const dow = a.getDay(); // 0=Sun
+        const diffToMon = dow === 0 ? -6 : 1 - dow;
+        from = new Date(a.getFullYear(), a.getMonth(), a.getDate() + diffToMon);
+        to = new Date(from);
+        to.setDate(to.getDate() + 6);
+        to.setHours(23, 59, 59, 999);
     } else if (_wiMode === 'month') {
-        from.setDate(from.getDate() - 29);
-        from.setHours(0, 0, 0, 0);
+        from = new Date(a.getFullYear(), a.getMonth(), 1);
+        to = new Date(a.getFullYear(), a.getMonth() + 1, 0, 23, 59, 59, 999);
     } else {
-        from.setFullYear(from.getFullYear() - 1);
-        from.setDate(from.getDate() + 1);
-        from.setHours(0, 0, 0, 0);
+        from = new Date(a.getFullYear(), 0, 1);
+        to = new Date(a.getFullYear(), 11, 31, 23, 59, 59, 999);
     }
     return { from, to };
 }
@@ -50,10 +55,14 @@ function _wiFmt(d) {
 
 function _wiRangeLabel() {
     const { from, to } = _wiRange();
-    const opts = { month: 'short', day: 'numeric' };
-    if (_wiMode === 'day') return to.toLocaleDateString('en-US', { ...opts, year: 'numeric' });
-    if (_wiMode === 'year') return from.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) + ' – ' + to.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-    return from.toLocaleDateString('en-US', opts) + ' – ' + to.toLocaleDateString('en-US', { ...opts, year: 'numeric' });
+    if (_wiMode === 'day') return to.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    if (_wiMode === 'week') {
+        const fFrom = from.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        const fTo = to.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        return fFrom + ' – ' + fTo;
+    }
+    if (_wiMode === 'month') return from.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    return String(from.getFullYear());
 }
 
 // ── Navigation ──────────────────────────────────────────────────────────
@@ -68,7 +77,7 @@ function wiNav(dir) {
     const d = _wiAnchor;
     if (_wiMode === 'day') d.setDate(d.getDate() + dir);
     else if (_wiMode === 'week') d.setDate(d.getDate() + dir * 7);
-    else if (_wiMode === 'month') d.setDate(d.getDate() + dir * 30);
+    else if (_wiMode === 'month') d.setMonth(d.getMonth() + dir);
     else d.setFullYear(d.getFullYear() + dir);
     _wiUpdateToolbar();
     _wiRequestData();
@@ -183,7 +192,7 @@ function wiHandleData(payload) {
 // ── Bucket data into chart points ───────────────────────────────────────
 
 function _wiBucket() {
-    const { from } = _wiRange();
+    const { from, to } = _wiRange();
     const points = [];
 
     if (_wiMode === 'day') {
@@ -201,13 +210,12 @@ function _wiBucket() {
             }
         });
     } else if (_wiMode === 'year') {
-        // 12 monthly buckets
+        // 12 monthly buckets — always Jan–Dec of the anchor year
         const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-        const start = new Date(from);
+        const year = from.getFullYear();
         for (let i = 0; i < 12; i++) {
-            const d = new Date(start.getFullYear(), start.getMonth() + i, 1);
-            const key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
-            points.push({ label: monthNames[d.getMonth()], monthKey: key, active: 0, favorites: 0, visits: 0, count: 0 });
+            const key = year + '-' + String(i + 1).padStart(2, '0');
+            points.push({ label: monthNames[i], monthKey: key, active: 0, favorites: 0, visits: 0, count: 0 });
         }
         _wiData.forEach(p => {
             const d = new Date(p.Timestamp || p.timestamp);
@@ -221,8 +229,9 @@ function _wiBucket() {
             }
         });
     } else {
-        const days = _wiMode === 'week' ? 7 : 30;
+        // week (7 days Mon–Sun) or month (actual days in month)
         const start = new Date(from);
+        const days = Math.floor((to - from) / (1000 * 60 * 60 * 24)) + 1;
         for (let i = 0; i < days; i++) {
             const d = new Date(start);
             d.setDate(d.getDate() + i);
