@@ -112,6 +112,7 @@ function saveSettings() {
             notifySoundEnabled: document.getElementById('setNotifySoundEnabled').checked,
             messageSoundEnabled: document.getElementById('setMessageSoundEnabled').checked,
             mediaRelaySoundEnabled: document.getElementById('setMediaRelaySoundEnabled').checked,
+            steamOverlaySoundEnabled: document.getElementById('setSteamOverlaySoundEnabled')?.checked ?? true,
             theme: currentTheme,
             specialTheme: currentSpecialTheme,
             autoColorAccuracy: autoColorAccuracy,
@@ -158,6 +159,19 @@ function saveSettings() {
             vroKeybindDtHand:  vroDtHand      ?? 0,
             vroKeybindMode:    vroKeybindMode ?? 0,
             vroControlRadius:  parseInt(document.getElementById('vroControlRadius')?.value) || 28,
+            vroToastEnabled:    !!document.getElementById('vroToastEnabled')?.checked,
+            vroToastFavOnly:    !!document.getElementById('vroToastFavOnly')?.checked,
+            vroToastSize:       parseInt(document.getElementById('vroToastSize')?.value) || 50,
+            vroToastOffsetX:    parseFloat(document.getElementById('vroToastOffsetX')?.value) || 0,
+            vroToastOffsetY:    parseFloat(document.getElementById('vroToastOffsetY')?.value) || -0.12,
+            vroToastOnline:     !!document.getElementById('vroToastOnline')?.checked,
+            vroToastOffline:    !!document.getElementById('vroToastOffline')?.checked,
+            vroToastWebOnline:  !!document.getElementById('vroToastWebOnline')?.checked,
+            vroToastWebOffline: !!document.getElementById('vroToastWebOffline')?.checked,
+            vroToastGps:        !!document.getElementById('vroToastGps')?.checked,
+            vroToastStatus:     !!document.getElementById('vroToastStatus')?.checked,
+            vroToastStatusDesc: !!document.getElementById('vroToastStatusDesc')?.checked,
+            vroToastBio:        !!document.getElementById('vroToastBio')?.checked,
             dpHideJoinBtnJoinMe: document.getElementById('dpHideJoinBtn_joinme')?.checked ?? false,
             dpHideJoinBtnOnline: document.getElementById('dpHideJoinBtn_online')?.checked ?? false,
             dpHideJoinBtnAskMe:  document.getElementById('dpHideJoinBtn_askme')?.checked  ?? false,
@@ -192,7 +206,7 @@ function autoSave() {
 // Attach autosave listeners after DOM ready
 function initAutoSave() {
     const ids = ['setBotName','setBotAvatar','setVrcPath','setStartWithWindows',
-        'setNotifySoundEnabled','setMessageSoundEnabled','setMediaRelaySoundEnabled',
+        'setNotifySoundEnabled','setMessageSoundEnabled','setMediaRelaySoundEnabled','setSteamOverlaySoundEnabled',
         'setDashOpacity','setRandomBg',
         'setVrcUser','setVrcPass',
         'setAutoStartVR','setAutoStartDesktop',
@@ -241,6 +255,9 @@ function loadSettingsToUI(s) {
     settings.notifySoundEnabled = s.NotifySoundEnabled ?? s.notifySoundEnabled ?? false;
     settings.messageSoundEnabled = s.MessageSoundEnabled ?? s.messageSoundEnabled ?? false;
     settings.mediaRelaySoundEnabled = s.MediaRelaySoundEnabled ?? s.mediaRelaySoundEnabled ?? false;
+    settings.steamOverlaySoundEnabled = s.SteamOverlaySoundEnabled ?? s.steamOverlaySoundEnabled ?? true;
+    const _sovEl = document.getElementById('setSteamOverlaySoundEnabled');
+    if (_sovEl) _sovEl.checked = settings.steamOverlaySoundEnabled;
     dashBgPath = s.DashBgPath || s.dashBgPath || '';
     dashOpacity = s.DashOpacity || s.dashOpacity || 40;
     document.getElementById('setDashOpacity').value = dashOpacity;
@@ -353,7 +370,20 @@ function loadSettingsToUI(s) {
         vroKeybindDt:     s.VroKeybindDt     ?? s.vroKeybindDt     ?? [],
         vroKeybindDtHand: s.VroKeybindDtHand ?? s.vroKeybindDtHand ?? 0,
         vroKeybindMode:    s.VroKeybindMode   ?? s.vroKeybindMode   ?? 0,
-        vroControlRadius:  s.VroControlRadius ?? s.vroControlRadius ?? 16
+        vroControlRadius:  s.VroControlRadius ?? s.vroControlRadius ?? 16,
+        vroToastEnabled:    s.VroToastEnabled    ?? s.vroToastEnabled    ?? true,
+        vroToastFavOnly:    s.VroToastFavOnly    ?? s.vroToastFavOnly    ?? false,
+        vroToastSize:       s.VroToastSize       ?? s.vroToastSize       ?? 50,
+        vroToastOffsetX:    s.VroToastOffsetX    ?? s.vroToastOffsetX    ?? 0,
+        vroToastOffsetY:    s.VroToastOffsetY    ?? s.vroToastOffsetY    ?? -0.12,
+        vroToastOnline:     s.VroToastOnline     ?? s.vroToastOnline     ?? true,
+        vroToastOffline:    s.VroToastOffline    ?? s.vroToastOffline    ?? true,
+        vroToastWebOnline:  s.VroToastWebOnline  ?? s.vroToastWebOnline  ?? true,
+        vroToastWebOffline: s.VroToastWebOffline ?? s.vroToastWebOffline ?? true,
+        vroToastGps:        s.VroToastGps        ?? s.vroToastGps        ?? true,
+        vroToastStatus:     s.VroToastStatus     ?? s.vroToastStatus     ?? true,
+        vroToastStatusDesc: s.VroToastStatusDesc ?? s.vroToastStatusDesc ?? true,
+        vroToastBio:        s.VroToastBio        ?? s.vroToastBio        ?? true,
     });
     // Auto-starts are now triggered by vrcLaunched (see messages.js)
 

@@ -49,6 +49,8 @@ public sealed class VRChatWebSocketService : IDisposable
 
     public event EventHandler<FriendEventArgs>? FriendUpdated;
 
+    public event EventHandler<FriendEventArgs>? FriendBecameActive;
+
     // State
 
     private string _authToken = "";
@@ -267,14 +269,16 @@ public sealed class VRChatWebSocketService : IDisposable
                     break;
 
                 case "friend-active":
+                    // friend-active = website/app activity, not a game login.
+                    // Fires FriendBecameActive (NOT FriendWentOnline) so the friendslist
+                    // updates without creating a "Came Online" timeline entry.
                     try
                     {
                         var c = JObject.Parse(contentStr);
-                        // VRChat uses lowercase "userid" in friend-active
                         var uid = c["userid"]?.Value<string>() ?? c["userId"]?.Value<string>() ?? "";
                         var plt = c["platform"]?.Value<string>() ?? "";
                         var usr = c["user"] as JObject;
-                        FriendWentOnline?.Invoke(this, new FriendEventArgs { UserId = uid, User = usr, Platform = plt });
+                        FriendBecameActive?.Invoke(this, new FriendEventArgs { UserId = uid, User = usr, Platform = plt });
                     }
                     catch { }
                     break;

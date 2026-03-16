@@ -459,7 +459,9 @@
                         <div class="sf-toggle-row"><span>Message Sounds</span><label class="toggle"><input type="checkbox" id="setMessageSoundEnabled" onchange="autoSave()"><div class="toggle-track"><div class="toggle-knob"></div></div></label></div>
                         <div class="set-desc" style="margin-bottom:10px;">Plays a sound when you get a boop or when someone sends you a message through the VRCN Messenger.</div>
                         <div class="sf-toggle-row"><span>Media Relay Success Sounds</span><label class="toggle"><input type="checkbox" id="setMediaRelaySoundEnabled" onchange="autoSave()"><div class="toggle-track"><div class="toggle-knob"></div></div></label></div>
-                        <div class="set-desc">Plays a sound when Media Relay successfully sends an image to one of your Discord channels.</div>
+                        <div class="set-desc" style="margin-bottom:10px;">Plays a sound when Media Relay successfully sends an image to one of your Discord channels.</div>
+                        <div class="sf-toggle-row"><span>VR Overlay Notification Sounds</span><label class="toggle"><input type="checkbox" id="setSteamOverlaySoundEnabled" onchange="autoSave()"><div class="toggle-track"><div class="toggle-knob"></div></div></label></div>
+                        <div class="set-desc">Plays a sound when a notification toast appears in the SteamVR overlay.</div>
                     </div>
 
                     <!-- DESIGN -->
@@ -719,6 +721,8 @@
                     <button class="vrcn-button sub-tab-btn" id="ftFStatusDesc" onclick="setFtFilter('friend_statusdesc')"><span class="msi" style="font-size:14px;">chat_bubble_outline</span> Status Text</button>
                     <button class="vrcn-button sub-tab-btn" id="ftFOnline"     onclick="setFtFilter('friend_online')"><span class="msi" style="font-size:14px;">login</span> Online</button>
                     <button class="vrcn-button sub-tab-btn" id="ftFOffline"    onclick="setFtFilter('friend_offline')"><span class="msi" style="font-size:14px;">power_settings_new</span> Offline</button>
+                    <button class="vrcn-button sub-tab-btn" id="ftFWebOnline"  onclick="setFtFilter('friend_web_online')"><span class="msi" style="font-size:14px;">language</span> Online (Web)</button>
+                    <button class="vrcn-button sub-tab-btn" id="ftFWebOffline" onclick="setFtFilter('friend_web_offline')"><span class="msi" style="font-size:14px;">power_settings_new</span> Offline (Web)</button>
                     <button class="vrcn-button sub-tab-btn" id="ftFBio"        onclick="setFtFilter('friend_bio')"><span class="msi" style="font-size:14px;">edit_note</span> Bio</button>
                 </div>
                 <div class="tl-container" id="tlContainer">
@@ -1028,6 +1032,44 @@
                                 <option value="right">Right</option>
                             </select>
                         </div>
+                    </div>
+
+                    <!-- Overlay Notifications -->
+                    <div class="sf-card">
+                        <div class="sf-card-header"><span class="msi">notifications_active</span> Overlay Notifications</div>
+                        <div class="set-desc" style="margin-bottom:10px;">HMD-attached toast notifications that appear in front of you when friend events happen.</div>
+                        <div class="sf-toggle-row"><span>Enable</span><label class="toggle"><input type="checkbox" id="vroToastEnabled" checked onchange="vroToastAutoSave()"><div class="toggle-track"><div class="toggle-knob"></div></div></label></div>
+                        <div class="sf-toggle-row"><span>Favorites only</span><label class="toggle"><input type="checkbox" id="vroToastFavOnly" onchange="vroToastAutoSave()"><div class="toggle-track"><div class="toggle-knob"></div></div></label></div>
+                        <div class="set-desc" style="margin-bottom:10px;">Only show notifications for favorited friends.</div>
+
+                        <div class="sf-section-label" style="margin-top:4px;">Size</div>
+                        <div class="vro-axis-row">
+                            <span class="vro-axis-lbl" style="width:24px;color:var(--tx2);">%</span>
+                            <input type="range" id="vroToastSize" min="0" max="100" step="1" value="50" class="vro-slider" oninput="vroToastUpdateLabel('vroToastSize');vroToastAutoSave()">
+                            <span class="vro-axis-val" id="vroToastSizeVal">50%</span>
+                        </div>
+
+                        <div class="sf-section-label" style="margin-top:8px;">Position</div>
+                        <div class="vro-transform-grid">
+                            <div class="vro-axis-row">
+                                <span class="vro-axis-lbl vro-x">X</span>
+                                <input type="range" id="vroToastOffsetX" min="-0.3" max="0.3" step="0.01" value="0" class="vro-slider" oninput="vroToastUpdateLabel('vroToastOffsetX');vroToastAutoSave()">
+                                <span class="vro-axis-val" id="vroToastOffsetXVal">0.00</span>
+                            </div>
+                            <div class="vro-axis-row">
+                                <span class="vro-axis-lbl vro-y">Y</span>
+                                <input type="range" id="vroToastOffsetY" min="-0.4" max="0.2" step="0.01" value="-0.12" class="vro-slider" oninput="vroToastUpdateLabel('vroToastOffsetY');vroToastAutoSave()">
+                                <span class="vro-axis-val" id="vroToastOffsetYVal">-0.12</span>
+                            </div>
+                        </div>
+
+                        <div class="sf-section-label" style="margin-top:8px;">Show notification when</div>
+                        <div class="sf-toggle-row"><span>Friend comes online (Game)</span><label class="toggle"><input type="checkbox" id="vroToastOnline" checked onchange="vroToastAutoSave()"><div class="toggle-track"><div class="toggle-knob"></div></div></label></div>
+                        <div class="sf-toggle-row"><span>Friend goes offline (Game)</span><label class="toggle"><input type="checkbox" id="vroToastOffline" checked onchange="vroToastAutoSave()"><div class="toggle-track"><div class="toggle-knob"></div></div></label></div>
+                        <div class="sf-toggle-row"><span>Friend joined a world</span><label class="toggle"><input type="checkbox" id="vroToastGps" checked onchange="vroToastAutoSave()"><div class="toggle-track"><div class="toggle-knob"></div></div></label></div>
+                        <div class="sf-toggle-row"><span>Friend changed status</span><label class="toggle"><input type="checkbox" id="vroToastStatus" checked onchange="vroToastAutoSave()"><div class="toggle-track"><div class="toggle-knob"></div></div></label></div>
+                        <div class="sf-toggle-row"><span>Friend changed status text</span><label class="toggle"><input type="checkbox" id="vroToastStatusDesc" checked onchange="vroToastAutoSave()"><div class="toggle-track"><div class="toggle-knob"></div></div></label></div>
+                        <div class="sf-toggle-row"><span>Friend updated bio</span><label class="toggle"><input type="checkbox" id="vroToastBio" checked onchange="vroToastAutoSave()"><div class="toggle-track"><div class="toggle-knob"></div></div></label></div>
                     </div>
 
                     <!-- Transform -->

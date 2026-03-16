@@ -369,21 +369,34 @@ public partial class AppShell
                 // Build event text — null means "skip this event"
                 string? evText = evType switch
                 {
-                    "friend_online"     => "Came online",
-                    "friend_offline"    => "Went offline",
-                    "friend_gps"        => $"→ {(string.IsNullOrWhiteSpace(worldName) ? "a world" : worldName)}",
+                    "friend_online"     => "Online (Game)",
+                    "friend_offline"    => "Offline (Game)",
+                    "friend_web_online" => null,  // Web events: timeline only, not VR overlay
+                    "friend_web_offline"=> null,
+                    "friend_gps"        => string.IsNullOrWhiteSpace(worldName) ? null : $"→ {worldName}",
                     "friend_status"     => !string.IsNullOrEmpty(oldValue) && !string.IsNullOrEmpty(newValue)
                                            ? $"{oldValue} → {newValue}"
                                            : "Changed status",
-                    "friend_statusdesc" => "Changed status text",
-                    "friend_bio"        => "Updated bio",
+                    "friend_statusdesc" => !string.IsNullOrEmpty(newValue) ? newValue : "Changed status text",
+                    "friend_bio"        => !string.IsNullOrEmpty(newValue) ? newValue : "Updated bio",
                     "friend_added"      => "Friend added",
                     "friend_removed"    => "Removed you",
                     _                   => null   // ignore unknown events (e.g. "friend_updated")
                 };
                 if (evText == null) return;
 
-                _core.VrOverlay.AddNotification(evType, name, evText, DateTime.Now.ToString("HH:mm"), friendImage, friendId, location);
+                var time = DateTime.Now.ToString("HH:mm");
+
+                // Main overlay (wrist alerts tab) — every event, no filtering
+                _core.VrOverlay.AddNotification(evType, name, evText, time, friendImage, friendId, location);
+
+                // HMD toast — every event, cooldown inside EnqueueToast handles rapid-fire dedup
+                try
+                {
+                    bool isFav = !string.IsNullOrEmpty(friendId) && _friends.IsFavorited(friendId);
+                    _core.VrOverlay.EnqueueToast(evType, name, evText, time, friendImage, isFav);
+                }
+                catch { }
             }
             catch { }
         }

@@ -99,6 +99,7 @@ public class FriendsController
         ws.FriendWentOffline     += OnWsFriendOffline;
         ws.FriendWentOnline      += OnWsFriendOnline;
         ws.FriendUpdated         += OnWsFriendUpdated;
+        ws.FriendBecameActive    += OnWsFriendActive;
     }
 
     // Message Handler
@@ -1233,6 +1234,52 @@ public class FriendsController
         });
     }
 
+    private void OnWsFriendActive(object? sender, FriendEventArgs e)
+    {
+        // friend-active = website/app activity, NOT in-game.
+        if (string.IsNullOrEmpty(e.UserId) || !_friendStateSeeded) return;
+
+        // Detect "left the game": if friend was previously in a world, they just exited
+        var prevLoc = _friendLastLoc.GetValueOrDefault(e.UserId, "");
+        bool wasInGame = !string.IsNullOrEmpty(prevLoc) && prevLoc != "offline" && prevLoc != "";
+
+        MergeFriendStore(e.UserId, e.User,
+            location: string.IsNullOrEmpty(e.Location) ? "" : e.Location,
+            platform: string.IsNullOrEmpty(e.Platform) ? null : e.Platform);
+        PushFriendsFromStore();
+
+        var (fname, fimg) = _friendNameImg.GetValueOrDefault(e.UserId, ("", ""));
+        if (e.User != null)
+        {
+            fname = e.User["displayName"]?.ToString() ?? fname;
+            var img = VRChatApiService.GetUserImage(e.User);
+            if (img.Length > 0) fimg = img;
+            _friendNameImg[e.UserId] = (fname, fimg);
+        }
+
+        // Left the game → Offline (Game)
+        if (wasInGame)
+        {
+            _friendLastLoc[e.UserId] = "";
+            var fev = new TimelineService.FriendTimelineEvent
+            {
+                Type = "friend_offline", FriendId = e.UserId, FriendName = fname, FriendImage = fimg,
+            };
+            _core.Timeline.AddFriendEvent(fev);
+            _core.SendToJS("friendTimelineEvent", BuildFriendTimelinePayload(fev));
+        }
+
+        // Now active on website → Online (Web)
+        {
+            var fev = new TimelineService.FriendTimelineEvent
+            {
+                Type = "friend_web_online", FriendId = e.UserId, FriendName = fname, FriendImage = fimg,
+            };
+            _core.Timeline.AddFriendEvent(fev);
+            _core.SendToJS("friendTimelineEvent", BuildFriendTimelinePayload(fev));
+        }
+    }
+
     private void OnWsFriendOffline(object? sender, FriendEventArgs e)
     {
         if (string.IsNullOrEmpty(e.UserId) || !_friendStateSeeded) return;
@@ -1249,11 +1296,14 @@ public class FriendsController
             _friendNameImg[e.UserId] = (fname, fimg);
         }
 
+        var prevLoc = _friendLastLoc.GetValueOrDefault(e.UserId, "");
+        bool wasInGame = !string.IsNullOrEmpty(prevLoc) && prevLoc != "offline" && prevLoc != "";
         _friendLastLoc[e.UserId] = "offline";
 
+        var offlineType = wasInGame ? "friend_offline" : "friend_web_offline";
         var fev = new TimelineService.FriendTimelineEvent
         {
-            Type = "friend_offline", FriendId = e.UserId, FriendName = fname, FriendImage = fimg,
+            Type = offlineType, FriendId = e.UserId, FriendName = fname, FriendImage = fimg,
         };
         _core.Timeline.AddFriendEvent(fev);
         _core.SendToJS("friendTimelineEvent", BuildFriendTimelinePayload(fev));

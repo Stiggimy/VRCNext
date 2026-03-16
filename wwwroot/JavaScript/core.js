@@ -4,7 +4,7 @@ let _prevTab = -1;
 let hiddenMedia = new Set();
 try { hiddenMedia = new Set(JSON.parse(localStorage.getItem('vrcnext_hidden') || '[]')); } catch {}
 const thumbCache = {};
-let currentTheme = 'midnight', currentSpecialTheme = '', autoColorAccuracy = 50, notifyAudio = null, messageAudio = null, mediaRelayAudio = null, currentVrcUser = null;
+let currentTheme = 'midnight', currentSpecialTheme = '', autoColorAccuracy = 50, notifyAudio = null, messageAudio = null, mediaRelayAudio = null, steamOverlayAudio = null, currentVrcUser = null;
 let customThemes = []; // user-saved themes from auto color
 let currentPlayBtnTheme = '';
 let currentCursorTheme = '';
@@ -530,6 +530,7 @@ function tryInitNotifySound() {
     notifyAudio = _initAudio('sounds/notifications/Notification.wav');
     messageAudio = _initAudio('sounds/notifications/Message.wav');
     mediaRelayAudio = _initAudio('sounds/notifications/MediaRelay.wav');
+    steamOverlayAudio = _initAudio('sounds/notifications/SteamOverlay.wav');
 }
 
 function playNotificationSound() {
@@ -550,6 +551,13 @@ function playMediaRelaySound() {
     if (mediaRelayAudio?._ready && settings.mediaRelaySoundEnabled) {
         mediaRelayAudio.currentTime = 0;
         mediaRelayAudio.play().catch(() => {});
+    }
+}
+
+function playSteamOverlaySound() {
+    if (steamOverlayAudio?._ready && settings.steamOverlaySoundEnabled) {
+        steamOverlayAudio.currentTime = 0;
+        steamOverlayAudio.play().catch(() => {});
     }
 }
 
