@@ -11,6 +11,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <ApplicationIcon Condition="'$(_LinuxBuild)'!='true'">logo.ico</ApplicationIcon>
     <CETCompat>false</CETCompat>
+    <DebugType>embedded</DebugType>
+    <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
   <!-- Define WINDOWS when targeting Windows (RID win-*), or when building on Windows without a specific RID (local dev build) -->
   <PropertyGroup Condition="$(RuntimeIdentifier.StartsWith('win')) OR ($([MSBuild]::IsOSPlatform('Windows')) AND '$(RuntimeIdentifier)' == '')">
