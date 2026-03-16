@@ -370,4 +370,65 @@ function vroLoadSettings(s) {
     updateRecordingUI();
 
     _vroPrevHand = s.vroAttachLeft ? true : false;
+
+    // Toast notification settings
+    const _toastEls = {
+        vroToastEnabled:    s.vroToastEnabled    ?? true,
+        vroToastFavOnly:    s.vroToastFavOnly    ?? false,
+        vroToastOnline:     s.vroToastOnline     ?? true,
+        vroToastOffline:    s.vroToastOffline    ?? true,
+        vroToastWebOnline:  s.vroToastWebOnline  ?? true,
+        vroToastWebOffline: s.vroToastWebOffline ?? true,
+        vroToastGps:        s.vroToastGps        ?? true,
+        vroToastStatus:     s.vroToastStatus     ?? true,
+        vroToastStatusDesc: s.vroToastStatusDesc ?? true,
+        vroToastBio:        s.vroToastBio        ?? true,
+    };
+    for (const [id, val] of Object.entries(_toastEls)) {
+        const el = document.getElementById(id);
+        if (el) el.checked = val;
+    }
+    const tSizeEl = document.getElementById('vroToastSize');
+    if (tSizeEl) { tSizeEl.value = s.vroToastSize ?? 50; vroToastUpdateLabel('vroToastSize'); }
+    const tOffXEl = document.getElementById('vroToastOffsetX');
+    if (tOffXEl) { tOffXEl.value = s.vroToastOffsetX ?? 0; vroToastUpdateLabel('vroToastOffsetX'); }
+    const tOffYEl = document.getElementById('vroToastOffsetY');
+    if (tOffYEl) { tOffYEl.value = s.vroToastOffsetY ?? -0.12; vroToastUpdateLabel('vroToastOffsetY'); }
+}
+
+// ── Toast notification settings ──────────────────────────────────────────────
+
+let _vroToastTimer = null;
+
+function vroToastUpdateLabel(id) {
+    const input = document.getElementById(id);
+    const label = document.getElementById(id + 'Val');
+    if (!input || !label) return;
+    if (id === 'vroToastSize') label.textContent = input.value + '%';
+    else label.textContent = parseFloat(input.value).toFixed(2);
+}
+
+function vroToastAutoSave() {
+    vroToastSendConfig();
+    clearTimeout(_vroToastTimer);
+    _vroToastTimer = setTimeout(() => saveSettings(), 600);
+}
+
+function vroToastSendConfig() {
+    sendToCS({
+        action:      'vroToastConfig',
+        enabled:     !!document.getElementById('vroToastEnabled')?.checked,
+        favOnly:     !!document.getElementById('vroToastFavOnly')?.checked,
+        size:        parseInt(document.getElementById('vroToastSize')?.value) || 50,
+        offsetX:     parseFloat(document.getElementById('vroToastOffsetX')?.value) || 0,
+        offsetY:     parseFloat(document.getElementById('vroToastOffsetY')?.value) || -0.12,
+        online:      !!document.getElementById('vroToastOnline')?.checked,
+        offline:     !!document.getElementById('vroToastOffline')?.checked,
+        webOnline:   !!document.getElementById('vroToastWebOnline')?.checked,
+        webOffline:  !!document.getElementById('vroToastWebOffline')?.checked,
+        gps:         !!document.getElementById('vroToastGps')?.checked,
+        status:      !!document.getElementById('vroToastStatus')?.checked,
+        statusDesc:  !!document.getElementById('vroToastStatusDesc')?.checked,
+        bio:         !!document.getElementById('vroToastBio')?.checked,
+    });
 }

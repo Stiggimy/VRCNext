@@ -198,6 +198,7 @@ public class AppSettings
     public bool NotifySoundEnabled { get; set; }
     public bool MessageSoundEnabled { get; set; }
     public bool MediaRelaySoundEnabled { get; set; }
+    public bool SteamOverlaySoundEnabled { get; set; } = true;
     public bool MinimizeToTray { get; set; }
     public string Theme { get; set; } = "midnight";
     public string SpecialTheme { get; set; } = "";
@@ -310,6 +311,21 @@ public class AppSettings
     public List<uint> VroKeybindDt     { get; set; } = new();
     public int        VroKeybindDtHand { get; set; } = 0; // 0=any, 1=left, 2=right for doubletap slot
     public int        VroControlRadius { get; set; } = 16; // cm, 3–28; 16 = default
+
+    // VR Toast Notifications (HMD-attached)
+    public bool       VroToastEnabled      { get; set; } = true;
+    public bool       VroToastFavOnly      { get; set; }
+    public int        VroToastSize         { get; set; } = 50; // 0–100, default 50%
+    public float      VroToastOffsetX      { get; set; } = 0f;
+    public float      VroToastOffsetY      { get; set; } = -0.12f;
+    public bool       VroToastOnline       { get; set; } = true;
+    public bool       VroToastOffline      { get; set; } = true;
+    public bool       VroToastWebOnline    { get; set; } = true;
+    public bool       VroToastWebOffline   { get; set; } = true;
+    public bool       VroToastGps          { get; set; } = true;
+    public bool       VroToastStatus       { get; set; } = true;
+    public bool       VroToastStatusDesc   { get; set; } = true;
+    public bool       VroToastBio          { get; set; } = true;
 
     // Discord Rich Presence — privacy per status
     public bool DpHideInstIdJoinMe  { get; set; }

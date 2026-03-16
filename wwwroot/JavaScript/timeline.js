@@ -1147,8 +1147,10 @@ const FT_FILTER_IDS = {
     friend_gps:        'ftFGps',
     friend_status:     'ftFStatus',
     friend_statusdesc: 'ftFStatusDesc',
-    friend_online:     'ftFOnline',
-    friend_offline:    'ftFOffline',
+    friend_online:      'ftFOnline',
+    friend_offline:     'ftFOffline',
+    friend_web_online:  'ftFWebOnline',
+    friend_web_offline: 'ftFWebOffline',
     friend_bio:        'ftFBio',
 };
 
@@ -1156,8 +1158,10 @@ const FT_TYPE_COLOR = {
     friend_gps:        'var(--accent)',
     friend_status:     'var(--cyan)',
     friend_statusdesc: 'var(--cyan)',
-    friend_online:     'var(--ok)',
-    friend_offline:    'var(--tx3)',
+    friend_online:      'var(--ok)',
+    friend_offline:     'var(--tx3)',
+    friend_web_online:  'var(--cyan)',
+    friend_web_offline: 'var(--tx3)',
     friend_bio:        '#AB47BC',
 };
 
@@ -1165,8 +1169,10 @@ const FT_TYPE_META = {
     friend_gps:        { icon: 'location_on',       label: 'Location'    },
     friend_status:     { icon: 'circle',             label: 'Status'      },
     friend_statusdesc: { icon: 'chat_bubble_outline', label: 'Status Text' },
-    friend_online:     { icon: 'login',              label: 'Online'      },
-    friend_offline:    { icon: 'power_settings_new', label: 'Offline'     },
+    friend_online:      { icon: 'login',              label: 'Online (Game)' },
+    friend_offline:     { icon: 'power_settings_new', label: 'Offline (Game)' },
+    friend_web_online:  { icon: 'language',           label: 'Online (Web)'  },
+    friend_web_offline: { icon: 'power_settings_new', label: 'Offline (Web)' },
     friend_bio:        { icon: 'edit_note',          label: 'Bio Change'  },
 };
 
@@ -1492,8 +1498,10 @@ function renderFtCard(ev) {
         case 'friend_gps':        body = renderFtGpsBody(ev);        break;
         case 'friend_status':     body = renderFtStatusBody(ev);     break;
         case 'friend_statusdesc': body = renderFtStatusDescBody(ev); break;
-        case 'friend_online':     body = renderFtOnlineBody(ev);     break;
-        case 'friend_offline':    body = renderFtOfflineBody(ev);    break;
+        case 'friend_online':      body = renderFtOnlineBody(ev);     break;
+        case 'friend_offline':     body = renderFtOfflineBody(ev);    break;
+        case 'friend_web_online':  body = renderFtWebOnlineBody(ev);  break;
+        case 'friend_web_offline': body = renderFtWebOfflineBody(ev); break;
         case 'friend_bio':        body = renderFtBioBody(ev);        break;
     }
 
@@ -1542,7 +1550,7 @@ function renderFtOnlineBody(ev) {
     const av = ftFriendAv(ev, 'tl-av');
     return `<div class="tl-card-body">${av}<div class="tl-card-info">
         <div class="tl-main-label">${esc(ev.friendName || 'Unknown')}</div>
-        <div class="tl-sub-label" style="color:var(--ok);">Came online</div>
+        <div class="tl-sub-label" style="color:var(--ok);">Online (Game)</div>
     </div></div>`;
 }
 
@@ -1550,7 +1558,23 @@ function renderFtOfflineBody(ev) {
     const av = ftFriendAv(ev, 'tl-av');
     return `<div class="tl-card-body">${av}<div class="tl-card-info">
         <div class="tl-main-label">${esc(ev.friendName || 'Unknown')}</div>
-        <div class="tl-sub-label" style="color:var(--tx3);">Went offline</div>
+        <div class="tl-sub-label" style="color:var(--tx3);">Offline (Game)</div>
+    </div></div>`;
+}
+
+function renderFtWebOnlineBody(ev) {
+    const av = ftFriendAv(ev, 'tl-av');
+    return `<div class="tl-card-body">${av}<div class="tl-card-info">
+        <div class="tl-main-label">${esc(ev.friendName || 'Unknown')}</div>
+        <div class="tl-sub-label" style="color:var(--cyan);">Online (Web)</div>
+    </div></div>`;
+}
+
+function renderFtWebOfflineBody(ev) {
+    const av = ftFriendAv(ev, 'tl-av');
+    return `<div class="tl-card-body">${av}<div class="tl-card-info">
+        <div class="tl-main-label">${esc(ev.friendName || 'Unknown')}</div>
+        <div class="tl-sub-label" style="color:var(--tx3);">Offline (Web)</div>
     </div></div>`;
 }
 
@@ -1671,8 +1695,10 @@ function openFtDetail(id) {
         case 'friend_gps':        renderFtDetailGps(ev, el);        break;
         case 'friend_status':     renderFtDetailStatus(ev, el);     break;
         case 'friend_statusdesc': renderFtDetailStatusDesc(ev, el); break;
-        case 'friend_online':     renderFtDetailOnline(ev, el);     break;
-        case 'friend_offline':    renderFtDetailOffline(ev, el);    break;
+        case 'friend_online':      renderFtDetailOnline(ev, el);     break;
+        case 'friend_offline':     renderFtDetailOffline(ev, el);    break;
+        case 'friend_web_online':  renderFtDetailOnline(ev, el);     break;
+        case 'friend_web_offline': renderFtDetailOffline(ev, el);    break;
         case 'friend_bio':        renderFtDetailBio(ev, el);        break;
     }
 
@@ -1762,7 +1788,7 @@ function renderFtDetailOnline(ev, el) {
         <div class="fd-meta">
             <div class="fd-meta-row"><span class="fd-meta-label">Date</span><span>${esc(dateStr)}</span></div>
             <div class="fd-meta-row"><span class="fd-meta-label">Time</span><span>${esc(timeStr)}</span></div>
-            <div class="fd-meta-row"><span class="fd-meta-label">Event</span><span style="color:var(--ok);">Came online</span></div>
+            <div class="fd-meta-row"><span class="fd-meta-label">Event</span><span style="color:${ev.type === 'friend_web_online' ? 'var(--cyan)' : 'var(--ok)'};">${ev.type === 'friend_web_online' ? 'Online (Web)' : 'Online (Game)'}</span></div>
         </div>
         <div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end;">
             ${ftDetailViewProfile(ev)}${ftDetailClose()}
@@ -1777,7 +1803,7 @@ function renderFtDetailOffline(ev, el) {
         <div class="fd-meta">
             <div class="fd-meta-row"><span class="fd-meta-label">Date</span><span>${esc(dateStr)}</span></div>
             <div class="fd-meta-row"><span class="fd-meta-label">Time</span><span>${esc(timeStr)}</span></div>
-            <div class="fd-meta-row"><span class="fd-meta-label">Event</span><span style="color:var(--tx3);">Went offline</span></div>
+            <div class="fd-meta-row"><span class="fd-meta-label">Event</span><span style="color:var(--tx3);">${ev.type === 'friend_web_offline' ? 'Offline (Web)' : 'Offline (Game)'}</span></div>
         </div>
         <div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end;">
             ${ftDetailViewProfile(ev)}${ftDetailClose()}
@@ -1943,8 +1969,10 @@ function buildFriendListHtml(events) {
 
 function _ftListDetail(ev) {
     switch (ev.type) {
-        case 'friend_online':     return '<span style="color:var(--ok)">Came Online</span>';
-        case 'friend_offline':    return '<span style="color:var(--tx3)">Went Offline</span>';
+        case 'friend_online':      return '<span style="color:var(--ok)">Online (Game)</span>';
+        case 'friend_offline':     return '<span style="color:var(--tx3)">Offline (Game)</span>';
+        case 'friend_web_online':  return '<span style="color:var(--cyan)">Online (Web)</span>';
+        case 'friend_web_offline': return '<span style="color:var(--tx3)">Offline (Web)</span>';
         case 'friend_gps':        return esc(ev.worldName || ev.worldId || 'Unknown World');
         case 'friend_status': {
             const oldCls = statusCssClass(ev.oldValue);

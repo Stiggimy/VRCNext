@@ -1275,6 +1275,7 @@ public partial class AppShell
                 case "vroToggle":
                 case "vroConfig":
                 case "vroAutoSave":
+                case "vroToastConfig":
                 case "vroRecordKeybind":
                 case "vroCancelRecording":
                 case "vroSetTab":

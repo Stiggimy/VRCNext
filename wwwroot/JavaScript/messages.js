@@ -664,6 +664,9 @@ window.external.receiveMessage(rawMsg => {
         case 'vroKeybindRecorded':
             handleVroKeybindRecorded(payload);
             break;
+        case 'vroPlayToastSound':
+            playSteamOverlaySound();
+            break;
     }
 });
 sendToCS({ action: 'ready' });

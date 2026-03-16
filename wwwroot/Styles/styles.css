@@ -5231,11 +5231,11 @@ html.cursor-custom * { cursor: var(--cursor-url, auto) !important; }
     border: 1px solid var(--brd);
     color: var(--tx2);
 }
-.ft-status-chip.join-me  { color: var(--accent); border-color: var(--accent); }
-.ft-status-chip.active   { color: var(--ok);     border-color: var(--ok);     }
-.ft-status-chip.ask-me   { color: var(--warn);   border-color: var(--warn);   }
-.ft-status-chip.busy     { color: var(--err);    border-color: var(--err);    }
-.ft-status-chip.offline  { color: var(--tx3);    border-color: var(--tx3);    }
+.ft-status-chip.join-me  { color: var(--status-join);    border-color: var(--status-join);    }
+.ft-status-chip.active   { color: var(--status-online);  border-color: var(--status-online);  }
+.ft-status-chip.ask-me   { color: var(--status-ask);     border-color: var(--status-ask);     }
+.ft-status-chip.busy     { color: var(--status-busy);    border-color: var(--status-busy);    }
+.ft-status-chip.offline  { color: var(--status-offline); border-color: var(--status-offline); }
 
 /* ── Top bar ── */
 .tl-topbar {
