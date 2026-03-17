@@ -129,7 +129,7 @@ public partial class AppShell
         {
             using var client = new HttpClient();
             client.Timeout = TimeSpan.FromSeconds(15);
-            client.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", "VRCNext");
+            client.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", AppInfo.UserAgent);
             var payload = new { avatar_ids = avatarIds, attribution = _vrcApi.CurrentUserId ?? "" };
             var json = JsonConvert.SerializeObject(payload);
             var resp = await client.PostAsync("https://api.avtrdb.com/v3/avatar/ingest",
@@ -294,7 +294,7 @@ public partial class AppShell
                         {
                             var url = msg["url"]?.ToString() ?? "";
                             using var http = new System.Net.Http.HttpClient();
-                            http.DefaultRequestHeaders.Add("User-Agent", "VRCNext");
+                            http.DefaultRequestHeaders.Add("User-Agent", AppInfo.UserAgent);
                             var resp = await http.GetStringAsync(url);
                             Invoke(() => SendToJS("discoveryFeed", new { json = resp }));
                         }

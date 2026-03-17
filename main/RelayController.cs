@@ -264,7 +264,7 @@ public class RelayController : IDisposable
             Invoke(() => _core.SendToJS("vcState", new { installed = false, running = false, downloading = true, progress = 0 }));
 
             using var http = new System.Net.Http.HttpClient();
-            http.DefaultRequestHeaders.Add("User-Agent", "VRCNext");
+            http.DefaultRequestHeaders.Add("User-Agent", AppInfo.UserAgent);
 
             var apiResp = await http.GetAsync("https://api.github.com/repos/EllyVR/VRCVideoCacher/releases/latest");
             if (!apiResp.IsSuccessStatusCode)

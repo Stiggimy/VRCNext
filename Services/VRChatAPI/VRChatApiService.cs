@@ -10,7 +10,7 @@ public class VRChatApiService
     private readonly HttpClient _http;
     private readonly CookieContainer _cookies = new();
     private const string BASE = "https://api.vrchat.cloud/api/1";
-    private const string UA = "VRCNext/2026.1.0 contact@vrcnext.app";
+    private const string UA = AppInfo.UserAgent;
 
     public bool IsLoggedIn { get; private set; }
     public JObject? CurrentUserRaw { get; private set; }

@@ -124,7 +124,7 @@ public sealed class VRChatWebSocketService : IDisposable
             try
             {
                 using var ws = new ClientWebSocket();
-                ws.Options.SetRequestHeader("User-Agent", "VRCNext/1.01.0 contact@vrcnext.app");
+                ws.Options.SetRequestHeader("User-Agent", AppInfo.UserAgent);
 
                 var jar = new CookieContainer();
                 var pipeUri = new Uri("https://pipeline.vrchat.cloud");

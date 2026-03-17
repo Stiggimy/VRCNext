@@ -70,13 +70,18 @@ echo.
 
 set "PUBLISH_DIR=bin\Release\net9.0-windows10.0.19041.0\win-x64\publish"
 
-:: ── 0. Patch version in index.html ────────────────────────────────────────────
+:: ── 0. Patch version in index.html + AppInfo.cs ──────────────────────────────
 powershell -NoProfile -Command ^
     "$f = '%~dp0wwwroot\index.html';" ^
     "$c = [System.IO.File]::ReadAllText($f);" ^
     "$c = $c -replace 'v\d[\d.]+[a-z0-9]*', 'v%VERSION%';" ^
     "[System.IO.File]::WriteAllText($f, $c, [System.Text.Encoding]::UTF8);" ^
-    "Write-Host ' [OK] index.html version -> v%VERSION%'"
+    "Write-Host ' [OK] index.html version -> v%VERSION%';" ^
+    "$a = '%~dp0AppInfo.cs';" ^
+    "$ac = [System.IO.File]::ReadAllText($a);" ^
+    "$ac = $ac -replace 'Version = \"[^\"]+\"', 'Version = \"%VERSION%\"';" ^
+    "[System.IO.File]::WriteAllText($a, $ac, [System.Text.Encoding]::UTF8);" ^
+    "Write-Host ' [OK] AppInfo.cs version  -> %VERSION%'"
 echo.
 
 :: ── 1. dotnet publish ─────────────────────────────────────────────────────────
