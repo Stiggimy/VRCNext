@@ -375,6 +375,18 @@ window.external.receiveMessage(rawMsg => {
                 avatarSearchHasMore = payload.hasMore || false;
                 renderSearchGrid();
                 break;
+            case 'vrcUserAvatars':
+                renderFdUserAvatars(payload);
+                break;
+            case 'vrcAvatarsDeleted':
+                _markDeletedAvatars(payload.ids || []);
+                break;
+            case 'avtrdbCollecting':
+                avtrdbCollecting(payload.count);
+                break;
+            case 'avtrdbReport':
+                addAvtrdbReport(payload.count, payload.enqueued, payload.invalid, payload.ticket, payload.type);
+                break;
             case 'vrcSearchResults':
                 renderSearchResults(payload.type, payload.results, payload.offset || 0, payload.hasMore || false);
                 break;

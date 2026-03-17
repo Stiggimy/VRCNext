@@ -237,7 +237,7 @@
             if (id) return buildWorldItems(id);
         }
 
-        const worldCard = el.closest('#favWorldsGrid .s-card, #worldSearchArea .s-card, #worldMineGrid .s-card');
+        const worldCard = el.closest('#favWorldsGrid .s-card, #worldSearchArea .s-card, #worldMineGrid .s-card, #fdContentWorlds .s-card');
         if (worldCard) {
             const id = extractId(worldCard, /openWorldSearchDetail\('([^']+)'\)/);
             if (id) return buildWorldItems(id);

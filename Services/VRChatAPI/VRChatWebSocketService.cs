@@ -51,6 +51,10 @@ public sealed class VRChatWebSocketService : IDisposable
 
     public event EventHandler<FriendEventArgs>? FriendBecameActive;
 
+    public event EventHandler<FriendEventArgs>? FriendAdded;
+
+    public event EventHandler<FriendEventArgs>? FriendRemoved;
+
     // State
 
     private string _authToken = "";
@@ -284,7 +288,25 @@ public sealed class VRChatWebSocketService : IDisposable
                     break;
 
                 case "friend-add":
+                    try
+                    {
+                        var c = JObject.Parse(contentStr);
+                        var uid = c["userId"]?.Value<string>() ?? "";
+                        var usr = c["user"] as JObject;
+                        FriendAdded?.Invoke(this, new FriendEventArgs { UserId = uid, User = usr });
+                    }
+                    catch { }
+                    FriendListChanged?.Invoke(this, EventArgs.Empty);
+                    break;
+
                 case "friend-delete":
+                    try
+                    {
+                        var c = JObject.Parse(contentStr);
+                        var uid = c["userId"]?.Value<string>() ?? "";
+                        FriendRemoved?.Invoke(this, new FriendEventArgs { UserId = uid });
+                    }
+                    catch { }
                     FriendListChanged?.Invoke(this, EventArgs.Empty);
                     break;
 

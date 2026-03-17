@@ -88,6 +88,7 @@ public partial class AppShell
         _photoPlayersStore = PhotoPlayersStore.Load();
         _timeline = TimelineService.Load();
         _minimized = args.Contains("--minimized");
+        LoadDeletedAvatarsCache();
 
         // Create shared service container and domain controllers
         _core = new CoreLibrary(
@@ -98,6 +99,7 @@ public partial class AppShell
         _core.IsVrcRunning = RelayController.IsVrcRunning;
         _core.IsSteamVrRunning = RelayController.IsSteamVrRunning;
         _core.DispatchMessage = rawMsg => OnWebMessage(rawMsg);
+        _core.AvtrdbSubmit = id => QueueAvtrdbSubmit(id);
         _core.LoadPage = path => _window.Load(path);
         _friends = new FriendsController(_core);
         _instance = new InstanceController(_core, _friends);
@@ -371,8 +373,6 @@ public partial class AppShell
                 {
                     "friend_online"     => "Online (Game)",
                     "friend_offline"    => "Offline (Game)",
-                    "friend_web_online" => null,  // Web events: timeline only, not VR overlay
-                    "friend_web_offline"=> null,
                     "friend_gps"        => string.IsNullOrWhiteSpace(worldName) ? null : $"→ {worldName}",
                     "friend_status"     => !string.IsNullOrEmpty(oldValue) && !string.IsNullOrEmpty(newValue)
                                            ? $"{oldValue} → {newValue}"

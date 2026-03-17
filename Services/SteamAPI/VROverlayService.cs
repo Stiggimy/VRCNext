@@ -165,8 +165,6 @@ namespace VRCNext.Services
         private float _toastOffsetY    = -0.12f;
         private bool  _toastOnline     = true;
         private bool  _toastOffline    = true;
-        private bool  _toastWebOnline  = true;
-        private bool  _toastWebOffline = true;
         private bool  _toastGps        = true;
         private bool  _toastStatus     = true;
         private bool  _toastStatusDesc = true;
@@ -198,7 +196,7 @@ namespace VRCNext.Services
         }
 
         public void ApplyToastConfig(bool enabled, bool favOnly, int size, float offX, float offY,
-            bool online, bool offline, bool webOnline, bool webOffline,
+            bool online, bool offline,
             bool gps, bool status, bool statusDesc, bool bio)
         {
             bool wasEnabled = _toastEnabled;
@@ -209,8 +207,6 @@ namespace VRCNext.Services
             _toastOffsetY    = offY;
             _toastOnline     = online;
             _toastOffline    = offline;
-            _toastWebOnline  = webOnline;
-            _toastWebOffline = webOffline;
             _toastGps        = gps;
             _toastStatus     = status;
             _toastStatusDesc = statusDesc;
@@ -243,8 +239,6 @@ namespace VRCNext.Services
         {
             "friend_online"      => _toastOnline,
             "friend_offline"     => _toastOffline,
-            "friend_web_online"  => _toastWebOnline,
-            "friend_web_offline" => _toastWebOffline,
             "friend_gps"         => _toastGps,
             "friend_status"      => _toastStatus,
             "friend_statusdesc"  => _toastStatusDesc,
@@ -2531,8 +2525,6 @@ namespace VRCNext.Services
         {
             "friend_online"      => _theme.Ok,
             "friend_offline"     => _theme.Tx3,
-            "friend_web_online"  => _theme.Cyan,
-            "friend_web_offline" => _theme.Tx3,
             "friend_gps"         => _theme.Accent,
             "friend_status"     => _theme.Warn,
             "friend_statusdesc" => _theme.Cyan,
@@ -2546,8 +2538,6 @@ namespace VRCNext.Services
         {
             "friend_online"      => "Online",
             "friend_offline"     => "Offline",
-            "friend_web_online"  => "Web",
-            "friend_web_offline" => "Web Off",
             "friend_gps"         => "Location",
             "friend_status"      => "Status",
             "friend_statusdesc"  => "Status Text",
@@ -2559,10 +2549,8 @@ namespace VRCNext.Services
 
         private static string EventBadgeLabel(string evType, string evText) => evType switch
         {
-            "friend_online"      => "Online (Game)",
-            "friend_offline"     => "Offline (Game)",
-            "friend_web_online"  => "Online (Web)",
-            "friend_web_offline" => "Offline (Web)",
+            "friend_online"      => "Online",
+            "friend_offline"     => "Offline",
             "friend_gps"         => evText,
             "friend_status"      => evText,
             "friend_statusdesc"  => evText,

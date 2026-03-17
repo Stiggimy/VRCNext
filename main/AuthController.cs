@@ -409,9 +409,10 @@ public class AuthController
                         await _core.VrcApi.GetCurrentUserLocationAsync();
                         var avatarId = _core.VrcApi.CurrentAvatarId ?? "";
                         string avatarThumb = "";
+                        JObject? av = null;
                         if (!string.IsNullOrEmpty(avatarId))
                         {
-                            var av = await _core.VrcApi.GetAvatarAsync(avatarId);
+                            av = await _core.VrcApi.GetAvatarAsync(avatarId);
                             avatarThumb = av?["thumbnailImageUrl"]?.ToString() ?? av?["imageUrl"]?.ToString() ?? "";
                         }
                         var ev = new TimelineService.TimelineEvent
@@ -424,6 +425,10 @@ public class AuthController
                         };
                         _core.Timeline.AddEvent(ev);
                         _core.SendToJS("timelineEvent", _instance.BuildTimelinePayload(ev));
+
+                        // Submit public avatar to avtrdb if enabled
+                        if (!string.IsNullOrEmpty(avatarId) && av?["releaseStatus"]?.ToString() == "public")
+                            _core.AvtrdbSubmit?.Invoke(avatarId);
                     }
                     catch { }
                 });
@@ -755,6 +760,10 @@ public class AuthController
 
             // Fast Fetch Cache
             _core.Settings.FfcEnabled = data["ffcEnabled"]?.Value<bool>() ?? true;
+
+            // Avtrdb Support
+            _core.Settings.AvtrdbReportDeleted = data["avtrdbReportDeleted"]?.Value<bool>() ?? true;
+            _core.Settings.AvtrdbSubmitAvatars = data["avtrdbSubmitAvatars"]?.Value<bool>() ?? false;
 
             // Memory Trim
             _core.Settings.MemoryTrimEnabled = data["memoryTrimEnabled"]?.Value<bool>() ?? false;

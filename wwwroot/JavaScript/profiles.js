@@ -618,10 +618,47 @@ function switchFdTab(tab, btn) {
     document.getElementById('fdTabGroups').style.display = tab === 'groups' ? '' : 'none';
     const mutualsEl = document.getElementById('fdTabMutuals');
     if (mutualsEl) mutualsEl.style.display = tab === 'mutuals' ? '' : 'none';
-    const worldsEl = document.getElementById('fdTabWorlds');
-    if (worldsEl) worldsEl.style.display = tab === 'worlds' ? '' : 'none';
+    const contentEl = document.getElementById('fdTabContent');
+    if (contentEl) contentEl.style.display = tab === 'content' ? '' : 'none';
     document.querySelectorAll('.fd-tab').forEach(t => t.classList.remove('active'));
     if (btn) btn.classList.add('active');
+}
+
+function switchFdContentPill(pill, btn) {
+    const worldsEl = document.getElementById('fdContentWorlds');
+    const avatarsEl = document.getElementById('fdContentAvatars');
+    if (worldsEl) worldsEl.style.display = pill === 'worlds' ? '' : 'none';
+    if (avatarsEl) avatarsEl.style.display = pill === 'avatars' ? '' : 'none';
+    document.querySelectorAll('.fd-content-pill').forEach(p => p.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+
+    // Avatars are pre-fetched when profile opens, no lazy-load needed
+}
+
+function renderFdUserAvatars(payload) {
+    const el = document.getElementById('fdContentAvatars');
+    if (!el) return;
+    const avatars = payload.avatars || [];
+
+    // Update Avatars pill count
+    document.querySelectorAll('.fd-content-pill').forEach(p => {
+        if (p.textContent.startsWith('Avatars')) p.textContent = `Avatars (${avatars.length})`;
+    });
+
+    // Update Content tab count (worlds + avatars)
+    const worldsCount = parseInt(document.querySelector('.fd-content-pill')?.textContent.match(/\((\d+)\)/)?.[1] || '0');
+    document.querySelectorAll('.fd-tab').forEach(t => {
+        if (t.textContent.startsWith('Content')) t.textContent = `Content (${worldsCount + avatars.length})`;
+    });
+
+    if (!avatars.length) {
+        el.innerHTML = '<div class="empty-msg">No public avatars found.</div>';
+        return;
+    }
+    // Reuse the same renderAvatarCard() from avatars.js
+    el.innerHTML = '<div class="avatar-grid">' + avatars.map(a => renderAvatarCard(a, 'search')).join('') + '</div>';
+    // Check if avatars still exist
+    _checkAvatarsExist(avatars.map(a => a.id).filter(Boolean));
 }
 
 // Trust rank from tags (offset by 1 in API naming)
@@ -895,32 +932,55 @@ function renderFriendDetail(d) {
     const hasMutuals = d.mutuals !== undefined;
     const allUserWorlds = d.userWorlds || [];
     const hasWorlds = allUserWorlds.length > 0;
-    const hasTabs = hasGroups || hasMutuals || hasWorlds;
+    const hasContent = true; // Always show Content tab (avatars can be loaded for any user)
+    const hasTabs = hasGroups || hasMutuals || hasContent;
 
     let tabsHtml = '';
     if (hasTabs) {
         tabsHtml = `<div class="fd-tabs"><button class="fd-tab active" onclick="switchFdTab('info',this)">Info</button>`;
         if (hasGroups) tabsHtml += `<button class="fd-tab" onclick="switchFdTab('groups',this)">Groups${allGroups.length ? ' (' + allGroups.length + ')' : ''}</button>`;
         if (hasMutuals) tabsHtml += `<button class="fd-tab" onclick="switchFdTab('mutuals',this)">Mutuals${allMutuals.length ? ' (' + allMutuals.length + ')' : ''}</button>`;
-        if (hasWorlds) tabsHtml += `<button class="fd-tab" onclick="switchFdTab('worlds',this)">Worlds (${allUserWorlds.length})</button>`;
+        tabsHtml += `<button class="fd-tab" onclick="switchFdTab('content',this)">Content (${allUserWorlds.length})</button>`;
         tabsHtml += `</div>`;
     }
 
-    let worldsContent = `<div class="fd-worlds-grid">`;
-    allUserWorlds.forEach(w => {
-        const thumb = w.thumbnailImageUrl || '';
-        const wid = jsq(w.id);
-        worldsContent += `<div class="fd-world-card" onclick="closeFriendDetail();openWorldSearchDetail('${wid}')">
-            <div class="fd-world-thumb" style="${thumb ? 'background-image:url(\'' + thumb + '\')' : ''}"></div>
-            <div class="fd-world-info">
-                <div class="fd-world-name">${esc(w.name)}</div>
-                <div class="fd-world-meta"><span class="msi" style="font-size:11px;">person</span> ${w.occupants} &nbsp;<span class="msi" style="font-size:11px;">star</span> ${w.favorites}</div>
-            </div>
-        </div>`;
-    });
-    worldsContent += `</div>`;
+    // Content tab: sub-pills for Worlds and Avatars
+    let worldsGridHtml = '';
+    if (allUserWorlds.length) {
+        worldsGridHtml = `<div class="search-grid">`;
+        allUserWorlds.forEach(w => {
+            const thumb = w.thumbnailImageUrl || '';
+            const wid = jsq(w.id);
+            const desc = (w.description || '').slice(0, 80);
+            worldsGridHtml += `<div class="s-card" onclick="closeFriendDetail();openWorldSearchDetail('${wid}')">
+                <div class="s-card-img" style="background-image:url('${cssUrl(thumb)}')"></div>
+                <div class="s-card-body">
+                    <div class="s-card-title">${esc(w.name)}</div>
+                    <div class="s-card-sub">${esc(w.authorName || d.displayName)} · <span class="msi" style="font-size:11px;">person</span> ${w.occupants} · <span class="msi" style="font-size:11px;">star</span> ${w.favorites}</div>
+                    ${desc ? `<div class="s-card-desc">${esc(desc)}</div>` : ''}
+                </div>
+            </div>`;
+        });
+        worldsGridHtml += `</div>`;
+    } else {
+        worldsGridHtml = `<div class="empty-msg">No public worlds found.</div>`;
+    }
 
-    c.innerHTML = `${bannerHtml}<div class="fd-content${bannerSrc ? ' fd-has-banner' : ''}"><div class="fd-header">${imgTag}<div><div class="fd-name">${esc(d.displayName)}</div>${pronounsHtml}<div class="fd-status" id="fd-live-status"><span class="${fdDotClass} ${fdStatusDotCls}" style="width:8px;height:8px;"></span>${fdIsOffline ? 'Offline' : statusLabel(d.status)}${(!fdIsOffline && fdIsWeb) ? ' (Web)' : ''}${(!fdIsOffline && d.statusDescription) ? ' — ' + esc(d.statusDescription) : ''}</div></div></div>${badgesHtml}${actionsHtml}${tabsHtml}<div id="fdTabInfo">${infoContent}</div><div id="fdTabGroups" style="display:none;">${groupsContent}</div><div id="fdTabMutuals" style="display:none;">${mutualsContent}</div><div id="fdTabWorlds" style="display:none;">${worldsContent}</div><div style="margin-top:10px;text-align:right;"><button class="vrcn-button-round" onclick="closeFriendDetail()">Close</button></div></div>`;
+    const userId = d.id || '';
+    const contentHtml = `
+        <div class="fd-content-pills">
+            <button class="fd-tab fd-content-pill active" onclick="switchFdContentPill('worlds',this)">Worlds (${allUserWorlds.length})</button>
+            <button class="fd-tab fd-content-pill" onclick="switchFdContentPill('avatars',this)">Avatars</button>
+        </div>
+        <div id="fdContentWorlds">${worldsGridHtml}</div>
+        <div id="fdContentAvatars" style="display:none;" data-user-id="${esc(userId)}">
+            <div class="empty-msg">Loading avatars...</div>
+        </div>`;
+
+    c.innerHTML = `${bannerHtml}<div class="fd-content${bannerSrc ? ' fd-has-banner' : ''}"><div class="fd-header">${imgTag}<div><div class="fd-name">${esc(d.displayName)}</div>${pronounsHtml}<div class="fd-status" id="fd-live-status"><span class="${fdDotClass} ${fdStatusDotCls}" style="width:8px;height:8px;"></span>${fdIsOffline ? 'Offline' : statusLabel(d.status)}${(!fdIsOffline && fdIsWeb) ? ' (Web)' : ''}${(!fdIsOffline && d.statusDescription) ? ' — ' + esc(d.statusDescription) : ''}</div></div></div>${badgesHtml}${actionsHtml}${tabsHtml}<div id="fdTabInfo">${infoContent}</div><div id="fdTabGroups" style="display:none;">${groupsContent}</div><div id="fdTabMutuals" style="display:none;">${mutualsContent}</div><div id="fdTabContent" style="display:none;">${contentHtml}</div><div style="margin-top:10px;text-align:right;"><button class="vrcn-button-round" onclick="closeFriendDetail()">Close</button></div></div>`;
+
+    // Pre-fetch avatars for Content tab count
+    if (userId) sendToCS({ action: 'vrcGetUserAvatars', userId: userId });
 
     // Live ticker - only when friend is confirmed in same instance
     if (_fdLiveTimer) { clearInterval(_fdLiveTimer); _fdLiveTimer = null; }

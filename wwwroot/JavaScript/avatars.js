@@ -108,6 +108,41 @@ function renderSearchGrid() {
         </div>`;
     }
     el.innerHTML = html;
+    // Check if avatars still exist on VRChat
+    _checkAvatarsExist(avatarSearchResults.map(a => a.id).filter(Boolean));
+}
+
+const _deletedAvatarCache = new Set();
+
+function _checkAvatarsExist(ids) {
+    if (!ids.length) return;
+    // Mark already-cached deleted avatars immediately
+    const cached = ids.filter(id => _deletedAvatarCache.has(id));
+    if (cached.length) _markDeletedAvatars(cached);
+    // Only check uncached IDs via API
+    const unchecked = ids.filter(id => !_deletedAvatarCache.has(id));
+    if (unchecked.length) sendToCS({ action: 'vrcCheckAvatars', ids: unchecked });
+}
+
+function _markDeletedAvatars(deletedIds) {
+    deletedIds.forEach(id => {
+        _deletedAvatarCache.add(id);
+        document.querySelectorAll(`.av-card[onclick*="'${id}'"]`).forEach(card => {
+            if (card.dataset.deleted) return;
+            card.dataset.deleted = '1';
+            card.style.pointerEvents = 'none';
+            card.style.opacity = '0.5';
+            const thumb = card.querySelector('.av-thumb');
+            if (thumb) {
+                thumb.style.filter = 'grayscale(1) brightness(0.4)';
+                const badge = document.createElement('span');
+                badge.className = 'vrcn-badge';
+                badge.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:2;background:rgba(0,0,0,.75);color:var(--err);font-size:11px;';
+                badge.innerHTML = '<span class="msi" style="font-size:10px;">delete</span> Deleted';
+                thumb.appendChild(badge);
+            }
+        });
+    });
 }
 
 function _avPlatformBadges(a) {
@@ -587,6 +622,7 @@ let _avDetailData = null;
 let _avEditTags   = [];
 
 function openAvatarDetail(avatarId) {
+    if (typeof closeFriendDetail === 'function') closeFriendDetail();
     const c = document.getElementById('avatarDetailContent');
     if (c) c.innerHTML = sk('detail');
     document.getElementById('modalAvatarDetail').style.display = 'flex';

@@ -9,6 +9,155 @@ namespace VRCNext;
 
 public partial class AppShell
 {
+    private readonly HashSet<string> _checkedAvatarIds = new();
+    private readonly HashSet<string> _deletedAvatarIds = new();
+    private readonly HashSet<string> _reportedToAvtrdb = new();
+    private readonly List<string> _avtrdbReportQueue = new();
+    private Timer? _avtrdbReportTimer;
+    private readonly List<string> _avtrdbSubmitQueue = new();
+    private readonly HashSet<string> _avtrdbSubmittedIds = new();
+    private Timer? _avtrdbSubmitTimer;
+
+    private static readonly string _deletedAvatarsPath = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+        "VRCNext", "deleted_avatars.json");
+
+    private void LoadDeletedAvatarsCache()
+    {
+        try
+        {
+            if (File.Exists(_deletedAvatarsPath))
+            {
+                var json = File.ReadAllText(_deletedAvatarsPath);
+                var ids = JsonConvert.DeserializeObject<List<string>>(json);
+                if (ids != null)
+                {
+                    foreach (var id in ids)
+                    {
+                        _deletedAvatarIds.Add(id);
+                        _checkedAvatarIds.Add(id);
+                    }
+                }
+            }
+        }
+        catch { }
+    }
+
+    private void SaveDeletedAvatarsCache()
+    {
+        try
+        {
+            var dir = Path.GetDirectoryName(_deletedAvatarsPath)!;
+            if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+            File.WriteAllText(_deletedAvatarsPath, JsonConvert.SerializeObject(_deletedAvatarIds.ToList()));
+        }
+        catch { }
+    }
+
+    private void QueueAvtrdbReport(List<string> ids)
+    {
+        int added = 0;
+        lock (_avtrdbReportQueue)
+        {
+            foreach (var id in ids)
+                if (_reportedToAvtrdb.Add(id)) { _avtrdbReportQueue.Add(id); added++; }
+        }
+        if (added > 0)
+            Invoke(() => SendToJS("avtrdbCollecting", new { count = added }));
+        // Debounce: wait 60s for more IDs to accumulate, then send in one batch
+        _avtrdbReportTimer?.Dispose();
+        _avtrdbReportTimer = new Timer(_ => _ = Task.Run(FlushAvtrdbReportQueue), null, 60_000, Timeout.Infinite);
+    }
+
+    private async Task FlushAvtrdbReportQueue()
+    {
+        List<string> batch;
+        lock (_avtrdbReportQueue)
+        {
+            if (_avtrdbReportQueue.Count == 0) return;
+            batch = new List<string>(_avtrdbReportQueue);
+            _avtrdbReportQueue.Clear();
+        }
+        await SendToAvtrdb(batch, "deletion");
+    }
+
+    private void QueueAvtrdbSubmit(string avatarId)
+    {
+        if (!_settings.AvtrdbSubmitAvatars) return;
+        lock (_avtrdbSubmitQueue)
+        {
+            if (!_avtrdbSubmittedIds.Add(avatarId)) return;
+            _avtrdbSubmitQueue.Add(avatarId);
+        }
+        // Check if avatar already exists in avtrdb before submitting
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var result = await _vrcApi.SearchAvatarsAsync(avatarId, 1);
+                bool exists = result.Count > 0 && result.Any(a =>
+                    (a["vrc_id"]?.ToString() ?? a["id"]?.ToString() ?? "") == avatarId);
+                if (exists)
+                {
+                    lock (_avtrdbSubmitQueue) _avtrdbSubmitQueue.Remove(avatarId);
+                    return;
+                }
+                // Avatar not in avtrdb — keep in queue, debounce submit
+                Invoke(() => SendToJS("avtrdbCollecting", new { count = 0, submit = 1 }));
+                _avtrdbSubmitTimer?.Dispose();
+                _avtrdbSubmitTimer = new Timer(_ => _ = Task.Run(FlushAvtrdbSubmitQueue), null, 60_000, Timeout.Infinite);
+            }
+            catch { }
+        });
+    }
+
+    private async Task FlushAvtrdbSubmitQueue()
+    {
+        List<string> batch;
+        lock (_avtrdbSubmitQueue)
+        {
+            if (_avtrdbSubmitQueue.Count == 0) return;
+            batch = new List<string>(_avtrdbSubmitQueue);
+            _avtrdbSubmitQueue.Clear();
+        }
+        await SendToAvtrdb(batch, "submit");
+    }
+
+    private async Task SendToAvtrdb(List<string> avatarIds, string reportType = "deletion")
+    {
+        try
+        {
+            using var client = new HttpClient();
+            client.Timeout = TimeSpan.FromSeconds(15);
+            client.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", "VRCNext");
+            var payload = new { avatar_ids = avatarIds, attribution = _vrcApi.CurrentUserId ?? "" };
+            var json = JsonConvert.SerializeObject(payload);
+            var resp = await client.PostAsync("https://api.avtrdb.com/v3/avatar/ingest",
+                new StringContent(json, System.Text.Encoding.UTF8, "application/json"));
+            var body = await resp.Content.ReadAsStringAsync();
+
+            if (resp.IsSuccessStatusCode)
+            {
+                var r = JObject.Parse(body);
+                var enqueued = r["avatars_enqueued"]?.Value<int>() ?? 0;
+                var invalid = r["invalid_ids"]?.Value<int>() ?? 0;
+                var ticket = r["ticket"]?.ToString() ?? "";
+                Invoke(() =>
+                {
+                    var label = reportType == "submit" ? "Submitted" : "Reported";
+                    SendToJS("log", new { msg = $"[avtrdb] {label} {avatarIds.Count} avatar(s) — {enqueued} enqueued, {invalid} invalid", color = "ok" });
+                    SendToJS("avtrdbReport", new { count = avatarIds.Count, enqueued, invalid, ticket, type = reportType });
+                });
+            }
+            else
+                Invoke(() => SendToJS("log", new { msg = $"[avtrdb] Failed to report: {(int)resp.StatusCode} {body[..Math.Min(200, body.Length)]}", color = "err" }));
+        }
+        catch (Exception ex)
+        {
+            Invoke(() => SendToJS("log", new { msg = $"[avtrdb] Error: {ex.Message}", color = "err" }));
+        }
+    }
+
     // JS to C# message handler
     private async Task OnWebMessage(string rawMessage)
     {
@@ -242,6 +391,7 @@ public partial class AppShell
                 case "vrcGetInviteMessages":
                 case "vrcUpdateInviteMessage":
                 case "vrcRequestInvite":
+                case "vrcGetUserAvatars":
                     await _friends.HandleMessage(action, msg);
                     break;
 
@@ -331,6 +481,59 @@ public partial class AppShell
                         });
                     }
                     break;
+
+                case "vrcCheckAvatars":
+                {
+                    var ids = msg["ids"]?.ToObject<string[]>();
+                    if (ids is { Length: > 0 })
+                    {
+                        // Return cached deleted IDs immediately
+                        List<string> cachedDeleted;
+                        lock (_deletedAvatarIds) cachedDeleted = ids.Where(id => _deletedAvatarIds.Contains(id)).ToList();
+                        if (cachedDeleted.Count > 0)
+                        {
+                            Invoke(() => SendToJS("vrcAvatarsDeleted", new { ids = cachedDeleted }));
+
+                            // Queue cached deleted IDs for batched report to avtrdb
+                            if (_settings.AvtrdbReportDeleted)
+                                QueueAvtrdbReport(cachedDeleted);
+                        }
+
+                        // Mark IDs as checked IMMEDIATELY to prevent duplicate concurrent checks
+                        string[] toCheck;
+                        lock (_checkedAvatarIds)
+                        {
+                            toCheck = ids.Where(id => _checkedAvatarIds.Add(id)).ToArray();
+                        }
+
+                        if (toCheck.Length > 0)
+                        {
+                            _ = Task.Run(async () =>
+                            {
+                                var deleted = new List<string>();
+                                foreach (var id in toCheck)
+                                {
+                                    try
+                                    {
+                                        var av = await _vrcApi.GetAvatarAsync(id);
+                                        if (av == null) { deleted.Add(id); lock (_deletedAvatarIds) _deletedAvatarIds.Add(id); }
+                                    }
+                                    catch { deleted.Add(id); lock (_deletedAvatarIds) _deletedAvatarIds.Add(id); }
+                                    await Task.Delay(250);
+                                }
+                                if (deleted.Count > 0)
+                                {
+                                    SaveDeletedAvatarsCache();
+                                    Invoke(() => SendToJS("vrcAvatarsDeleted", new { ids = deleted }));
+
+                                    if (_settings.AvtrdbReportDeleted)
+                                        QueueAvtrdbReport(deleted);
+                                }
+                            });
+                        }
+                    }
+                    break;
+                }
 
                 // Search - users, worlds, groups
                 case "vrcSearchUsers":

@@ -786,6 +786,37 @@ public class VRChatApiService
         return new JArray();
     }
 
+    public async Task<JArray> SearchAvatarsByAuthorAsync(string authorId, int n = 50)
+    {
+        // avtrdb uses query= for all searches including by userId
+        var url = $"https://api.avtrdb.com/v2/avatar/search?query={Uri.EscapeDataString(authorId)}&limit={n}";
+
+        using var client = new HttpClient();
+        client.Timeout = TimeSpan.FromSeconds(15);
+        client.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", UA);
+        client.DefaultRequestHeaders.Accept.ParseAdd("application/json");
+
+        try
+        {
+            Log($"SearchAvatarsByAuthor: {url}");
+            var resp = await client.GetAsync(url);
+            var body = await resp.Content.ReadAsStringAsync();
+            Log($"SearchAvatarsByAuthor [{(int)resp.StatusCode}] len={body.Length}");
+
+            if (!resp.IsSuccessStatusCode || string.IsNullOrWhiteSpace(body)) return new JArray();
+
+            var parsed = Newtonsoft.Json.Linq.JToken.Parse(body);
+            if (parsed is JObject obj && obj["avatars"] is JArray arr) return arr;
+            if (parsed is JArray directArr) return directArr;
+        }
+        catch (Exception ex)
+        {
+            Log($"SearchAvatarsByAuthor exception: {ex.Message}");
+        }
+
+        return new JArray();
+    }
+
     public async Task<bool> SelectAvatarAsync(string avatarId)
     {
         if (!IsLoggedIn) return false;

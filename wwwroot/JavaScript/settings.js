@@ -166,8 +166,6 @@ function saveSettings() {
             vroToastOffsetY:    parseFloat(document.getElementById('vroToastOffsetY')?.value) || -0.12,
             vroToastOnline:     !!document.getElementById('vroToastOnline')?.checked,
             vroToastOffline:    !!document.getElementById('vroToastOffline')?.checked,
-            vroToastWebOnline:  !!document.getElementById('vroToastWebOnline')?.checked,
-            vroToastWebOffline: !!document.getElementById('vroToastWebOffline')?.checked,
             vroToastGps:        !!document.getElementById('vroToastGps')?.checked,
             vroToastStatus:     !!document.getElementById('vroToastStatus')?.checked,
             vroToastStatusDesc: !!document.getElementById('vroToastStatusDesc')?.checked,
@@ -191,7 +189,9 @@ function saveSettings() {
             imgCacheEnabled: document.getElementById('setImgCacheEnabled').checked,
             imgCacheLimitGb: parseInt(document.getElementById('setImgCacheLimit').value) || 5,
             ffcEnabled: document.getElementById('setFfcEnabled').checked,
-            memoryTrimEnabled: document.getElementById('setMemoryTrimEnabled').checked
+            memoryTrimEnabled: document.getElementById('setMemoryTrimEnabled').checked,
+            avtrdbReportDeleted: document.getElementById('setAvtrdbReport').checked,
+            avtrdbSubmitAvatars: document.getElementById('setAvtrdbSubmit').checked
         }
     };
     sendToCS(payload);
@@ -378,8 +378,6 @@ function loadSettingsToUI(s) {
         vroToastOffsetY:    s.VroToastOffsetY    ?? s.vroToastOffsetY    ?? -0.12,
         vroToastOnline:     s.VroToastOnline     ?? s.vroToastOnline     ?? true,
         vroToastOffline:    s.VroToastOffline    ?? s.vroToastOffline    ?? true,
-        vroToastWebOnline:  s.VroToastWebOnline  ?? s.vroToastWebOnline  ?? true,
-        vroToastWebOffline: s.VroToastWebOffline ?? s.vroToastWebOffline ?? true,
         vroToastGps:        s.VroToastGps        ?? s.vroToastGps        ?? true,
         vroToastStatus:     s.VroToastStatus     ?? s.vroToastStatus     ?? true,
         vroToastStatusDesc: s.VroToastStatusDesc ?? s.vroToastStatusDesc ?? true,
@@ -397,6 +395,10 @@ function loadSettingsToUI(s) {
 
     // Fast Fetch Cache
     document.getElementById('setFfcEnabled').checked = s.FfcEnabled ?? s.ffcEnabled ?? true;
+
+    // Avtrdb Support
+    document.getElementById('setAvtrdbReport').checked = s.AvtrdbReportDeleted ?? s.avtrdbReportDeleted ?? true;
+    document.getElementById('setAvtrdbSubmit').checked = s.AvtrdbSubmitAvatars ?? s.avtrdbSubmitAvatars ?? false;
 
     // Memory Trim
     document.getElementById('setMemoryTrimEnabled').checked = s.MemoryTrimEnabled ?? s.memoryTrimEnabled ?? false;
@@ -508,4 +510,85 @@ function vrcxShowError(err) {
     const start = document.getElementById('vrcxStartBtn');
     start.disabled = false;
     start.innerHTML = '<span class="msi" style="font-size:16px;">upload</span> Retry Import';
+}
+
+// === Avtrdb Community Support ===
+
+function switchAvtrdbTab(tab, btn) {
+    document.getElementById('avtrdbTabSupport').style.display = tab === 'support' ? '' : 'none';
+    document.getElementById('avtrdbTabReports').style.display = tab === 'reports' ? '' : 'none';
+    btn.closest('.fd-tabs').querySelectorAll('.fd-tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+}
+
+const _avtrdbReports = [];
+let _avtrdbCollecting = 0;
+let _avtrdbCollectTimer = null;
+let _avtrdbCollectEnd = 0;
+
+function avtrdbCollecting(count) {
+    _avtrdbCollecting += count;
+    // Reset 60s countdown on each new batch
+    _avtrdbCollectEnd = Date.now() + 60000;
+    if (!_avtrdbCollectTimer) {
+        _avtrdbCollectTimer = setInterval(() => {
+            renderAvtrdbReports();
+            if (Date.now() >= _avtrdbCollectEnd) {
+                clearInterval(_avtrdbCollectTimer);
+                _avtrdbCollectTimer = null;
+            }
+        }, 1000);
+    }
+    renderAvtrdbReports();
+}
+
+function addAvtrdbReport(count, enqueued, invalid, ticket, type) {
+    const time = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    _avtrdbReports.push({ time, count, enqueued, invalid, ticket, type: type || 'deletion' });
+    // Clear collecting state
+    _avtrdbCollecting = 0;
+    _avtrdbCollectEnd = 0;
+    if (_avtrdbCollectTimer) { clearInterval(_avtrdbCollectTimer); _avtrdbCollectTimer = null; }
+    renderAvtrdbReports();
+}
+
+function renderAvtrdbReports() {
+    const el = document.getElementById('avtrdbReportsList');
+    if (!el) return;
+
+    let html = '';
+
+    // Show collecting banner if active
+    if (_avtrdbCollecting > 0 && _avtrdbCollectEnd > Date.now()) {
+        const secsLeft = Math.max(0, Math.ceil((_avtrdbCollectEnd - Date.now()) / 1000));
+        html += `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(var(--accent-rgb,100,140,255),.12);border:1px solid rgba(var(--accent-rgb,100,140,255),.25);border-radius:8px;margin-bottom:10px;">
+            <span class="msi" style="font-size:18px;color:var(--accent);">hourglass_top</span>
+            <div style="flex:1;">
+                <div style="font-size:12px;font-weight:600;color:var(--tx1);">Collecting Data</div>
+                <div style="font-size:11px;color:var(--tx3);margin-top:2px;">${_avtrdbCollecting} deleted avatar(s) queued — sending in ${secsLeft}s</div>
+            </div>
+        </div>`;
+    }
+
+    if (!_avtrdbReports.length && !html) {
+        el.innerHTML = '<div class="empty-msg">No reports sent yet this session.</div>';
+        return;
+    }
+
+    html += _avtrdbReports.slice().reverse().map(r => {
+        const isDeletion = r.type === 'deletion';
+        const typeLabel = isDeletion ? 'Mark for deletion' : 'Submitted Avatar';
+        const typeColor = isDeletion ? 'var(--err)' : 'var(--ok)';
+        const typeIcon = isDeletion ? 'delete' : 'upload';
+        return `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--bg-input);border-radius:8px;margin-bottom:6px;">
+        <span style="font-size:11px;color:var(--tx3);white-space:nowrap;">${esc(r.time)}</span>
+        <span class="vrcn-badge" style="font-size:10px;color:${typeColor};flex-shrink:0;"><span class="msi" style="font-size:10px;">${typeIcon}</span> ${typeLabel}</span>
+        <span style="font-size:12px;color:var(--tx1);flex:1;">${r.enqueued} enqueued${r.invalid > 0 ? `, ${r.invalid} invalid` : ''}</span>
+        <button class="vrcn-button-round" style="font-size:11px;padding:4px 10px;" onclick="sendToCS({action:'openUrl',url:'https://avtrdb.com/check_ticket_status/${esc(r.ticket)}'})">
+            <span class="msi" style="font-size:13px;">open_in_new</span> Ticket
+        </button>
+    </div>`;
+    }).join('');
+
+    el.innerHTML = html;
 }

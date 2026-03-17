@@ -100,6 +100,8 @@ public class FriendsController
         ws.FriendWentOnline      += OnWsFriendOnline;
         ws.FriendUpdated         += OnWsFriendUpdated;
         ws.FriendBecameActive    += OnWsFriendActive;
+        ws.FriendAdded           += OnWsFriendAdded;
+        ws.FriendRemoved         += OnWsFriendRemoved;
     }
 
     // Message Handler
@@ -123,6 +125,34 @@ public class FriendsController
                 if (!string.IsNullOrEmpty(fdId))
                     await GetFriendDetailAsync(fdId);
                 break;
+
+            case "vrcGetUserAvatars":
+            {
+                var uid = msg["userId"]?.ToString();
+                if (!string.IsNullOrEmpty(uid))
+                {
+                    try
+                    {
+                        var raw = await _core.VrcApi.SearchAvatarsByAuthorAsync(uid);
+                        var avatars = raw.Cast<JObject>().Select(a => new
+                        {
+                            id                = a["vrc_id"]?.ToString() ?? a["id"]?.ToString() ?? "",
+                            name              = a["name"]?.ToString() ?? "",
+                            thumbnailImageUrl = a["image_url"]?.ToString() ?? a["thumbnailImageUrl"]?.ToString() ?? "",
+                            imageUrl          = a["image_url"]?.ToString() ?? a["imageUrl"]?.ToString() ?? "",
+                            authorName        = a["author"]?["name"]?.ToString() ?? a["authorName"]?.ToString() ?? "",
+                            releaseStatus     = "public",
+                            compatibility     = a["compatibility"] as JArray ?? new JArray(),
+                        }).ToList();
+                        _core.SendToJS("vrcUserAvatars", new { userId = uid, avatars });
+                    }
+                    catch
+                    {
+                        _core.SendToJS("vrcUserAvatars", new { userId = uid, avatars = new JArray() });
+                    }
+                }
+                break;
+            }
 
             case "vrcJoinFriend":
                 var joinLoc = msg["location"]?.ToString();
@@ -488,6 +518,7 @@ public class FriendsController
         "vrcSendFriendRequest", "vrcUnfriend", "vrcGetBlocked", "vrcGetMuted",
         "vrcBlock", "vrcMute", "vrcUnblock", "vrcUnmute", "vrcBoop",
         "vrcSendChatMessage", "vrcGetChatHistory", "vrcGetUser",
+        "vrcGetUserAvatars",
     };
 
     public static bool HandlesAction(string action) => _handledActions.Contains(action);
@@ -626,7 +657,7 @@ public class FriendsController
                     var uid = f["id"]?.ToString() ?? "";
                     if (string.IsNullOrEmpty(uid)) continue;
                     _friendLastLoc[uid] = "offline";
-                    _friendLastStatus[uid] = "offline";
+                    _friendLastStatus[uid] = f["status"]?.ToString() ?? "";
                     _friendLastStatusDesc[uid] = (f["statusDescription"]?.ToString() ?? "").Trim();
                     _friendLastBio[uid] = (f["bio"]?.ToString() ?? "").Trim();
                     var img0 = VRChatApiService.GetUserImage(f);
@@ -1181,7 +1212,13 @@ public class FriendsController
     {
         if (string.IsNullOrEmpty(e.UserId) || !_friendStateSeeded) return;
 
-        MergeFriendStore(e.UserId, e.User, location: e.Location,
+        var loc = e.Location ?? "";
+
+        // friend-location can fire with location="offline" or location="" (pseudo-null).
+        // Do NOT overwrite the store with these non-location values.
+        if (loc == "offline" || loc == "") return;
+
+        MergeFriendStore(e.UserId, e.User, location: loc,
             platform: string.IsNullOrEmpty(e.Platform) ? null : e.Platform);
         PushFriendsFromStore();
 
@@ -1269,15 +1306,7 @@ public class FriendsController
             _core.SendToJS("friendTimelineEvent", BuildFriendTimelinePayload(fev));
         }
 
-        // Now active on website → Online (Web)
-        {
-            var fev = new TimelineService.FriendTimelineEvent
-            {
-                Type = "friend_web_online", FriendId = e.UserId, FriendName = fname, FriendImage = fimg,
-            };
-            _core.Timeline.AddFriendEvent(fev);
-            _core.SendToJS("friendTimelineEvent", BuildFriendTimelinePayload(fev));
-        }
+        // friend-active only updates friendslist (dot→circle), no timeline event for web.
     }
 
     private void OnWsFriendOffline(object? sender, FriendEventArgs e)
@@ -1300,10 +1329,12 @@ public class FriendsController
         bool wasInGame = !string.IsNullOrEmpty(prevLoc) && prevLoc != "offline" && prevLoc != "";
         _friendLastLoc[e.UserId] = "offline";
 
-        var offlineType = wasInGame ? "friend_offline" : "friend_web_offline";
+        // Only log game offline, not web offline
+        if (!wasInGame) return;
+
         var fev = new TimelineService.FriendTimelineEvent
         {
-            Type = offlineType, FriendId = e.UserId, FriendName = fname, FriendImage = fimg,
+            Type = "friend_offline", FriendId = e.UserId, FriendName = fname, FriendImage = fimg,
         };
         _core.Timeline.AddFriendEvent(fev);
         _core.SendToJS("friendTimelineEvent", BuildFriendTimelinePayload(fev));
@@ -1331,9 +1362,15 @@ public class FriendsController
             (fname, fimg) = _friendNameImg.GetValueOrDefault(e.UserId, ("", ""));
         }
 
+        // Skip duplicate "Came Online" if the friend is already known as in-game.
+        // This happens after WebSocket reconnects (re-sends friend-online for all online friends).
+        var prevLoc = _friendLastLoc.GetValueOrDefault(e.UserId, "");
+        bool alreadyInGame = !string.IsNullOrEmpty(prevLoc) && prevLoc != "offline" && prevLoc != "";
+
         var onlineLoc = e.Location ?? "";
-        var curLoc = _friendLastLoc.GetValueOrDefault(e.UserId, "");
-        _friendLastLoc[e.UserId] = (string.IsNullOrEmpty(onlineLoc) && curLoc.StartsWith("wrld_")) ? curLoc : onlineLoc;
+        _friendLastLoc[e.UserId] = (string.IsNullOrEmpty(onlineLoc) && prevLoc.StartsWith("wrld_")) ? prevLoc : onlineLoc;
+
+        if (alreadyInGame) return; // already online, don't spam timeline
 
         var fev = new TimelineService.FriendTimelineEvent
         {
@@ -1403,6 +1440,54 @@ public class FriendsController
         }
         if (!string.IsNullOrEmpty(newBio))
             _friendLastBio[e.UserId] = newBio;
+    }
+
+    private void OnWsFriendAdded(object? sender, FriendEventArgs e)
+    {
+        if (string.IsNullOrEmpty(e.UserId) || !_friendStateSeeded) return;
+
+        var fname = "";
+        var fimg = "";
+        if (e.User != null)
+        {
+            fname = e.User["displayName"]?.ToString() ?? "";
+            fimg = VRChatApiService.GetUserImage(e.User);
+            _friendNameImg[e.UserId] = (fname, fimg);
+        }
+
+        var fev = new TimelineService.FriendTimelineEvent
+        {
+            Type = "friend_added", FriendId = e.UserId, FriendName = fname, FriendImage = fimg,
+        };
+        _core.Timeline.AddFriendEvent(fev);
+        _core.SendToJS("friendTimelineEvent", BuildFriendTimelinePayload(fev));
+    }
+
+    private void OnWsFriendRemoved(object? sender, FriendEventArgs e)
+    {
+        if (string.IsNullOrEmpty(e.UserId) || !_friendStateSeeded) return;
+
+        // Grab name/image before they're removed from the store
+        var (fname, fimg) = _friendNameImg.GetValueOrDefault(e.UserId, ("", ""));
+
+        // If we don't have a name, try the friend store
+        if (string.IsNullOrEmpty(fname) && _friendStore.TryGetValue(e.UserId, out var stored))
+            fname = stored["displayName"]?.ToString() ?? e.UserId;
+
+        // Clean up tracking dictionaries
+        _friendStore.Remove(e.UserId);
+        _friendLastLoc.Remove(e.UserId);
+        _friendLastStatus.Remove(e.UserId);
+        _friendLastStatusDesc.Remove(e.UserId);
+        _friendLastBio.Remove(e.UserId);
+        PushFriendsFromStore();
+
+        var fev = new TimelineService.FriendTimelineEvent
+        {
+            Type = "friend_removed", FriendId = e.UserId, FriendName = fname, FriendImage = fimg,
+        };
+        _core.Timeline.AddFriendEvent(fev);
+        _core.SendToJS("friendTimelineEvent", BuildFriendTimelinePayload(fev));
     }
 
     // Friend Timeline Payload

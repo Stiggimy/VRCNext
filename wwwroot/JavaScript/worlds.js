@@ -173,6 +173,8 @@ function filterFavWorlds() {
 
 /* === Detail Modals (shared) === */
 function openWorldSearchDetail(id) {
+    // Close profile modal if open (e.g. opening world from profile Content tab)
+    if (typeof closeFriendDetail === 'function') closeFriendDetail();
     const el = document.getElementById('detailModalContent');
     el.innerHTML = sk('detail');
     document.getElementById('modalDetail').style.display = 'flex';

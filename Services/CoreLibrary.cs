@@ -18,6 +18,7 @@ public class CoreLibrary
     public WebhookService Webhook { get; }
     public FileWatcherService FileWatcher { get; }
     public Action<string, object?> SendToJS { get; }
+    public Action<string>? AvtrdbSubmit { get; set; }
 
     public ConcurrentDictionary<string, string> PlayerImageCache { get; } = new();
     public ConcurrentDictionary<string, bool> PlayerAgeVerifiedCache { get; } = new();

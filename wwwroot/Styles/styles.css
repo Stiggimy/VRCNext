@@ -3309,47 +3309,14 @@ html.cursor-custom * { cursor: var(--cursor-url, auto) !important; }
     margin-bottom: 12px;
 }
 
-.fd-worlds-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-}
-.fd-world-card {
-    background: var(--bg-input);
+/* Content tab sub-pills — reuse fd-tabs styling */
+.fd-content-pills {
+    display: flex;
+    gap: 0;
+    margin-bottom: 14px;
     border-radius: 8px;
     overflow: hidden;
-    cursor: pointer;
-    transition: background .15s;
-}
-.fd-world-card:hover {
-    background: var(--bg-hover);
-}
-.fd-world-thumb {
-    width: 100%;
-    aspect-ratio: 16/9;
-    object-fit: cover;
-    display: block;
-    background: var(--bg2) center/cover no-repeat;
-}
-.fd-world-info {
-    padding: 6px 8px 8px;
-}
-.fd-world-desc {
-    font-size: 10px;
-    color: var(--tx3);
-    margin-top: 2px;
-    overflow: hidden;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-}
-.fd-world-meta {
-    font-size: 10px;
-    color: var(--tx3);
-    margin-top: 4px;
-    display: flex;
-    align-items: center;
-    gap: 2px;
+    background: var(--bg-input);
 }
 
 /* === INSTANCE ITEM === */

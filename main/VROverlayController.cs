@@ -70,7 +70,6 @@ public class VROverlayController : IDisposable
                     _core.Settings.VroToastEnabled, _core.Settings.VroToastFavOnly,
                     _core.Settings.VroToastSize, _core.Settings.VroToastOffsetX, _core.Settings.VroToastOffsetY,
                     _core.Settings.VroToastOnline, _core.Settings.VroToastOffline,
-                    _core.Settings.VroToastWebOnline, _core.Settings.VroToastWebOffline,
                     _core.Settings.VroToastGps, _core.Settings.VroToastStatus,
                     _core.Settings.VroToastStatusDesc, _core.Settings.VroToastBio);
 
@@ -189,8 +188,6 @@ public class VROverlayController : IDisposable
                 float offY      = msg["offsetY"]?.Value<float>()   ?? -0.12f;
                 bool online     = msg["online"]?.Value<bool>()     ?? true;
                 bool offline    = msg["offline"]?.Value<bool>()    ?? true;
-                bool webOnline  = msg["webOnline"]?.Value<bool>()  ?? true;
-                bool webOffline = msg["webOffline"]?.Value<bool>() ?? true;
                 bool gps        = msg["gps"]?.Value<bool>()        ?? true;
                 bool status     = msg["status"]?.Value<bool>()     ?? true;
                 bool statusDesc = msg["statusDesc"]?.Value<bool>() ?? true;
@@ -203,8 +200,6 @@ public class VROverlayController : IDisposable
                 _core.Settings.VroToastOffsetY    = offY;
                 _core.Settings.VroToastOnline     = online;
                 _core.Settings.VroToastOffline    = offline;
-                _core.Settings.VroToastWebOnline  = webOnline;
-                _core.Settings.VroToastWebOffline = webOffline;
                 _core.Settings.VroToastGps        = gps;
                 _core.Settings.VroToastStatus     = status;
                 _core.Settings.VroToastStatusDesc = statusDesc;
@@ -212,7 +207,7 @@ public class VROverlayController : IDisposable
                 _core.Settings.Save();
 
                 _vrOverlay?.ApplyToastConfig(enabled, favOnly, size, offX, offY,
-                    online, offline, webOnline, webOffline,
+                    online, offline,
                     gps, status, statusDesc, bio);
                 break;
             }

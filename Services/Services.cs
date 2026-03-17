@@ -327,6 +327,10 @@ public class AppSettings
     public bool       VroToastStatusDesc   { get; set; } = true;
     public bool       VroToastBio          { get; set; } = true;
 
+    // Avtrdb Support — report deleted avatars to help clean the database
+    public bool AvtrdbReportDeleted { get; set; } = true;
+    public bool AvtrdbSubmitAvatars { get; set; }
+
     // Discord Rich Presence — privacy per status
     public bool DpHideInstIdJoinMe  { get; set; }
     public bool DpHideInstIdOnline  { get; set; }

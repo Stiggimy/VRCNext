@@ -10,7 +10,7 @@
 </head>
 <body>
     <div class="sidebar" id="sidebarEl">
-        <div class="logo"><div class="logo-icon" id="logoIcon">V</div><div class="logo-txt"><div class="logo-text-row"><div class="logo-text">VRCNext</div></div><div class="logo-sub">v2026.10.17</div></div><button class="sb-toggle" onclick="toggleSidebar()" title="Toggle sidebar"><span class="msi" id="sbIcon">chevron_left</span></button></div>
+        <div class="logo"><div class="logo-icon" id="logoIcon">V</div><div class="logo-txt"><div class="logo-text-row"><div class="logo-text">VRCNext</div></div><div class="logo-sub">v2026.10.20</div></div><button class="sb-toggle" onclick="toggleSidebar()" title="Toggle sidebar"><span class="msi" id="sbIcon">chevron_left</span></button></div>
         <div class="nav">
             <button class="nav-btn active" onclick="showTab(0)"><span class="ni msi">dashboard</span><span class="nl">Dashboard</span></button>
             <button class="nav-btn" onclick="showTab(1)"><span class="ni msi">travel_explore</span><span class="nl">Worlds</span></button>
@@ -258,12 +258,6 @@
                 <div id="avatarSearchArea" style="display:none;">
                     <div class="search-bar-row" style="margin-bottom:14px;"><span class="msi search-ico">search</span><input type="text" id="avatarSearchInput" class="vrcn-input" placeholder="Search public avatars..." onkeydown="if(event.key==='Enter')doAvatarSearch()"><button class="vrcn-button" onclick="doAvatarSearch()">Search</button></div>
                     <div id="avatarSearchGrid" class="avatar-grid"><div class="empty-msg">Search for public avatars</div></div>
-                </div>
-                <!-- Favorite group picker popup (global, positioned by JS) -->
-                <div id="avFavPickerPanel" style="display:none;position:fixed;z-index:9999;background:var(--bg-card);border:1px solid var(--brd-lt);border-radius:10px;padding:10px;min-width:220px;max-width:280px;box-shadow:0 8px 32px #0008;">
-                    <div style="font-size:11px;font-weight:700;color:var(--tx3);margin-bottom:8px;letter-spacing:.5px;">ADD TO FAVORITE GROUP</div>
-                    <div id="avFavPickerList"></div>
-                    <div style="margin-top:8px;text-align:right;"><button class="vrcn-button" onclick="closeAvFavPicker()">Cancel</button></div>
                 </div>
             </div>
             <!-- Tab 5: Custom Chatbox -->
@@ -549,6 +543,30 @@
                         <button class="vrcn-button" style="margin-top:12px;" onclick="sendToCS({action:'clearFfcCache'})"><span class="msi" style="font-size:16px;">delete_sweep</span> Clear FFC Cache</button>
                     </div>
 
+                    <div class="sf-card">
+                        <div class="sf-card-header"><span class="msi">database</span> Avtrdb Community Support</div>
+                        <div class="fd-tabs" style="margin-top:10px;">
+                            <button class="fd-tab active" onclick="switchAvtrdbTab('support',this)">Support</button>
+                            <button class="fd-tab" onclick="switchAvtrdbTab('reports',this)">Reports</button>
+                        </div>
+                        <div id="avtrdbTabSupport">
+                            <div class="set-desc">Help improve the avtrdb avatar database by reporting deleted avatars. When enabled, VRCNext will notify avtrdb whenever you encounter a deleted or DMCA'd avatar. This helps keep the database clean and up to date for everyone.</div>
+                            <div class="sf-toggle-row">
+                                <span>Report deleted avatars to avtrdb</span>
+                                <label class="toggle"><input type="checkbox" id="setAvtrdbReport" onchange="autoSave()"><div class="toggle-track"><div class="toggle-knob"></div></div></label>
+                            </div>
+                            <div class="set-desc" style="margin-top:14px;">Submit new public avatars you encounter in-game to the avtrdb database. When you switch to an avatar that isn't indexed yet, VRCNext will automatically submit it. This helps expand the database and makes more avatars discoverable for everyone.</div>
+                            <div class="sf-toggle-row">
+                                <span>Submit new avatars to avtrdb</span>
+                                <label class="toggle"><input type="checkbox" id="setAvtrdbSubmit" onchange="autoSave()"><div class="toggle-track"><div class="toggle-knob"></div></div></label>
+                            </div>
+                        </div>
+                        <div id="avtrdbTabReports" style="display:none;">
+                            <div class="set-desc" style="margin-bottom:10px;">All reports sent to avtrdb during this session. Click a ticket to check its status.</div>
+                            <div id="avtrdbReportsList"><div class="empty-msg">No reports sent yet this session.</div></div>
+                        </div>
+                    </div>
+
                     <div class="sf-card" id="vrcxImportCard">
                         <div class="sf-card-header"><span class="msi">download</span> Import data from VRCX</div>
                         <div class="set-desc">Imports your VRCX history into VRCNext: world time, friend time, instance joins, GPS events, online/offline, status and bio changes. Existing data is preserved and values are added on top. Select your <code>VRCX.sqlite3</code> file to begin.</div>
@@ -721,9 +739,9 @@
                     <button class="vrcn-button sub-tab-btn" id="ftFStatusDesc" onclick="setFtFilter('friend_statusdesc')"><span class="msi" style="font-size:14px;">chat_bubble_outline</span> Status Text</button>
                     <button class="vrcn-button sub-tab-btn" id="ftFOnline"     onclick="setFtFilter('friend_online')"><span class="msi" style="font-size:14px;">login</span> Online</button>
                     <button class="vrcn-button sub-tab-btn" id="ftFOffline"    onclick="setFtFilter('friend_offline')"><span class="msi" style="font-size:14px;">power_settings_new</span> Offline</button>
-                    <button class="vrcn-button sub-tab-btn" id="ftFWebOnline"  onclick="setFtFilter('friend_web_online')"><span class="msi" style="font-size:14px;">language</span> Online (Web)</button>
-                    <button class="vrcn-button sub-tab-btn" id="ftFWebOffline" onclick="setFtFilter('friend_web_offline')"><span class="msi" style="font-size:14px;">power_settings_new</span> Offline (Web)</button>
                     <button class="vrcn-button sub-tab-btn" id="ftFBio"        onclick="setFtFilter('friend_bio')"><span class="msi" style="font-size:14px;">edit_note</span> Bio</button>
+                    <button class="vrcn-button sub-tab-btn" id="ftFAdded"     onclick="setFtFilter('friend_added')"><span class="msi" style="font-size:14px;">person_add</span> Friended</button>
+                    <button class="vrcn-button sub-tab-btn" id="ftFRemoved"   onclick="setFtFilter('friend_removed')"><span class="msi" style="font-size:14px;">person_remove</span> Unfriended</button>
                 </div>
                 <div class="tl-container" id="tlContainer">
                     <div class="empty-msg">No timeline events yet. VRChat activity will appear here.</div>
@@ -1331,5 +1349,12 @@
     <script src="JavaScript/discord.js"></script>
     <script src="JavaScript/vroverlay.js"></script>
     <script src="JavaScript/init.js"></script>
+
+    <!-- Favorite group picker popup (global, outside tabs so it's always visible) -->
+    <div id="avFavPickerPanel" style="display:none;position:fixed;z-index:10005;background:var(--bg-card);border:1px solid var(--brd-lt);border-radius:10px;padding:10px;min-width:220px;max-width:280px;box-shadow:0 8px 32px #0008;">
+        <div style="font-size:11px;font-weight:700;color:var(--tx3);margin-bottom:8px;letter-spacing:.5px;">ADD TO FAVORITE GROUP</div>
+        <div id="avFavPickerList"></div>
+        <div style="margin-top:8px;text-align:right;"><button class="vrcn-button" onclick="closeAvFavPicker()">Cancel</button></div>
+    </div>
 </body>
 </html>
