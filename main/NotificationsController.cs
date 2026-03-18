@@ -246,8 +246,15 @@ public class NotificationsController
                         }
                         else if (hnType == "group.invite")
                         {
-                            // Decline invite: hide the notification (just dismiss it)
-                            ok = await _core.VrcApi.HideNotificationAsync(hnId, hnV2);
+                            // Decline invite via Groups API, then hide notification
+                            var groupId = hnDet?["groupId"]?.ToString()
+                                       ?? hnData?["groupId"]?.ToString()
+                                       ?? ExtractGroupIdFromLink(hnLink);
+                            if (!string.IsNullOrEmpty(groupId))
+                                ok = await _core.VrcApi.DeclineGroupInviteAsync(groupId);
+                            else
+                                ok = await _core.VrcApi.HideNotificationAsync(hnId, hnV2);
+                            if (ok) await _core.VrcApi.HideNotificationAsync(hnId, hnV2);
                         }
                         else
                         {

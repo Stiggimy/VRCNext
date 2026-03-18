@@ -347,6 +347,8 @@
             { icon: 'info', label: 'Show Avatar', action: () => openAvatarDetail(id) },
             { icon: 'share', label: 'Share Avatar', action: () => { navigator.clipboard.writeText('https://vrchat.com/home/avatar/' + id); showToast(true, 'Avatar link copied to clipboard'); } },
             { icon: 'checkroom', label: 'Use Avatar', action: () => sendToCS({ action: 'vrcSelectAvatar', avatarId: id }) },
+            'sep',
+            { icon: 'style', label: 'Similar Avatars', action: () => { showTab(4); setAvatarFilter('search'); setTimeout(() => { const inp = document.getElementById('avatarSearchInput'); if (inp) { inp.value = 'similar: ' + id; doAvatarSearch(); } }, 100); } },
         ];
     }
 

@@ -1218,6 +1218,13 @@ public class FriendsController
         // Do NOT overwrite the store with these non-location values.
         if (loc == "offline" || loc == "") return;
 
+        // "traveling" means switching worlds — keep them as "in-game", don't log anything
+        if (loc == "traveling")
+        {
+            _friendLastLoc[e.UserId] = "traveling";
+            return;
+        }
+
         MergeFriendStore(e.UserId, e.User, location: loc,
             platform: string.IsNullOrEmpty(e.Platform) ? null : e.Platform);
         PushFriendsFromStore();
@@ -1294,8 +1301,8 @@ public class FriendsController
             _friendNameImg[e.UserId] = (fname, fimg);
         }
 
-        // Left the game → Offline (Game)
-        if (wasInGame)
+        // Left the game → log offline (but NOT if traveling — that's a world change, not leaving)
+        if (wasInGame && prevLoc != "traveling")
         {
             _friendLastLoc[e.UserId] = "";
             var fev = new TimelineService.FriendTimelineEvent
@@ -1304,6 +1311,10 @@ public class FriendsController
             };
             _core.Timeline.AddFriendEvent(fev);
             _core.SendToJS("friendTimelineEvent", BuildFriendTimelinePayload(fev));
+        }
+        else
+        {
+            _friendLastLoc[e.UserId] = "";
         }
 
         // friend-active only updates friendslist (dot→circle), no timeline event for web.
@@ -1330,7 +1341,8 @@ public class FriendsController
         _friendLastLoc[e.UserId] = "offline";
 
         // Only log game offline, not web offline
-        if (!wasInGame) return;
+        // Don't log offline if they were "traveling" — that's a world change, not leaving
+        if (!wasInGame || prevLoc == "traveling") return;
 
         var fev = new TimelineService.FriendTimelineEvent
         {

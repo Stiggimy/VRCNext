@@ -2073,18 +2073,10 @@ public class VRChatApiService
         if (!IsLoggedIn) return false;
         try
         {
-            if (isV2)
-            {
-                // Try v2 delete first
-                var r1 = await _http.DeleteAsync($"{BASE}/auth/user/notificationsV2/{notifId}");
-                Log($"HideNotificationV2 {notifId}: {(int)r1.StatusCode}");
-                if (r1.IsSuccessStatusCode) return true;
-                // Fall back to v1 hide (VRChat may accept v1 hide for cross-version IDs)
-                Log($"HideNotificationV2 fallback to v1 hide");
-            }
+            // PUT /hide works for both v1 and v2 notifications
             var content = new StringContent("{}", Encoding.UTF8, "application/json");
             var resp = await _http.PutAsync($"{BASE}/auth/user/notifications/{notifId}/hide", content);
-            Log($"HideNotification(v1) {notifId}: {(int)resp.StatusCode}");
+            Log($"HideNotification {notifId}: {(int)resp.StatusCode}");
             return resp.IsSuccessStatusCode;
         }
         catch (Exception ex) { Log($"HideNotification exception: {ex.Message}"); return false; }
@@ -2101,6 +2093,19 @@ public class VRChatApiService
             return resp.IsSuccessStatusCode;
         }
         catch (Exception ex) { Log($"RespondGroupJoinRequest exception: {ex.Message}"); return false; }
+    }
+
+    public async Task<bool> DeclineGroupInviteAsync(string groupId)
+    {
+        if (!IsLoggedIn || string.IsNullOrEmpty(groupId)) return false;
+        try
+        {
+            var body = new StringContent("{}", Encoding.UTF8, "application/json");
+            var resp = await _http.PutAsync($"{BASE}/groups/{groupId}/invites", body);
+            Log($"DeclineGroupInvite {groupId}: {(int)resp.StatusCode}");
+            return resp.IsSuccessStatusCode;
+        }
+        catch (Exception ex) { Log($"DeclineGroupInvite exception: {ex.Message}"); return false; }
     }
 
     // finds the grp_xxx groupId for a group by its shortCode among the current user's groups
