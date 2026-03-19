@@ -79,9 +79,9 @@ public class DiscordPresenceService : IDisposable
             if (!string.IsNullOrEmpty(worldImageUrl))
                 assets.LargeImageKey = worldImageUrl;
 
-            Button[]? buttons = null;
+            DiscordRPC.Button[]? buttons = null;
             if (!string.IsNullOrEmpty(joinUrl))
-                buttons = [new Button { Label = "Join Instance", Url = joinUrl }];
+                buttons = [new DiscordRPC.Button { Label = "Join Instance", Url = joinUrl }];
 
             _client.SetPresence(new RichPresence
             {

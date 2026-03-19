@@ -28,6 +28,20 @@ public class WindowController
     [DllImport("user32.dll", EntryPoint = "SetWindowLongPtrW")] private static extern nint SetWindowLongPtr(nint hWnd, int nIndex, nint dwNewLong);
     [DllImport("user32.dll")] private static extern nint CallWindowProc(nint lpPrevWndFunc, nint hWnd, uint Msg, nint wParam, nint lParam);
     [DllImport("dwmapi.dll")] private static extern int DwmSetWindowAttribute(nint hwnd, int dwAttribute, ref int pvAttribute, int cbAttribute);
+    [DllImport("user32.dll")] private static extern bool ShowWindow(nint hWnd, int nCmdShow);
+    [DllImport("user32.dll")] private static extern bool SetForegroundWindow(nint hWnd);
+    [DllImport("user32.dll")] private static extern bool IsIconic(nint hWnd);
+    [DllImport("user32.dll")] private static extern bool IsWindowVisible(nint hWnd);
+
+    private const int SW_HIDE    = 0;
+    private const int SW_SHOW    = 5;
+    private const int SW_RESTORE = 9;
+
+    /// <summary>
+    /// When true, minimize actions hide the window to the system tray instead.
+    /// No window style changes — animations and taskbar behaviour stay native.
+    /// </summary>
+    private static volatile bool _minimizeToTray;
 
     [StructLayout(LayoutKind.Sequential)]
     private struct MARGINS { public int leftWidth, rightWidth, topHeight, bottomHeight; }
@@ -42,9 +56,18 @@ public class WindowController
     {
         const uint WM_NCCALCSIZE = 0x0083;
         const uint WM_NCHITTEST  = 0x0084;
+        const uint WM_SYSCOMMAND = 0x0112;
+        const int  SC_MINIMIZE   = 0xF020;
 
         if (msg == WM_NCCALCSIZE && wParam == 1)
             return 0; // client area = full window rect; removes visible NC border/black strip; snap still works
+
+        // Intercept OS-level minimize (Win+D, Win+M, snap minimize) → hide to tray
+        if (msg == WM_SYSCOMMAND && (wParam.ToInt32() & 0xFFF0) == SC_MINIMIZE && _minimizeToTray)
+        {
+            ShowWindow(hWnd, SW_HIDE);
+            return 0;
+        }
 
         if (msg == WM_NCHITTEST)
         {
@@ -74,6 +97,50 @@ public class WindowController
         _subclassProc = SubclassWndProc;
         _origWndProc  = SetWindowLongPtr(hWnd, -4 /*GWLP_WNDPROC*/,
             Marshal.GetFunctionPointerForDelegate(_subclassProc));
+    }
+
+    /// <summary>
+    /// Enables or disables "minimize to tray" mode.
+    /// Does NOT change any window styles — just sets a flag.
+    /// When active, minimize actions (JS button, Win+D, etc.) hide the window via SW_HIDE.
+    /// </summary>
+    public void SetHideFromTaskbar(bool hide)
+    {
+        _minimizeToTray = hide;
+    }
+
+    /// <summary>
+    /// Unconditionally hides the window (SW_HIDE). Used on startup to auto-hide to tray.
+    /// </summary>
+    public void HideWindow()
+    {
+        var window = _core.Window;
+        if (window == null) return;
+        ShowWindow(window.WindowHandle, SW_HIDE);
+    }
+
+    /// <summary>
+    /// Toggles the Photino window visibility (used by tray icon left-click).
+    /// </summary>
+    public void ToggleWindowVisibility()
+    {
+        var window = _core.Window;
+        if (window == null) return;
+        var hWnd = window.WindowHandle;
+        if (IsIconic(hWnd))
+        {
+            ShowWindow(hWnd, SW_RESTORE);
+            SetForegroundWindow(hWnd);
+        }
+        else if (!IsWindowVisible(hWnd))
+        {
+            ShowWindow(hWnd, SW_SHOW);
+            SetForegroundWindow(hWnd);
+        }
+        else
+        {
+            ShowWindow(hWnd, SW_HIDE);
+        }
     }
 #endif
 
@@ -126,7 +193,12 @@ public class WindowController
         switch (action)
         {
             case "windowMinimize":
-                window.SetMinimized(true);
+#if WINDOWS
+                if (_minimizeToTray)
+                    ShowWindow(window.WindowHandle, SW_HIDE);
+                else
+#endif
+                    window.SetMinimized(true);
                 break;
             case "windowMaximize":
                 var nowMax = window.Maximized;

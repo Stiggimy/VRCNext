@@ -1416,5 +1416,13 @@
   "vro.keybind.hint.idle_double_tap": "ボタンをダブルタップしてオーバーレイを切り替えます。",
   "vro.keybind.hint.idle_combo": "片方のコントローラーで1～4個のボタンを長押ししてオーバーレイを切り替えます。",
   "clock.date_locale": "ja-JP",
-  "clock.time_locale": "ja-JP"
+  "clock.time_locale": "ja-JP",
+  "settings.system.hide_in_tray": "システムトレイに隠す",
+  "tray.status.join_me": "Join Me",
+  "tray.status.online": "オンライン",
+  "tray.status.ask_me": "Ask Me",
+  "tray.status.do_not_disturb": "取り込み中",
+  "tray.close_vrcn": "VRCNを終了",
+  "settings.language.restart_hint": "言語を変更した後、アプリを再起動することをお勧めします。",
+  "settings.language.restart_btn": "VRCNextを再起動"
 }

@@ -262,9 +262,9 @@
             if (loc) return buildMyInstanceItems(loc);
         }
 
-        const dashWorld = el.closest('#dashFavWorlds .dash-world-card');
+        const dashWorld = el.closest('#dashFavWorlds .dash-world-card, #dashDiscoveryGrid .dash-world-card');
         if (dashWorld) {
-            const id = extractId(dashWorld, /openWorldDetail\('([^']+)'\)/);
+            const id = extractId(dashWorld, /openWorld(?:Search)?Detail\('([^']+)'\)/);
             if (id) return buildWorldItems(id);
         }
 

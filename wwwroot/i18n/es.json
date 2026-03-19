@@ -1416,5 +1416,13 @@
   "vro.keybind.hint.idle_double_tap": "Pulsa dos veces un botón para alternar la superposición.",
   "vro.keybind.hint.idle_combo": "Mantén 1-4 botones en un mando para alternar la superposición.",
   "clock.date_locale": "es-ES",
-  "clock.time_locale": "es-ES"
+  "clock.time_locale": "es-ES",
+  "settings.system.hide_in_tray": "Ocultar en la bandeja del sistema",
+  "tray.status.join_me": "Únete a mí",
+  "tray.status.online": "En línea",
+  "tray.status.ask_me": "Pregúntame",
+  "tray.status.do_not_disturb": "No molestar",
+  "tray.close_vrcn": "Cerrar VRCN",
+  "settings.language.restart_hint": "Se recomienda reiniciar la aplicación después de cambiar el idioma.",
+  "settings.language.restart_btn": "Reiniciar VRCNext"
 }

@@ -56,6 +56,9 @@ public partial class AppShell
     private readonly TimelineService _timeline;
     private readonly UpdateService _updateService = new();
     private readonly MemoryTrimService _memTrim = new();
+#if WINDOWS
+    private SystemTrayService? _trayService;
+#endif
 
     // VR overlay world name+thumb cache (worldId → name, localUrl)
     private readonly Dictionary<string, (string name, string thumb)> _vrWorldCache = new();
@@ -126,6 +129,31 @@ public partial class AppShell
             _relayCtrl.IsRunning,
             _chatboxCtrl.IsEnabled);
         _fileWatcher.NewFile += _photos.OnNewFile;
+
+#if WINDOWS
+        // System tray
+        _trayService = new SystemTrayService();
+        _trayService.OnShowWindow = () => _windowCtrl.ToggleWindowVisibility();
+        _trayService.OnStatusChange = status =>
+        {
+            var currentDesc = _vrcApi.CurrentUserRaw?["statusDescription"]?.ToString() ?? "";
+            var json = Newtonsoft.Json.JsonConvert.SerializeObject(new { action = "vrcUpdateStatus", status, statusDescription = currentDesc });
+            _ = OnWebMessage(json);
+        };
+        _trayService.OnClose = () =>
+        {
+            try { _window.Close(); } catch { }
+        };
+        _trayService.ImageDownloader = async url =>
+        {
+            var http = _vrcApi.GetHttpClient();
+            return await http.GetByteArrayAsync(url);
+        };
+        _trayService.Initialize();
+        _core.OnTraySettingChanged = (enabled, autoHide) => ApplyTraySetting(enabled, autoHide);
+        _core.OnTrayUserUpdate = UpdateTrayUser;
+        _core.OnTrayThemeUpdate = colors => _trayService?.UpdateTheme(colors);
+#endif
     }
 
     // Run
@@ -331,7 +359,27 @@ public partial class AppShell
         _memTrim.Dispose();
         _httpListener?.Stop();
         _activityLogWriter?.Dispose();
+#if WINDOWS
+        _trayService?.Dispose();
+#endif
     }
+
+#if WINDOWS
+    private void ApplyTraySetting(bool enabled, bool autoHide)
+    {
+        _trayService?.SetVisible(enabled);
+        _trayService?.UpdateLanguage(_settings.Language);
+        _windowCtrl.SetHideFromTaskbar(enabled);
+        // On startup, auto-hide the window to tray immediately
+        if (enabled && autoHide)
+            _windowCtrl.HideWindow();
+    }
+
+    private void UpdateTrayUser(string name, string status, string statusDesc, string imageUrl)
+    {
+        _trayService?.UpdateUserInfo(name, status, statusDesc, imageUrl);
+    }
+#endif
 
     // SendToJS
 

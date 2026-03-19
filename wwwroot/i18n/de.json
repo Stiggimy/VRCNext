@@ -1416,5 +1416,13 @@
   "vro.keybind.hint.idle_double_tap": "Doppeltippe eine einzelne Taste, um das Overlay umzuschalten.",
   "vro.keybind.hint.idle_combo": "Halte 1 bis 4 Tasten auf einem Controller, um das Overlay umzuschalten.",
   "clock.date_locale": "de-DE",
-  "clock.time_locale": "de-DE"
+  "clock.time_locale": "de-DE",
+  "settings.system.hide_in_tray": "Im Infobereich ausblenden",
+  "tray.status.join_me": "Beitreten",
+  "tray.status.online": "Online",
+  "tray.status.ask_me": "Frag mich",
+  "tray.status.do_not_disturb": "Nicht stören",
+  "tray.close_vrcn": "VRCN beenden",
+  "settings.language.restart_hint": "Es wird empfohlen, die App nach einer Sprachänderung neu zu starten.",
+  "settings.language.restart_btn": "VRCNext neustarten"
 }

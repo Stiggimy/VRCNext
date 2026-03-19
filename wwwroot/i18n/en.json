@@ -1416,5 +1416,13 @@
   "vro.keybind.hint.idle_double_tap": "Double-tap a single button to toggle the overlay.",
   "vro.keybind.hint.idle_combo": "Hold 1-4 buttons on one controller to toggle the overlay.",
   "clock.date_locale": "en-US",
-  "clock.time_locale": "en-GB"
+  "clock.time_locale": "en-GB",
+  "settings.system.hide_in_tray": "Hide in System Tray",
+  "tray.status.join_me": "Join Me",
+  "tray.status.online": "Online",
+  "tray.status.ask_me": "Ask Me",
+  "tray.status.do_not_disturb": "Do Not Disturb",
+  "tray.close_vrcn": "Close VRCN",
+  "settings.language.restart_hint": "It is recommended to restart the app once you change the language.",
+  "settings.language.restart_btn": "Restart VRCNext"
 }

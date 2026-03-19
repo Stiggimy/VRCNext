@@ -196,6 +196,15 @@ public class AuthController
                 });
                 break;
 
+            case "restartApp":
+                var exe = Environment.ProcessPath;
+                if (!string.IsNullOrEmpty(exe))
+                {
+                    Process.Start(new ProcessStartInfo { FileName = exe, UseShellExecute = true });
+                    try { _core.Window?.Close(); } catch { Environment.Exit(0); }
+                }
+                break;
+
             case "openUrl":
                 var openUrlTarget = msg["url"]?.ToString();
                 if (!string.IsNullOrEmpty(openUrlTarget) &&
@@ -349,6 +358,10 @@ public class AuthController
         _core.SendToJS("favoritesLoaded", _photos.Favorites);
         var customColors = _core.Cache.LoadRaw(CacheHandler.KeyCustomColors);
         if (customColors != null) _core.SendToJS("customColors", customColors);
+#if WINDOWS
+        if (_core.Settings.MinimizeToTray)
+            _core.OnTraySettingChanged?.Invoke(true, true); // autoHide on startup
+#endif
         _ = VrcTryResumeAsync();
         _ = Task.Run(async () =>
         {
@@ -620,13 +633,18 @@ public class AuthController
         if (!string.IsNullOrEmpty(rawStatus)) _core.MyVrcStatus = rawStatus;
         _discordCtrl.PushPresence();
 
+        var userImage = VRChatApiService.GetUserImage(user);
+        var userDisplayName = user["displayName"]?.ToString() ?? "";
+        var userStatus = user["status"]?.ToString() ?? "offline";
+        var userStatusDesc = user["statusDescription"]?.ToString() ?? "";
+
         _core.SendToJS("vrcUser", new
         {
             id = user["id"]?.ToString() ?? "",
-            displayName = user["displayName"]?.ToString() ?? "",
-            image = VRChatApiService.GetUserImage(user),
-            status = user["status"]?.ToString() ?? "offline",
-            statusDescription = user["statusDescription"]?.ToString() ?? "",
+            displayName = userDisplayName,
+            image = userImage,
+            status = userStatus,
+            statusDescription = userStatusDesc,
             currentAvatar = user["currentAvatar"]?.ToString() ?? "",
             bio = user["bio"]?.ToString() ?? "",
             pronouns = user["pronouns"]?.ToString() ?? "",
@@ -635,6 +653,10 @@ public class AuthController
             profilePicOverride    = _core.ImgCache?.Get(user["profilePicOverride"]?.ToString() ?? "") ?? user["profilePicOverride"]?.ToString() ?? "",
             currentAvatarImageUrl = _core.ImgCache?.Get(user["currentAvatarImageUrl"]?.ToString() ?? "") ?? user["currentAvatarImageUrl"]?.ToString() ?? "",
         });
+
+#if WINDOWS
+        _core.OnTrayUserUpdate?.Invoke(userDisplayName, userStatus, userStatusDesc, userImage);
+#endif
 
         if (loginFlow)
         {
@@ -666,6 +688,9 @@ public class AuthController
             _core.Settings.MessageSoundEnabled = data["messageSoundEnabled"]?.Value<bool>() ?? false;
             _core.Settings.MediaRelaySoundEnabled = data["mediaRelaySoundEnabled"]?.Value<bool>() ?? false;
             _core.Settings.MinimizeToTray = data["minimizeToTray"]?.Value<bool>() ?? false;
+#if WINDOWS
+            _core.OnTraySettingChanged?.Invoke(_core.Settings.MinimizeToTray, false);
+#endif
             _core.Settings.Language = NormalizeLanguage(data["language"]?.ToString());
             _core.Settings.Theme = data["theme"]?.ToString() ?? "midnight";
             _core.Settings.SpecialTheme = data["specialTheme"]?.ToString() ?? "";
@@ -678,6 +703,7 @@ public class AuthController
             _core.Settings.AutoColorAccuracy = data["autoColorAccuracy"]?.Value<int>() ?? 50;
             _core.Settings.PlayBtnTheme = data["playBtnTheme"]?.ToString() ?? "";
             _core.Settings.CursorTheme = data["cursorTheme"]?.ToString() ?? "";
+            _core.Settings.GuiZoom = Math.Clamp(data["guiZoom"]?.Value<int>() ?? 100, 50, 200);
 
             var dashBg = data["dashBgPath"]?.ToString();
             if (dashBg != null) _core.Settings.DashBgPath = dashBg;

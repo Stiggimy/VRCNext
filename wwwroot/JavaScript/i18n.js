@@ -114,4 +114,6 @@ function selectLanguage(language) {
     renderLanguageChips();
     requestTranslation(nextLanguage);
     autoSave();
+    const hint = document.getElementById('langRestartHint');
+    if (hint) hint.style.display = '';
 }

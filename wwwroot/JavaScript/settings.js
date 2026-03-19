@@ -108,6 +108,7 @@ function saveSettings() {
             relayAutoStartVR:        document.getElementById('setAutoStartVR')?.checked       ?? false,
             relayAutoStartDesktop:   document.getElementById('setAutoStartDesktop')?.checked  ?? false,
             startWithWindows: document.getElementById('setStartWithWindows').checked,
+            minimizeToTray: document.getElementById('setMinimizeToTray').checked,
             notifySound: false, // legacy â€” kept for JSON compat
             notifySoundEnabled: document.getElementById('setNotifySoundEnabled').checked,
             messageSoundEnabled: document.getElementById('setMessageSoundEnabled').checked,
@@ -119,6 +120,7 @@ function saveSettings() {
             autoColorAccuracy: autoColorAccuracy,
             playBtnTheme: currentPlayBtnTheme,
             cursorTheme: currentCursorTheme,
+            guiZoom: Math.round((parseFloat(document.documentElement.style.zoom) || 1) * 100),
             dashBgPath: dashBgPath,
             dashOpacity: parseInt(document.getElementById('setDashOpacity').value) || 40,
             randomDashBg: document.getElementById('setRandomBg').checked,
@@ -206,7 +208,7 @@ function autoSave() {
 }
 // Attach autosave listeners after DOM ready
 function initAutoSave() {
-    const ids = ['setBotName','setBotAvatar','setVrcPath','setStartWithWindows',
+    const ids = ['setBotName','setBotAvatar','setVrcPath','setStartWithWindows','setMinimizeToTray',
         'setNotifySoundEnabled','setMessageSoundEnabled','setMediaRelaySoundEnabled','setSteamOverlaySoundEnabled',
         'setDashOpacity','setRandomBg',
         'setVrcUser','setVrcPass',
@@ -251,6 +253,7 @@ function loadSettingsToUI(s) {
     const _asVR  = document.getElementById('setAutoStartVR');  if (_asVR)  _asVR.checked  = s.RelayAutoStartVR  ?? s.relayAutoStartVR  ?? false;
     const _asDT  = document.getElementById('setAutoStartDesktop'); if (_asDT) _asDT.checked = s.RelayAutoStartDesktop ?? s.relayAutoStartDesktop ?? false;
     document.getElementById('setStartWithWindows').checked = s.StartWithWindows || s.startWithWindows || false;
+    document.getElementById('setMinimizeToTray').checked = s.MinimizeToTray ?? s.minimizeToTray ?? false;
     document.getElementById('setNotifySoundEnabled').checked = s.NotifySoundEnabled ?? s.notifySoundEnabled ?? false;
     document.getElementById('setMessageSoundEnabled').checked = s.MessageSoundEnabled ?? s.messageSoundEnabled ?? false;
     document.getElementById('setMediaRelaySoundEnabled').checked = s.MediaRelaySoundEnabled ?? s.mediaRelaySoundEnabled ?? false;
@@ -262,6 +265,10 @@ function loadSettingsToUI(s) {
     settings.steamOverlaySoundEnabled = s.SteamOverlaySoundEnabled ?? s.steamOverlaySoundEnabled ?? true;
     const _sovEl = document.getElementById('setSteamOverlaySoundEnabled');
     if (_sovEl) _sovEl.checked = settings.steamOverlaySoundEnabled;
+    // Restore GUI zoom level
+    const savedZoom = s.GuiZoom ?? s.guiZoom ?? 100;
+    if (savedZoom !== 100) document.documentElement.style.zoom = savedZoom / 100;
+
     dashBgPath = s.DashBgPath || s.dashBgPath || '';
     dashOpacity = s.DashOpacity || s.dashOpacity || 40;
     document.getElementById('setDashOpacity').value = dashOpacity;

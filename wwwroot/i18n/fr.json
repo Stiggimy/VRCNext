@@ -1416,5 +1416,13 @@
   "vro.keybind.hint.idle_double_tap": "Appuyez deux fois sur un bouton pour basculer l'overlay.",
   "vro.keybind.hint.idle_combo": "Maintenez 1 à 4 boutons sur une manette pour basculer l'overlay.",
   "clock.date_locale": "fr-FR",
-  "clock.time_locale": "fr-FR"
+  "clock.time_locale": "fr-FR",
+  "settings.system.hide_in_tray": "Masquer dans la zone de notification",
+  "tray.status.join_me": "Rejoins-moi",
+  "tray.status.online": "En ligne",
+  "tray.status.ask_me": "Demande-moi",
+  "tray.status.do_not_disturb": "Ne pas déranger",
+  "tray.close_vrcn": "Fermer VRCN",
+  "settings.language.restart_hint": "Il est recommandé de redémarrer l'application après avoir changé la langue.",
+  "settings.language.restart_btn": "Redémarrer VRCNext"
 }

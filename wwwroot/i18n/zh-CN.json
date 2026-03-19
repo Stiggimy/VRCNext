@@ -1416,5 +1416,13 @@
   "vro.keybind.hint.idle_double_tap": "双击一个按钮以切换叠加层。",
   "vro.keybind.hint.idle_combo": "在一个控制器上按住 1-4 个按钮以切换叠加层。",
   "clock.date_locale": "zh-CN",
-  "clock.time_locale": "zh-CN"
+  "clock.time_locale": "zh-CN",
+  "settings.system.hide_in_tray": "隐藏到系统托盘",
+  "tray.status.join_me": "加入我",
+  "tray.status.online": "在线",
+  "tray.status.ask_me": "询问我",
+  "tray.status.do_not_disturb": "请勿打扰",
+  "tray.close_vrcn": "关闭 VRCN",
+  "settings.language.restart_hint": "建议在更改语言后重新启动应用程序。",
+  "settings.language.restart_btn": "重启 VRCNext"
 }

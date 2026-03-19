@@ -13,10 +13,10 @@ public partial class AppShell
     private readonly HashSet<string> _deletedAvatarIds = new();
     private readonly HashSet<string> _reportedToAvtrdb = new();
     private readonly List<string> _avtrdbReportQueue = new();
-    private Timer? _avtrdbReportTimer;
+    private System.Threading.Timer? _avtrdbReportTimer;
     private readonly List<string> _avtrdbSubmitQueue = new();
     private readonly HashSet<string> _avtrdbSubmittedIds = new();
-    private Timer? _avtrdbSubmitTimer;
+    private System.Threading.Timer? _avtrdbSubmitTimer;
 
     private static readonly string _deletedAvatarsPath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
@@ -66,7 +66,7 @@ public partial class AppShell
             Invoke(() => SendToJS("avtrdbCollecting", new { count = added }));
         // Debounce: wait 60s for more IDs to accumulate, then send in one batch
         _avtrdbReportTimer?.Dispose();
-        _avtrdbReportTimer = new Timer(_ => _ = Task.Run(FlushAvtrdbReportQueue), null, 60_000, Timeout.Infinite);
+        _avtrdbReportTimer = new System.Threading.Timer(_ => _ = Task.Run(FlushAvtrdbReportQueue), null, 60_000, Timeout.Infinite);
     }
 
     private async Task FlushAvtrdbReportQueue()
@@ -105,7 +105,7 @@ public partial class AppShell
                 // Avatar not in avtrdb — keep in queue, debounce submit
                 Invoke(() => SendToJS("avtrdbCollecting", new { count = 0, submit = 1 }));
                 _avtrdbSubmitTimer?.Dispose();
-                _avtrdbSubmitTimer = new Timer(_ => _ = Task.Run(FlushAvtrdbSubmitQueue), null, 60_000, Timeout.Infinite);
+                _avtrdbSubmitTimer = new System.Threading.Timer(_ => _ = Task.Run(FlushAvtrdbSubmitQueue), null, 60_000, Timeout.Infinite);
             }
             catch { }
         });
@@ -1444,6 +1444,7 @@ public partial class AppShell
                 }
 
                 case "openUrl":
+                case "restartApp":
                     await _authCtrl.HandleMessage(action, msg);
                     break;
 

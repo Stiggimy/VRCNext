@@ -95,11 +95,13 @@ public class VROverlayController : IDisposable
 
             case "overlayThemeColors":
             {
-                if (_vrOverlay != null && msg["colors"] is JObject colors)
+                if (msg["colors"] is JObject colors)
                 {
                     var dict = colors.Properties()
                         .ToDictionary(p => p.Name, p => p.Value.ToString());
-                    _vrOverlay.SetThemeColors(dict);
+                    if (_vrOverlay != null)
+                        _vrOverlay.SetThemeColors(dict);
+                    _core.OnTrayThemeUpdate?.Invoke(dict);
                 }
                 break;
             }

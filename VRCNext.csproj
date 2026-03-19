@@ -13,6 +13,7 @@
     <CETCompat>false</CETCompat>
     <DebugType>embedded</DebugType>
     <DebugSymbols>true</DebugSymbols>
+    <UseWindowsForms Condition="'$(_LinuxBuild)'!='true'">true</UseWindowsForms>
   </PropertyGroup>
   <!-- Define WINDOWS when targeting Windows (RID win-*), or when building on Windows without a specific RID (local dev build) -->
   <PropertyGroup Condition="$(RuntimeIdentifier.StartsWith('win')) OR ($([MSBuild]::IsOSPlatform('Windows')) AND '$(RuntimeIdentifier)' == '')">
@@ -43,6 +44,9 @@
 
   <ItemGroup>
   <None Update="voice\**\*">
+    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+  </None>
+  <None Include="Services\Assets\SystemTray\*.png" Condition="'$(_LinuxBuild)'!='true'" Link="tray\%(Filename)%(Extension)">
     <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
   </None>
   <None Update="Services\OpenVR\openvr_api.dll" Condition="'$(_LinuxBuild)'!='true'" Link="openvr_api.dll">

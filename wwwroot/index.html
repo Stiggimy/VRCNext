@@ -403,6 +403,10 @@
                         <div class="sf-card-header"><span class="msi">translate</span> <span data-i18n="language.title">Language</span></div>
                         <div class="set-desc">Cambia tu idioma · Change ta langue · Cambia lingua · 言語を変えて · 언어를 바꿔 · 更改你的语言 · Change Language · Sprache Ändern</div>
                         <div class="theme-grid" id="languageGrid"></div>
+                        <div id="langRestartHint" style="display:none;margin-top:10px;">
+                            <span class="set-desc" data-i18n="settings.language.restart_hint">It is recommended to restart the app once you change the language.</span>
+                            <button class="vrcn-button" style="margin-top:8px;" onclick="sendToCS({action:'restartApp'})"><span class="msi" style="font-size:16px;">refresh</span> <span data-i18n="settings.language.restart_btn">Restart VRCNext</span></button>
+                        </div>
                     </div>
 
                     <!-- WATCH FOLDERS -->
@@ -432,6 +436,7 @@
                         </div>
                         <div style="height:12px;"></div>
                         <div class="sf-toggle-row"><span id="labelStartWithSystem" data-i18n="settings.launch.auto_start_windows">Auto-start VRCNext with Windows</span><label class="toggle"><input type="checkbox" id="setStartWithWindows" onchange="autoSave()"><div class="toggle-track"><div class="toggle-knob"></div></div></label></div>
+                        <div class="sf-toggle-row" data-windows-only><span data-i18n="settings.system.hide_in_tray">Hide in System Tray</span><label class="toggle"><input type="checkbox" id="setMinimizeToTray" onchange="autoSave()"><div class="toggle-track"><div class="toggle-knob"></div></div></label></div>
                     </div>
 
                     <!-- VRCHAT API LOGIN -->

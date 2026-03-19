@@ -27,6 +27,22 @@ let rsidebarCollapsed = localStorage.getItem('vrcnext_rsidebar') === '1';
         if (rsIcon) rsIcon.textContent = 'chevron_left';
     }
 })();
+// GUI zoom — Ctrl+Wheel persisted to settings
+let _zoomSaveTimer = null;
+document.addEventListener('wheel', e => {
+    if (!e.ctrlKey) return;
+    e.preventDefault();
+    let z = parseFloat(document.documentElement.style.zoom) || 1;
+    z = Math.min(2, Math.max(0.5, z + (e.deltaY < 0 ? 0.05 : -0.05)));
+    document.documentElement.style.zoom = z;
+    clearTimeout(_zoomSaveTimer);
+    _zoomSaveTimer = setTimeout(() => { try { autoSave(); } catch {} }, 800);
+}, { passive: false });
+// Ctrl+0 resets zoom
+document.addEventListener('keydown', e => {
+    if (e.ctrlKey && e.key === '0') { e.preventDefault(); document.documentElement.style.zoom = 1; try { autoSave(); } catch {} }
+});
+
 let dashBgPath = '', dashBgDataUri = '', dashOpacity = 40;
 let dashWorldCache = {};
 let vrcFriendsLoaded = false;

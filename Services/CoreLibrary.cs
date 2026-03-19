@@ -46,6 +46,9 @@ public class CoreLibrary
 
 #if WINDOWS
     public VROverlayService? VrOverlay { get; set; }
+    public Action<bool, bool>? OnTraySettingChanged { get; set; } // (enabled, autoHideNow)
+    public Action<string, string, string, string>? OnTrayUserUpdate { get; set; } // name, status, statusDesc, imageUrl
+    public Action<Dictionary<string, string>>? OnTrayThemeUpdate { get; set; }
 #endif
 
     public CoreLibrary(

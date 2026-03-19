@@ -1,24 +1,22 @@
-2026.11.0 BETA
+**2026.11.1**
 
-Avatar Search
+**Changes & New**
 
-* When right-clicking an avatar, you will now see "Similar Avatars."
-* Clicking it will show similar avatars from the database.
+**System Tray**
+You can now hide VRCNext to the system tray (recommended).
+When you right-click the VRCN system tray icon, you can see your current user status.
+You can quickly switch your status between **Join Me**, **Online**, **Ask Me**, and **Do Not Disturb**.
 
-Fixes
+**Context Menu**
+You can now right-click worlds in the **Popular**, **Active**, and **Recently Visited** tabs on the dashboard.
 
-* Fixed an issue where denying group invites did not work correctly and only hid them instead.
-* Fixed an issue that caused the time spent together counter to break.
-* Fixed an issue that caused the time spent in world counter to break.
-* Fixed an issue that caused the "Meet" count to not be shown in a user profile.
+**GUI Size**
+You can now hold **Ctrl + Scroll Wheel** to change the app's GUI size.
+The selected size is saved and will be applied every time the app starts.
+**CTRL + 0 to reset the size**
 
-Localization
 
-* VRCNext supports English and German.
-* Language files can be found in `wwwroot/i18n/en.json` if you want to add a new language.
-* PRs for translations are welcome.
-
-Additional
-
-* Spanish, Japanese, French, and Chinese are currently DeepL auto-translations and may not be accurate.
-* If one of these is your native language, please verify it and report bugs or open a PR to improve it.
+**Language Settings**
+Added a warning and "Restart VRCNext" button once language has been changed.
+While 90% of the app will change to the new language some UI elements might
+need a restart.
