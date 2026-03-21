@@ -3,8 +3,10 @@ let _notifDismiss = null;
 
 function toggleNotifPanel() {
     notifPanelOpen = !notifPanelOpen;
-    document.getElementById('notifPanel').style.display = notifPanelOpen ? '' : 'none';
+    const panel = document.getElementById('notifPanel');
     if (notifPanelOpen) {
+        panel.style.display = '';
+        requestAnimationFrame(() => panel.classList.add('panel-open'));
         refreshNotifications();
         setTimeout(() => {
             _notifDismiss = e => {
@@ -19,6 +21,8 @@ function toggleNotifPanel() {
         }, 0);
     } else {
         if (_notifDismiss) { document.removeEventListener('click', _notifDismiss); _notifDismiss = null; }
+        panel.classList.remove('panel-open');
+        setTimeout(() => { if (!notifPanelOpen) panel.style.display = 'none'; }, 90);
     }
 }
 
@@ -159,7 +163,7 @@ function renderNotifications(list) {
         return `<div class="notif-item ${n.seen && !canAccept ? 'notif-seen' : ''}" data-notif-id="${nid}">
             ${avatarHtml}
             <div class="notif-body">
-                <div class="notif-title" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">${titleHtml}</div>
+                <div class="notif-title" style="display:flex;align-items:center;gap:5px;flex-wrap:nowrap;">${titleHtml}</div>
                 ${bodyHtml}
                 <div class="notif-time">${time}</div>
             </div>

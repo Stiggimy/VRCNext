@@ -63,9 +63,10 @@ function toggleChatPanel() {
     const panel = document.getElementById('chatPanel');
     if (!panel) return;
 
-    const isOpen = panel.style.display !== 'none';
+    const isOpen = panel.classList.contains('panel-open');
     if (isOpen) {
-        panel.style.display = 'none';
+        panel.classList.remove('panel-open');
+        setTimeout(() => { if (!panel.classList.contains('panel-open')) panel.style.display = 'none'; }, 90);
         if (_chatPanelDismiss) {
             document.removeEventListener('click', _chatPanelDismiss);
             _chatPanelDismiss = null;
@@ -75,6 +76,7 @@ function toggleChatPanel() {
 
     panel.style.display = '';
     renderChatPanel();
+    requestAnimationFrame(() => panel.classList.add('panel-open'));
     setTimeout(() => {
         _chatPanelDismiss = e => {
             const btn = document.getElementById('btnChat');

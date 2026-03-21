@@ -44,6 +44,17 @@ public class VROverlayController : IDisposable
                     _core.SendToJS("log", new { msg = ok ? "Self-invite sent — check VRChat notifications!" : "Failed to send self-invite.", color = ok ? "ok" : "err" });
                 });
                 _vrOverlay.OnToastSound += () => Invoke(() => _core.SendToJS("vroPlayToastSound", new { }));
+                _vrOverlay.OnVRQuit += () =>
+                {
+                    var overlay = _vrOverlay;
+                    _vrOverlay = null;
+                    overlay?.Dispose();
+                    Invoke(() =>
+                    {
+                        _core.SendToJS("vroState", new { connected = false });
+                        UpdateToolStates();
+                    });
+                };
                 _vrOverlay.OnNotifAccept += (notifId, notifType, senderId, notifData) => Invoke(async () =>
                 {
                     bool ok = false;

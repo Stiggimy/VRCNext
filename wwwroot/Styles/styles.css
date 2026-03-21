@@ -3890,6 +3890,7 @@ html.cursor-custom * { cursor: var(--cursor-url, auto) !important; }
     top: 50px;
     right: 16px;
     width: 420px;
+    max-width: calc(100vw - 32px);
     max-height: 420px;
     background: var(--bg-card);
     border: 1px solid var(--border);
@@ -3899,6 +3900,15 @@ html.cursor-custom * { cursor: var(--cursor-url, auto) !important; }
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    opacity: 0;
+    transform: translateY(-6px) scale(.985);
+    transition: opacity .085s ease, transform .085s ease;
+    pointer-events: none;
+}
+.notif-panel.panel-open {
+    opacity: 1;
+    transform: none;
+    pointer-events: auto;
 }
 
 .notif-panel-header {
@@ -3917,11 +3927,13 @@ html.cursor-custom * { cursor: var(--cursor-url, auto) !important; }
 
 .notif-item {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     gap: 10px;
     padding: 10px 14px;
     border-bottom: 1px solid var(--border);
     transition: background .1s;
+    min-height: 54px;
+    box-sizing: border-box;
 }
 
 .notif-item:hover {
@@ -3967,6 +3979,15 @@ html.cursor-custom * { cursor: var(--cursor-url, auto) !important; }
     font-size: 11px;
     color: var(--tx3);
     margin-top: 1px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+/* Keep notif-title clipped so all items share the same height */
+.notif-item .notif-title {
+    overflow: hidden;
+    white-space: nowrap;
+    flex-wrap: nowrap;
 }
 
 .notif-time {
@@ -6928,9 +6949,9 @@ div.vn-select {
     flex-shrink: 0;
 }
 .chat-inbox-row  { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
-.chat-inbox-name { font-size: 13px; font-weight: 600; color: var(--tx1); }
+.chat-inbox-name { font-size: 13px; font-weight: 600; color: var(--tx1); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; min-width: 0; }
 .chat-inbox-time { font-size: 10px; color: var(--tx3); flex-shrink: 0; }
-.chat-inbox-text { font-size: 12px; color: var(--tx3); margin-top: 2px; }
+.chat-inbox-text { font-size: 12px; color: var(--tx3); margin-top: 2px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .chat-inbox-count {
     background: var(--accent);
     color: #fff;

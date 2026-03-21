@@ -44,6 +44,8 @@ namespace VRCNext.Services
         private uint _rightIdx = OpenVR.k_unTrackedDeviceIndexInvalid;
         private readonly TrackedDevicePose_t[] _rawPoses = new TrackedDevicePose_t[OpenVR.k_unMaxTrackedDeviceCount];
 
+        public event Action? OnVRQuit;
+
         private bool _loggedRightPress;
         private bool _loggedLeftPress;
         private ulong _overlayHandle;
@@ -274,7 +276,16 @@ namespace VRCNext.Services
             if (_vrSystem == null) return;
 
             var evt = new VREvent_t();
-            while (_vrSystem.PollNextEvent(ref evt, (uint)Marshal.SizeOf<VREvent_t>())) { }
+            while (_vrSystem.PollNextEvent(ref evt, (uint)Marshal.SizeOf<VREvent_t>()))
+            {
+                if ((EVREventType)evt.eventType == EVREventType.VREvent_Quit)
+                {
+                    try { _vrSystem.AcknowledgeQuit_Exiting(); } catch { }
+                    _cts?.Cancel();
+                    OnVRQuit?.Invoke();
+                    return;
+                }
+            }
 
             _vrSystem.GetDeviceToAbsoluteTrackingPose(ETrackingUniverseOrigin.TrackingUniverseRawAndUncalibrated, 0, _rawPoses);
             UpdateControllerIndices();

@@ -556,6 +556,17 @@ public class NotificationsController
 
         list = list.OrderByDescending(n => (string)n.created_at).ToList();
 
+        // Seed in-memory cache from persisted timeline (survives restarts, safe with duplicates)
+        lock (_notifImageCache)
+        {
+            foreach (var e in _core.Timeline.GetEvents())
+            {
+                if (e.Type == "notification" && !string.IsNullOrEmpty(e.NotifId)
+                    && !string.IsNullOrEmpty(e.SenderImage))
+                    _notifImageCache.TryAdd(e.NotifId, e.SenderImage);
+            }
+        }
+
         // Build enriched list for JS — check image cache first, then friend store
         var enrichedList = new JArray();
         foreach (var n in list)
@@ -564,7 +575,7 @@ public class NotificationsController
             var nid = (string?)n.id ?? "";
             var sid = (string?)n.senderUserId;
             string img = "";
-            // Cache populated by async fetches from prior loads (user images + group icons)
+            // Cache (in-memory + seeded from timeline DB above)
             lock (_notifImageCache)
             {
                 if (!string.IsNullOrEmpty(nid) && _notifImageCache.TryGetValue(nid, out var cached))

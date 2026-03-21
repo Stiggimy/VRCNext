@@ -191,6 +191,7 @@ namespace VRCNext.Services
 
         // Callback to trigger sound playback on JS side
         public event Action? OnToastSound;
+        public event Action? OnVRQuit;
 
         public void SetToolStates(bool discord, bool voiceFight, bool ytFix, bool spaceFlight, bool relay, bool chatbox)
         {
@@ -1253,7 +1254,14 @@ namespace VRCNext.Services
             while (_vrSystem.PollNextEvent(ref evt, evtSize))
             {
                 var eType = (EVREventType)evt.eventType;
-                if (eType == EVREventType.VREvent_ButtonPress)
+                if (eType == EVREventType.VREvent_Quit)
+                {
+                    try { _vrSystem.AcknowledgeQuit_Exiting(); } catch { }
+                    _cts?.Cancel();
+                    OnVRQuit?.Invoke();
+                    return;
+                }
+                else if (eType == EVREventType.VREvent_ButtonPress)
                 {
                     ulong bit = 1UL << (int)evt.data.controller.button;
                     _eventButtonsHeld |= bit;

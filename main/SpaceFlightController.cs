@@ -35,6 +35,17 @@ public class SpaceFlightController : IDisposable
                     _steamVR.SetUpdateCallback(data => {
                         try { Invoke(() => _core.SendToJS("sfUpdate", data)); } catch { }
                     });
+                    _steamVR.OnVRQuit += () =>
+                    {
+                        _steamVR?.Disconnect();
+                        _steamVR = null;
+                        Invoke(() =>
+                        {
+                            _core.SendToJS("sfUpdate", new { connected = false, dragging = false, offsetX = 0, offsetY = 0, offsetZ = 0,
+                                leftController = false, rightController = false, error = (string?)null });
+                            _vroCtrl.UpdateToolStates();
+                        });
+                    };
                     if (_steamVR.Connect())
                     {
                         _steamVR.ApplyConfig(_core.Settings.SfMultiplier, _core.Settings.SfLockX, _core.Settings.SfLockY, _core.Settings.SfLockZ,
