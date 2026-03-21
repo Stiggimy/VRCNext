@@ -506,6 +506,8 @@ function renderWorldSearchDetail(w) {
             <span class="vrcn-badge"><span class="msi" style="font-size:11px;">person</span> ${w.occupants} ${t('worlds.meta.active', 'Active')}</span>
             <span class="vrcn-badge"><span class="msi" style="font-size:11px;">star</span> ${w.favorites}</span>
             <span class="vrcn-badge"><span class="msi" style="font-size:11px;">visibility</span> ${w.visits}</span>
+            ${w.pcSize > 0 ? `<span class="vrcn-badge"><span class="msi" style="font-size:11px;">computer</span> ${formatFileSize(w.pcSize)}</span>` : ''}
+            ${w.androidSize > 0 ? `<span class="vrcn-badge"><span class="msi" style="font-size:11px;">android</span> ${formatFileSize(w.androidSize)}</span>` : ''}
         </div>
         <div style="margin:10px 0 6px;">
             <button class="vrcn-button-round${isFavWorld ? ' active' : ''}" id="wdFavBtn" onclick="toggleWorldFavPicker('${wid}')" style="margin-left:auto;">${favBtnLabel}</button>
@@ -521,6 +523,8 @@ function renderWorldSearchDetail(w) {
         <div class="fd-meta" style="margin-bottom:14px;">
             ${w.recommendedCapacity ? `<div class="fd-meta-row"><span class="fd-meta-label">${t('worlds.meta.recommended', 'Recommended')}</span><span>${getWorldPlayersLabel(w.recommendedCapacity)}</span></div>` : ''}
             <div class="fd-meta-row"><span class="fd-meta-label">${t('worlds.meta.max_capacity', 'Max Capacity')}</span><span>${getWorldPlayersLabel(w.capacity)}</span></div>
+            ${w.createdAt ? `<div class="fd-meta-row"><span class="fd-meta-label">${t('worlds.meta.published', 'Published')}</span><span>${esc(w.createdAt)}</span></div>` : ''}
+            ${w.updatedAt ? `<div class="fd-meta-row"><span class="fd-meta-label">${t('worlds.meta.updated', 'Updated')}</span><span>${esc(w.updatedAt)}</span></div>` : ''}
         </div>
         ${instancesHtml}
         ${createHtml}

@@ -858,10 +858,13 @@ function renderFriendDetail(d) {
     if (d.dateJoined) metaHtml += `<div class="fd-meta-row"><span class="fd-meta-label">${t('profiles.meta.joined', 'Joined')}</span><span>${esc(d.dateJoined)}</span></div>`;
     const lastSeenStr = formatLastSeen(d.lastLogin, d.lastSeenTracked);
     if (lastSeenStr) metaHtml += `<div class="fd-meta-row"><span class="fd-meta-label">${t('profiles.meta.last_seen', 'Last Seen')}</span><span>${esc(lastSeenStr)}</span></div>`;
-    if (d.totalTimeSeconds > 0 || d.inSameInstance) {
-        metaHtml += `<div class="fd-meta-row"><span class="fd-meta-label">${t('profiles.meta.time_together', 'Time Together')}</span><span id="fdTimeTogether">${formatDuration(d.totalTimeSeconds)}</span></div>`;
-    } else {
-        metaHtml += `<div class="fd-meta-row"><span class="fd-meta-label">${t('profiles.meta.time_together', 'Time Together')}</span><span style="color:var(--tx3)">${t('profiles.meta.not_tracked', 'Not tracked yet')}</span></div>`;
+    const isSelf = currentVrcUser && d.id === currentVrcUser.id;
+    if (!isSelf) {
+        if (d.totalTimeSeconds > 0 || d.inSameInstance) {
+            metaHtml += `<div class="fd-meta-row"><span class="fd-meta-label">${t('profiles.meta.time_together', 'Time Together')}</span><span id="fdTimeTogether">${formatDuration(d.totalTimeSeconds)}</span></div>`;
+        } else {
+            metaHtml += `<div class="fd-meta-row"><span class="fd-meta-label">${t('profiles.meta.time_together', 'Time Together')}</span><span style="color:var(--tx3)">${t('profiles.meta.not_tracked', 'Not tracked yet')}</span></div>`;
+        }
     }
     const fdMeetCnt = d.meets || 0;
     if (fdMeetCnt > 0) {
@@ -1087,9 +1090,9 @@ function renderFriendDetail(d) {
     // Pre-fetch avatars for Content tab count
     if (userId) sendToCS({ action: 'vrcGetUserAvatars', userId: userId });
 
-    // Live ticker - only when friend is confirmed in same instance
+    // Live ticker - only when friend is confirmed in same instance (never for own profile)
     if (_fdLiveTimer) { clearInterval(_fdLiveTimer); _fdLiveTimer = null; }
-    if (d.inSameInstance) {
+    if (d.inSameInstance && !(currentVrcUser && d.id === currentVrcUser.id)) {
         let liveSecs = d.totalTimeSeconds;
         _fdLiveTimer = setInterval(() => {
             liveSecs++;

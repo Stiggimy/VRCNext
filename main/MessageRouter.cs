@@ -678,6 +678,55 @@ public partial class AppShell
                             }).ToList<object>();
                             var tags = world["tags"]?.ToObject<List<string>>() ?? new();
                             var (wTimeSeconds, wVisitCount, wLastVisited) = _timeEngine.GetWorldStats(world["id"]?.ToString() ?? "");
+
+                            // Extract PC and Android download sizes via /file/{fileId} API.
+                            // assetUrl pattern: .../file/{fileId}/{version}/file
+                            static (string fileId, int version) ParseAssetUrl(string url)
+                            {
+                                var m = System.Text.RegularExpressions.Regex.Match(url, @"/file/(file_[^/]+)/(\d+)/");
+                                return m.Success ? (m.Groups[1].Value, int.Parse(m.Groups[2].Value)) : ("", 0);
+                            }
+                            static long ExtractSizeFromFile(JObject? fileObj, int version)
+                            {
+                                if (fileObj == null) return 0;
+                                var versions = fileObj["versions"] as JArray;
+                                if (versions == null) return 0;
+                                foreach (var v in versions)
+                                {
+                                    if (v["version"]?.Value<int>() == version)
+                                        return v["file"]?["sizeInBytes"]?.Value<long>() ?? 0;
+                                }
+                                return 0;
+                            }
+
+                            string pcAssetUrl = "", androidAssetUrl = "";
+                            var unityPkgs = world["unityPackages"] as JArray ?? new JArray();
+                            foreach (var pkg in unityPkgs)
+                            {
+                                var platform = pkg["platform"]?.ToString() ?? "";
+                                var url = pkg["assetUrl"]?.ToString() ?? "";
+                                if (string.IsNullOrEmpty(url)) continue;
+                                if (platform == "standalonewindows" && string.IsNullOrEmpty(pcAssetUrl)) pcAssetUrl = url;
+                                else if (platform == "android" && string.IsNullOrEmpty(androidAssetUrl)) androidAssetUrl = url;
+                            }
+
+                            var (pcFileId, pcVer) = ParseAssetUrl(pcAssetUrl);
+                            var (andFileId, andVer) = ParseAssetUrl(androidAssetUrl);
+
+                            JObject? pcFileObj = null, andFileObj = null;
+                            var fileTasks = new List<Task>();
+                            if (!string.IsNullOrEmpty(pcFileId))
+                                fileTasks.Add(Task.Run(async () => pcFileObj = await _vrcApi.GetFileAsync(pcFileId)));
+                            if (!string.IsNullOrEmpty(andFileId) && andFileId != pcFileId)
+                                fileTasks.Add(Task.Run(async () => andFileObj = await _vrcApi.GetFileAsync(andFileId)));
+                            else if (andFileId == pcFileId)
+                                fileTasks.Add(Task.Run(() => { andFileObj = pcFileObj; return Task.CompletedTask; }));
+                            if (fileTasks.Count > 0) await Task.WhenAll(fileTasks);
+
+                            long pcSize = ExtractSizeFromFile(pcFileObj, pcVer);
+                            long androidSize = ExtractSizeFromFile(andFileObj, andVer);
+                            static string ToIso(JToken? t) =>
+                                t?.ToObject<DateTime?>()?.ToUniversalTime().ToString("yyyy-MM-dd") ?? "";
                             Invoke(() => SendToJS("vrcWorldDetail", new
                             {
                                 id = world["id"]?.ToString() ?? "",
@@ -694,6 +743,10 @@ public partial class AppShell
                                 recommendedCapacity = world["recommendedCapacity"]?.Value<int>() ?? 0,
                                 favorites = world["favorites"]?.Value<int>() ?? 0,
                                 visits = world["visits"]?.Value<int>() ?? 0,
+                                createdAt = ToIso(world["created_at"]),
+                                updatedAt = ToIso(world["updated_at"]),
+                                pcSize,
+                                androidSize,
                                 tags,
                                 instances,
                                 worldTimeSeconds = wTimeSeconds,

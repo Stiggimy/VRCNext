@@ -578,6 +578,8 @@ public class UnifiedTimeEngine : IDisposable
     private bool _vrcWasRunning; // tracks previous VRC state for edge detection
     private Process? _monitoredVrcProcess; // Process.Exited event → near-instant VRC close detection
     private DateTime _lastVrcAliveUtc; // last time we confirmed VRC was running → precise end timestamp
+    private DateTime _lastFlushUtc = DateTime.MinValue; // last 30s flush timestamp
+    private Action<string>? _logger; // log callback → sends to UI log panel
 
     private static readonly string UserLegacyPath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
@@ -590,11 +592,12 @@ public class UnifiedTimeEngine : IDisposable
 
     // ── Factory ──
 
-    public static UnifiedTimeEngine Load(Func<bool>? isVrcRunning = null)
+    public static UnifiedTimeEngine Load(Func<bool>? isVrcRunning = null, Action<string>? logger = null)
     {
         var conn = Database.OpenConnection();
         var engine = new UnifiedTimeEngine(conn);
         engine._isVrcRunning = isVrcRunning;
+        engine._logger = logger;
         engine.InitSchema();
         engine.MigrateUsersFromJson();
         engine.MigrateWorldsFromJson();
@@ -929,24 +932,25 @@ public class UnifiedTimeEngine : IDisposable
                     return;
                 }
 
-                // Validation 3: Only restore players confirmed present by LogWatcher right now
+                // Validation 3: Only restore players confirmed present by LogWatcher right now.
+                // Session start is set to NOW — TotalSeconds already contains all time up to the
+                // last 30s flush. We only need to track from this restart forward to avoid double-counting.
                 foreach (var (userId, startStr) in savedSessions)
                 {
                     if (!currentPlayerIds.Contains(userId)) continue;
+                    // Validate the stored timestamp is parseable and not stale (sanity check only)
                     if (!DateTime.TryParse(startStr, null,
                         System.Globalization.DateTimeStyles.RoundtripKind, out var sessionStart))
                         continue;
-
-                    // Validation 4: Sanity cap — session older than 24h is stale
                     var age = (now - sessionStart).TotalSeconds;
                     if (age < 0 || age > 86400) continue;
 
-                    _playerSessions[userId] = sessionStart; // ORIGINAL timestamp → 0s loss
+                    _playerSessions[userId] = now; // start from NOW — DB already has flushed time
                     if (!Users.ContainsKey(userId))
                         Users[userId] = new UserRecord();
                 }
 
-                // Restore world session
+                // Restore world session — also start from NOW for the same reason
                 if (DateTime.TryParse(worldStartStr, null,
                     System.Globalization.DateTimeStyles.RoundtripKind, out var wStart))
                 {
@@ -959,7 +963,7 @@ public class UnifiedTimeEngine : IDisposable
                         {
                             _currentWorldId = worldId;
                             _currentLocation = currentLocation;
-                            _worldSessionStart = wStart; // ORIGINAL timestamp → 0s loss
+                            _worldSessionStart = now; // start from NOW — DB already has flushed time
                         }
                     }
                 }
@@ -1083,9 +1087,17 @@ public class UnifiedTimeEngine : IDisposable
 
             _vrcWasRunning = vrcRunning;
 
-            // If VRC is running and sessions are active, re-persist active_session for crash safety.
+            // Every 30 seconds: flush accumulated time into TotalSeconds in the DB.
+            // This guarantees max 30s data loss on any crash, hard kill, or power failure.
+            // After flush, session starts are reset to now so the next flush starts clean.
             if (vrcRunning && (_playerSessions.Count > 0 || _worldSessionStart.HasValue))
             {
+                var now = DateTime.UtcNow;
+                if ((now - _lastFlushUtc).TotalSeconds >= 30)
+                {
+                    FlushSessionsToDbLocked(now);
+                    _lastFlushUtc = now;
+                }
                 PersistActiveSessionLocked();
             }
         }
@@ -1122,6 +1134,62 @@ public class UnifiedTimeEngine : IDisposable
             }
         }
         catch { }
+    }
+
+    /// <summary>
+    /// Flushes elapsed session time into TotalSeconds in the DB, then resets session starts to now.
+    /// Called every 30 seconds. Guarantees max 30s data loss on crash/power failure.
+    /// </summary>
+    private void FlushSessionsToDbLocked(DateTime now)
+    {
+        // Flush player sessions
+        var userIds = _playerSessions.Keys.ToList();
+        foreach (var userId in userIds)
+        {
+            var delta = (long)(now - _playerSessions[userId]).TotalSeconds;
+            if (delta <= 0 || delta > 86400) continue;
+            if (Users.TryGetValue(userId, out var rec))
+            {
+                rec.TotalSeconds += delta;
+                rec.LastSeen = now.ToString("o");
+                _logger?.Invoke($"[TIMER] Spend Time saved: {rec.DisplayName} +{delta}s — overall time: {FormatDuration(rec.TotalSeconds)}");
+            }
+            _playerSessions[userId] = now;
+        }
+        if (userIds.Count > 0)
+            PersistAllUsersLocked(userIds, now);
+
+        // Flush world session
+        if (_worldSessionStart.HasValue && !string.IsNullOrEmpty(_currentWorldId) && _currentWorldId.StartsWith("wrld_"))
+        {
+            var delta = (long)(now - _worldSessionStart.Value).TotalSeconds;
+            if (delta > 0 && delta <= 86400)
+            {
+                if (!Worlds.TryGetValue(_currentWorldId, out var rec))
+                {
+                    rec = new WorldRecord();
+                    Worlds[_currentWorldId] = rec;
+                }
+                rec.TotalSeconds += delta;
+                rec.LastVisited = now.ToString("o");
+                UpsertWorldLocked(_currentWorldId, rec);
+                var wName = rec.WorldName.Length > 0 ? rec.WorldName : _currentWorldId;
+                _logger?.Invoke($"[TIMER] World Time saved: +{delta}s — overall time in \"{wName}\": {FormatDuration(rec.TotalSeconds)}");
+            }
+            _worldSessionStart = now;
+        }
+    }
+
+    private static string FormatDuration(long totalSeconds)
+    {
+        var d = totalSeconds / 86400;
+        var h = (totalSeconds % 86400) / 3600;
+        var m = (totalSeconds % 3600) / 60;
+        var s = totalSeconds % 60;
+        if (d > 0) return $"{d}d {h}h {m}m {s}s";
+        if (h > 0) return $"{h}h {m}m {s}s";
+        if (m > 0) return $"{m}m {s}s";
+        return $"{s}s";
     }
 
     /// <summary>

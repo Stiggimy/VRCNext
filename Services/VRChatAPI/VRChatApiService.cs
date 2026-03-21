@@ -2261,6 +2261,19 @@ public class VRChatApiService
     }
 
     // delete a file (gallery/icon/emoji/sticker)
+    public async Task<JObject?> GetFileAsync(string fileId)
+    {
+        if (!IsLoggedIn || string.IsNullOrEmpty(fileId)) return null;
+        try
+        {
+            var resp = await _http.GetAsync($"{BASE}/file/{fileId}");
+            if (!resp.IsSuccessStatusCode) return null;
+            var body = await resp.Content.ReadAsStringAsync();
+            return JObject.Parse(body);
+        }
+        catch { return null; }
+    }
+
     public async Task<bool> DeleteInventoryFileAsync(string fileId)
     {
         if (!IsLoggedIn) return false;

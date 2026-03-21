@@ -85,7 +85,9 @@ public partial class AppShell
         _settings = AppSettings.Load();
         MigrationHelper.MigrateFavorites(_settings); // silently moves Favorites → favorited_images.json
         if (_settings.MemoryTrimEnabled) _memTrim.SetEnabled(true);
-        _timeEngine = UnifiedTimeEngine.Load(() => _core?.IsVrcRunning?.Invoke() ?? false);
+        _timeEngine = UnifiedTimeEngine.Load(
+            () => _core?.IsVrcRunning?.Invoke() ?? false,
+            msg => _core?.SendToJS("log", new { msg, color = "sec" }));
         _photoPlayersStore = PhotoPlayersStore.Load();
         _timeline = TimelineService.Load();
         _minimized = args.Contains("--minimized");
