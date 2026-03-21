@@ -29,18 +29,26 @@ let rsidebarCollapsed = localStorage.getItem('vrcnext_rsidebar') === '1';
 })();
 // GUI zoom — Ctrl+Wheel persisted to settings
 let _zoomSaveTimer = null;
+let _guiZoom = 1;
+function applyGuiZoom(z) {
+    _guiZoom = z;
+    const inv = 100 / z;
+    document.body.style.transform = `scale(${z})`;
+    document.body.style.transformOrigin = 'top left';
+    document.body.style.width = `${inv}vw`;
+    document.body.style.height = `${inv}vh`;
+}
 document.addEventListener('wheel', e => {
     if (!e.ctrlKey) return;
     e.preventDefault();
-    let z = parseFloat(document.documentElement.style.zoom) || 1;
-    z = Math.min(2, Math.max(0.5, z + (e.deltaY < 0 ? 0.05 : -0.05)));
-    document.documentElement.style.zoom = z;
+    const z = Math.min(2, Math.max(0.5, _guiZoom + (e.deltaY < 0 ? 0.05 : -0.05)));
+    applyGuiZoom(z);
     clearTimeout(_zoomSaveTimer);
     _zoomSaveTimer = setTimeout(() => { try { autoSave(); } catch {} }, 800);
 }, { passive: false });
 // Ctrl+0 resets zoom
 document.addEventListener('keydown', e => {
-    if (e.ctrlKey && e.key === '0') { e.preventDefault(); document.documentElement.style.zoom = 1; try { autoSave(); } catch {} }
+    if (e.ctrlKey && e.key === '0') { e.preventDefault(); applyGuiZoom(1); try { autoSave(); } catch {} }
 });
 
 let dashBgPath = '', dashBgDataUri = '', dashOpacity = 40;

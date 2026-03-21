@@ -35,6 +35,7 @@ window.external.receiveMessage(rawMsg => {
                 break;
             }
             case 'relayState': setRelayState(payload.running, payload.streams); break;
+            case 'imgCacheSize': updateImgCacheSizeBar(payload.bytes); break;
             case 'log': addLog(payload.msg, payload.color); break;
             case 'toast': showToast(payload.ok, payload.msg); break;
             case 'wsStatus': {

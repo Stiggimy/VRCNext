@@ -265,7 +265,7 @@ function vfStopSound() {
 function vfOnRecognized(text, isPartial) {
     const el = document.getElementById('vfRecognizedText');
     if (!el) return;
-    el.textContent = text || '-';
+    el.innerHTML = text || '-';
     el.classList.toggle('vf-recognized-partial', !!isPartial);
     el.classList.toggle('vf-recognized-final', !isPartial);
     if (!isPartial) {
@@ -274,7 +274,7 @@ function vfOnRecognized(text, isPartial) {
             const target = document.getElementById('vfRecognizedText');
             if (target) {
                 target.classList.remove('vf-recognized-final');
-                target.textContent = '-';
+                target.innerHTML = '-';
             }
         }, 3000);
     }

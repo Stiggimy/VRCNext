@@ -35,7 +35,17 @@
     /* Main listener */
     document.addEventListener('contextmenu', e => {
         hideMenu();
-        const cfg = getMenuConfig(e);
+        const sel = (typeof _textToolsEnabled !== 'undefined' && _textToolsEnabled)
+            ? (window.getSelection()?.toString().trim() ?? '')
+            : '';
+        const copyItem = sel
+            ? { icon: 'content_copy', label: 'Copy', action: () => navigator.clipboard.writeText(sel).catch(() => {}) }
+            : null;
+
+        let cfg = getMenuConfig(e);
+        if (copyItem && cfg) cfg = [copyItem, 'sep', ...cfg];
+        else if (copyItem && !cfg) cfg = [copyItem];
+
         if (!cfg) return;
         e.preventDefault();
         showMenu(e.clientX, e.clientY, cfg);

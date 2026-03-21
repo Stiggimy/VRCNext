@@ -507,18 +507,20 @@ public sealed class VoiceFightService : IDisposable
         return string.Join(' ', buf.ToString().Split(' ', StringSplitOptions.RemoveEmptyEntries));
     }
 
+    private static string HtmlEncode(string s) =>
+        s.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;").Replace("\"", "&quot;");
+
     private string BuildDisplayHtml(string text, HashSet<string> blockList)
     {
-        if (blockList.Count == 0) return text;
         var words = text.Split(' ');
         var sb = new System.Text.StringBuilder();
         foreach (var word in words)
         {
             if (sb.Length > 0) sb.Append(' ');
-            if (word.Length > 0 && blockList.Contains(NormalizeWord(word)))
-                sb.Append("<span class=\"vf-blocked\">").Append(word).Append("</span>");
+            if (word.Length > 0 && blockList.Count > 0 && blockList.Contains(NormalizeWord(word)))
+                sb.Append("<span class=\"vf-blocked\">").Append(HtmlEncode(word)).Append("</span>");
             else
-                sb.Append(word);
+                sb.Append(HtmlEncode(word));
         }
         return sb.ToString();
     }

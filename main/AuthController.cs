@@ -131,6 +131,16 @@ public class AuthController
                 {
                     _core.ImgCache?.ClearAll();
                     Invoke(() => _core.SendToJS("log", new { msg = "\ud83d\uddd1 Image cache cleared.", color = "sec" }));
+                    var bytesAfterClear = _core.ImgCache?.GetCacheSizeBytes() ?? 0;
+                    Invoke(() => _core.SendToJS("imgCacheSize", new { bytes = bytesAfterClear }));
+                });
+                break;
+
+            case "getImgCacheSize":
+                _ = Task.Run(() =>
+                {
+                    var bytes = _core.ImgCache?.GetCacheSizeBytes() ?? 0;
+                    Invoke(() => _core.SendToJS("imgCacheSize", new { bytes }));
                 });
                 break;
 

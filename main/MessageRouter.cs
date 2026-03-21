@@ -189,6 +189,7 @@ public partial class AppShell
                 case "forceTrim":
                 case "resetSetup":
                 case "clearImgCache":
+                case "getImgCacheSize":
                 case "clearFfcCache":
                 case "forceFfcAll":
                 case "setupSaveStartWithWindows":

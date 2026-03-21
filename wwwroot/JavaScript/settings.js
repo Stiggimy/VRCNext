@@ -120,7 +120,7 @@ function saveSettings() {
             autoColorAccuracy: autoColorAccuracy,
             playBtnTheme: currentPlayBtnTheme,
             cursorTheme: currentCursorTheme,
-            guiZoom: Math.round((parseFloat(document.documentElement.style.zoom) || 1) * 100),
+            guiZoom: Math.round(_guiZoom * 100),
             dashBgPath: dashBgPath,
             dashOpacity: parseInt(document.getElementById('setDashOpacity').value) || 40,
             randomDashBg: document.getElementById('setRandomBg').checked,
@@ -272,7 +272,7 @@ function loadSettingsToUI(s) {
     if (_sovEl) _sovEl.checked = settings.steamOverlaySoundEnabled;
     // Restore GUI zoom level
     const savedZoom = s.GuiZoom ?? s.guiZoom ?? 100;
-    if (savedZoom !== 100) document.documentElement.style.zoom = savedZoom / 100;
+    applyGuiZoom(savedZoom / 100);
 
     dashBgPath = s.DashBgPath || s.dashBgPath || '';
     dashOpacity = s.DashOpacity || s.dashOpacity || 40;
@@ -434,6 +434,29 @@ function loadSettingsToUI(s) {
 function updateImgCacheUi() {
     const enabled = document.getElementById('setImgCacheEnabled').checked;
     document.getElementById('imgCacheLimitRow').style.display = enabled ? '' : 'none';
+    if (enabled) sendToCS({ action: 'getImgCacheSize' });
+}
+
+function updateImgCacheSizeBar(bytes) {
+    const el = document.getElementById('imgCacheSizeBar');
+    const label = document.getElementById('imgCacheSizeLabel');
+    if (!el || !label) return;
+    const limitGb = parseInt(document.getElementById('setImgCacheLimit').value) || 5;
+    const limitBytes = limitGb * 1024 * 1024 * 1024;
+    const pct = Math.min(100, (bytes / limitBytes) * 100);
+    el.style.width = pct + '%';
+    const mb = bytes / (1024 * 1024);
+    label.textContent = mb >= 1024
+        ? (mb / 1024).toFixed(2) + ' GB used'
+        : mb.toFixed(1) + ' MB used';
+}
+
+// ── Text Tools (Debugging) ─────────────────────────────────────────────────
+let _textToolsEnabled = false;
+
+function toggleTextTools(enabled) {
+    _textToolsEnabled = enabled;
+    document.documentElement.classList.toggle('text-tools-active', enabled);
 }
 
 // â”€â”€ VRCX Import â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

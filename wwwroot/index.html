@@ -540,6 +540,10 @@
                             <label class="toggle"><input type="checkbox" id="setMemoryTrimEnabled" onchange="autoSave()"><div class="toggle-track"><div class="toggle-knob"></div></div></label>
                         </div>
                         <button class="vrcn-button" style="margin-top:10px;" onclick="sendToCS({action:'forceTrim'})"><span class="msi" style="font-size:16px;">memory</span> <span data-i18n="settings.debug.force_memory_trim">Force Memory Trim</span></button>
+                        <div class="sf-toggle-row" style="margin-top:14px;">
+                            <span>Enable Text Tools</span>
+                            <label class="toggle"><input type="checkbox" id="setTextToolsEnabled" onchange="toggleTextTools(this.checked)"><div class="toggle-track"><div class="toggle-knob"></div></div></label>
+                        </div>
                         <div id="ffcProgressWrap" style="display:none;margin-top:12px;">
                             <div style="font-size:12px;color:var(--tx2);margin-bottom:6px;" id="ffcProgressLabel" data-i18n="settings.debug.ffc_progress.caching">Caching...</div>
                             <div style="background:var(--brd);border-radius:4px;height:6px;overflow:hidden;">
@@ -559,8 +563,14 @@
                         <div id="imgCacheLimitRow" style="margin-top:12px;">
                             <div class="sf-row">
                                 <label style="font-size:12px;color:var(--tx2);flex-shrink:0;margin-right:10px;" data-i18n="settings.image_cache.max_size">Max Cache Size</label>
-                                <input type="range" id="setImgCacheLimit" min="5" max="30" step="1" value="5" style="flex:1;accent-color:var(--accent);" oninput="document.getElementById('imgCacheLimitVal').textContent=this.value+' GB';autoSave()">
+                                <input type="range" id="setImgCacheLimit" min="5" max="30" step="1" value="5" style="flex:1;accent-color:var(--accent);" oninput="document.getElementById('imgCacheLimitVal').textContent=this.value+' GB';sendToCS({action:'getImgCacheSize'});autoSave()">
                                 <span id="imgCacheLimitVal" style="font-size:12px;color:var(--tx2);margin-left:10px;min-width:44px;text-align:right;">5 GB</span>
+                            </div>
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
+                                <span id="imgCacheSizeLabel" style="font-size:11px;color:var(--tx3);">— MB used</span>
+                            </div>
+                            <div class="ts-bar-wrap" style="margin-top:4px;">
+                                <div id="imgCacheSizeBar" class="ts-bar" style="width:0%;"></div>
                             </div>
                             <div style="font-size:10px;color:var(--tx3);margin-top:6px;" data-i18n="settings.image_cache.limit_hint">When the limit is reached, the oldest ~2 GB of cached images are removed automatically.</div>
                         </div>

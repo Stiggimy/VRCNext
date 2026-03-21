@@ -177,11 +177,13 @@
     box-sizing: border-box;
 }
 
+html { overflow: hidden; }
 body {
     font-family: 'Segoe UI',system-ui,-apple-system,sans-serif;
     background: var(--bg-base);
     color: var(--tx1);
     display: flex;
+    width: 100vw;
     height: 100vh;
     overflow: hidden;
     user-select: none;
@@ -887,6 +889,8 @@ body.play-btn-accent .vrcn-btn-join:hover {
 }
 /* Custom Cursor */
 html.cursor-custom * { cursor: var(--cursor-url, auto) !important; }
+/* Text Tools mode */
+html.text-tools-active * { user-select: text !important; }
 
 .vrcn-btn-danger { background: rgba(255,75,85,.15) !important; color: var(--err) !important; }
 .vrcn-btn-danger:hover { background: var(--err) !important; color: #fff !important; }
