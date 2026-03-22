@@ -181,9 +181,10 @@ public partial class AppShell
 
         _imgCache = new ImageCacheService(_imgCacheDir, _vrcApi.GetHttpClient())
         {
-            Enabled    = _settings.ImgCacheEnabled,
-            LimitBytes = (long)_settings.ImgCacheLimitGb * 1024 * 1024 * 1024,
-            Port       = _httpPort,
+            Enabled         = _settings.ImgCacheEnabled,
+            OptimizeEnabled = _settings.ImgCacheOptimizeEnabled,
+            LimitBytes      = (long)_settings.ImgCacheLimitGb * 1024 * 1024 * 1024,
+            Port            = _httpPort,
         };
         _core.ImgCache = _imgCache;
         _core.GetVirtualMediaUrl = _photos.GetVirtualMediaUrl;

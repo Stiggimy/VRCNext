@@ -4279,6 +4279,11 @@ html.text-tools-active * { user-select: text !important; }
     letter-spacing: .5px;
     margin-bottom: 8px;
 }
+.wd-instances-label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
 
 .wd-instances-list {
     display: flex;

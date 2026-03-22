@@ -194,8 +194,9 @@ function saveSettings() {
             dpHidePlayersOnline: document.getElementById('dpHidePlayers_online')?.checked ?? false,
             dpHidePlayersAskMe:  document.getElementById('dpHidePlayers_askme')?.checked  ?? false,
             dpHidePlayersBusy:   document.getElementById('dpHidePlayers_busy')?.checked   ?? false,
-            imgCacheEnabled: document.getElementById('setImgCacheEnabled').checked,
-            imgCacheLimitGb: parseInt(document.getElementById('setImgCacheLimit').value) || 5,
+            imgCacheEnabled:         document.getElementById('setImgCacheEnabled').checked,
+            imgCacheLimitGb:         parseInt(document.getElementById('setImgCacheLimit').value) || 5,
+            imgCacheOptimizeEnabled: document.getElementById('setImgCacheOptimizeEnabled').checked,
             ffcEnabled: document.getElementById('setFfcEnabled').checked,
             memoryTrimEnabled: document.getElementById('setMemoryTrimEnabled').checked,
             avtrdbReportDeleted: document.getElementById('setAvtrdbReport').checked,
@@ -223,7 +224,7 @@ function initAutoSave() {
         'setYtAutoStartVR','setYtAutoStartDesktop',
         'setVfAutoStartVR','setVfAutoStartDesktop',
         'setDpAutoStartVR','setDpAutoStartDesktop',
-        'setImgCacheEnabled','setImgCacheLimit','setMemoryTrimEnabled'];
+        'setImgCacheEnabled','setImgCacheLimit','setImgCacheOptimizeEnabled','setMemoryTrimEnabled'];
     ids.forEach(id => {
         const el = document.getElementById(id);
         if (!el) return;
@@ -407,11 +408,13 @@ function loadSettingsToUI(s) {
     // Auto-starts are now triggered by vrcLaunched (see messages.js)
 
     // Image cache settings
-    const imgCacheEnabled = s.ImgCacheEnabled ?? s.imgCacheEnabled ?? true;
-    const imgCacheLimitGb = Math.max(5, Math.min(30, s.ImgCacheLimitGb ?? s.imgCacheLimitGb ?? 5));
+    const imgCacheEnabled         = s.ImgCacheEnabled         ?? s.imgCacheEnabled         ?? true;
+    const imgCacheLimitGb         = Math.max(5, Math.min(30, s.ImgCacheLimitGb ?? s.imgCacheLimitGb ?? 5));
+    const imgCacheOptimizeEnabled = s.ImgCacheOptimizeEnabled ?? s.imgCacheOptimizeEnabled ?? true;
     document.getElementById('setImgCacheEnabled').checked = imgCacheEnabled;
     document.getElementById('setImgCacheLimit').value = imgCacheLimitGb;
     document.getElementById('imgCacheLimitVal').textContent = imgCacheLimitGb + ' GB';
+    document.getElementById('setImgCacheOptimizeEnabled').checked = imgCacheOptimizeEnabled;
     updateImgCacheUi();
 
     // Fast Fetch Cache
@@ -449,6 +452,38 @@ function updateImgCacheSizeBar(bytes) {
     label.textContent = mb >= 1024
         ? (mb / 1024).toFixed(2) + ' GB used'
         : mb.toFixed(1) + ' MB used';
+}
+
+function startForceOptimize() {
+    const btn = document.getElementById('btnForceOptimize');
+    if (btn) btn.disabled = true;
+    sendToCS({ action: 'optimizeImgCache' });
+}
+
+function handleImgCacheOptimizeProgress(data) {
+    const wrap  = document.getElementById('imgOptimizeProgress');
+    const bar   = document.getElementById('imgOptimizeBar');
+    const label = document.getElementById('imgOptimizeLabel');
+    const btn   = document.getElementById('btnForceOptimize');
+    if (!wrap || !bar || !label) return;
+
+    // done = -1 signals completion
+    if (data.done === -1) {
+        wrap.style.display = 'none';
+        bar.style.width = '0%';
+        if (btn) btn.disabled = false;
+        return;
+    }
+
+    wrap.style.display = '';
+    if (data.total > 0) {
+        const pct = Math.round((data.done / data.total) * 100);
+        bar.style.width = pct + '%';
+        label.textContent = `Optimizing… ${data.done} / ${data.total} (${pct}%)`;
+    } else {
+        bar.style.width = '0%';
+        label.textContent = 'Scanning…';
+    }
 }
 
 // ── Text Tools (Debugging) ─────────────────────────────────────────────────

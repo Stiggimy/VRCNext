@@ -16,9 +16,12 @@ public class ImageCacheService
 
     public int Port { get; set; } = 49152;
 
-    public bool Enabled { get; set; } = true;
+    public bool Enabled         { get; set; } = true;
+    public bool OptimizeEnabled { get; set; } = true;
 
     public long LimitBytes { get; set; } = 5L * 1024 * 1024 * 1024;
+
+    private const long OptimizeThresholdBytes = (long)(1.5 * 1024 * 1024); // 1.5 MB
 
     public ImageCacheService(string cacheDir, HttpClient http)
     {
@@ -159,11 +162,13 @@ public class ImageCacheService
         }
     }
 
-    private static void CompressImage(string sourcePath, string destPath)
+    private void CompressImage(string sourcePath, string destPath)
     {
         try
         {
-            var format = DetectFormat(sourcePath);
+            var format     = DetectFormat(sourcePath);
+            var sourceSize = new FileInfo(sourcePath).Length;
+            bool forceJpeg = OptimizeEnabled && sourceSize > OptimizeThresholdBytes;
 
             if (format == SKEncodedImageFormat.Jpeg)
             {
@@ -175,16 +180,18 @@ public class ImageCacheService
             using var bmp = SKBitmap.Decode(sourcePath);
             if (bmp == null) { TryDelete(sourcePath); return; }
 
-            // Keep PNG if image has alpha channel (badges, icons, etc.)
-            bool hasAlpha = bmp.AlphaType != SKAlphaType.Opaque;
-            var targetFormat = hasAlpha ? SKEncodedImageFormat.Png : SKEncodedImageFormat.Jpeg;
+            // Keep PNG only if it has alpha AND optimize threshold not exceeded
+            bool hasAlpha    = bmp.AlphaType != SKAlphaType.Opaque;
+            var  targetFormat = (!forceJpeg && hasAlpha) ? SKEncodedImageFormat.Png : SKEncodedImageFormat.Jpeg;
 
-            // Update dest extension to match actual format
-            if (hasAlpha && destPath.EndsWith(".jpg"))
+            // Adjust dest extension to match actual output format
+            if (targetFormat == SKEncodedImageFormat.Png && destPath.EndsWith(".jpg"))
                 destPath = destPath[..^4] + ".png";
+            else if (targetFormat == SKEncodedImageFormat.Jpeg && destPath.EndsWith(".png"))
+                destPath = destPath[..^4] + ".jpg";
 
             using var img  = SKImage.FromBitmap(bmp);
-            using var data = img.Encode(targetFormat, 90);
+            using var data = img.Encode(targetFormat, 80);
             if (data == null) { TryDelete(sourcePath); return; }
 
             using var fs = File.Create(destPath);
@@ -196,6 +203,53 @@ public class ImageCacheService
         {
             TryDelete(sourcePath);
             TryDelete(destPath);
+        }
+    }
+
+    public async Task OptimizeAllAsync(Action<int, int>? onProgress = null)
+    {
+        if (!Directory.Exists(_dir)) return;
+
+        var pngFiles = new DirectoryInfo(_dir)
+            .GetFiles("*.png", SearchOption.TopDirectoryOnly)
+            .Where(f => f.Length > OptimizeThresholdBytes)
+            .Select(f => f.FullName)
+            .ToList();
+
+        int total = pngFiles.Count;
+        int done  = 0;
+        onProgress?.Invoke(done, total);
+
+        foreach (var pngPath in pngFiles)
+        {
+            var jpgPath = pngPath[..^4] + ".jpg";
+            try
+            {
+                using var bmp = SKBitmap.Decode(pngPath);
+                if (bmp != null)
+                {
+                    using var img  = SKImage.FromBitmap(bmp);
+                    using var data = img.Encode(SKEncodedImageFormat.Jpeg, 80);
+                    if (data != null)
+                    {
+                        using var fs = File.Create(jpgPath);
+                        data.SaveTo(fs);
+
+                        // Update reverse map: old .png key → new .jpg key
+                        var pngName = Path.GetFileName(pngPath);
+                        var jpgName = Path.GetFileName(jpgPath);
+                        if (_reverseMap.TryRemove(pngName, out var url))
+                            _reverseMap[jpgName] = url;
+
+                        TryDelete(pngPath);
+                    }
+                }
+            }
+            catch { }
+
+            done++;
+            onProgress?.Invoke(done, total);
+            await Task.Yield();
         }
     }
 

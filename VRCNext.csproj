@@ -24,6 +24,7 @@
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="Photino.NET" Version="4.0.16" />
     <PackageReference Include="NativeFileDialogSharp" Version="0.5.0" />
+    <PackageReference Include="Rsync.Delta" Version="1.0.1" />
     <PackageReference Include="VRChat.API" Version="2.20.7" />
     <PackageReference Include="System.Drawing.Common" Version="9.0.0" />
     <PackageReference Include="SkiaSharp" Version="2.88.8" />
@@ -55,10 +56,8 @@
 </ItemGroup>
 
   <!-- Embed custom icon into apphost (VRCNext.exe) after each build on Windows -->
-  <Target Name="StampIconIntoAppHost" AfterTargets="Build"
-          Condition="$([MSBuild]::IsOSPlatform('Windows'))">
-    <Exec Command="powershell.exe -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\tools\stamp_icon.ps1&quot; -exe &quot;$(OutputPath)$(AssemblyName).exe&quot; -ico &quot;$(MSBuildProjectDirectory)\logo.ico&quot;"
-          ContinueOnError="true" />
+  <Target Name="StampIconIntoAppHost" AfterTargets="Build" Condition="$([MSBuild]::IsOSPlatform('Windows'))">
+    <Exec Command="powershell.exe -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\tools\stamp_icon.ps1&quot; -exe &quot;$(OutputPath)$(AssemblyName).exe&quot; -ico &quot;$(MSBuildProjectDirectory)\logo.ico&quot;" ContinueOnError="true" />
   </Target>
 
 </Project>

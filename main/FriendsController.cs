@@ -1154,23 +1154,9 @@ public class FriendsController
             }
             else
             {
-                try
-                {
-                    var launchUri = VRChatApiService.BuildLaunchUri(joinLoc);
-                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-                    {
-                        FileName = launchUri, UseShellExecute = true
-                    });
-                    _core.SendToJS("vrcActionResult", new { action = "join", success = true,
-                        message = "Launching VRChat to join world..." });
-                    _core.SendToJS("log", new { msg = "Launched via vrchat:// protocol", color = "ok" });
-                }
-                catch (Exception ex)
-                {
-                    _core.SendToJS("vrcActionResult", new { action = "join", success = false,
-                        message = "Failed to join. Is VRChat running?" });
-                    _core.SendToJS("log", new { msg = $"Launch fallback failed: {ex.Message}", color = "err" });
-                }
+                _core.SendToJS("vrcActionResult", new { action = "join", success = false,
+                    message = "Failed to join. The instance may no longer exist." });
+                _core.SendToJS("log", new { msg = "Self-invite failed — instance may be closed or full.", color = "warn" });
             }
         }
         else

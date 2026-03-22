@@ -136,6 +136,26 @@ public class AuthController
                 });
                 break;
 
+            case "optimizeImgCache":
+                _ = Task.Run(async () =>
+                {
+                    if (_core.ImgCache == null) return;
+                    Invoke(() => _core.SendToJS("log", new { msg = "\ud83d\uddc4 Optimizing image cache\u2026", color = "sec" }));
+                    Invoke(() => _core.SendToJS("imgCacheOptimizeProgress", new { done = 0, total = -1 }));
+                    await _core.ImgCache.OptimizeAllAsync((done, total) =>
+                        Invoke(() => _core.SendToJS("imgCacheOptimizeProgress", new { done, total })));
+                    // Clear in-memory image cache so stale .png URLs get rebuilt as .jpg on next access
+                    _core.PlayerImageCache.Clear();
+                    var bytes = _core.ImgCache.GetCacheSizeBytes();
+                    Invoke(() =>
+                    {
+                        _core.SendToJS("log", new { msg = "\u2705 Image cache optimization complete.", color = "sec" });
+                        _core.SendToJS("imgCacheSize", new { bytes });
+                        _core.SendToJS("imgCacheOptimizeProgress", new { done = -1, total = 0 });
+                    });
+                });
+                break;
+
             case "getImgCacheSize":
                 _ = Task.Run(() =>
                 {
@@ -838,12 +858,14 @@ public class AuthController
             _core.Settings.DpHideJoinBtnBusy   = data["dpHideJoinBtnBusy"]?.Value<bool>()   ?? true;
 
             // Image cache settings
-            _core.Settings.ImgCacheEnabled  = data["imgCacheEnabled"]?.Value<bool>() ?? true;
-            _core.Settings.ImgCacheLimitGb  = Math.Clamp(data["imgCacheLimitGb"]?.Value<int>() ?? 5, 5, 30);
+            _core.Settings.ImgCacheEnabled         = data["imgCacheEnabled"]?.Value<bool>()         ?? true;
+            _core.Settings.ImgCacheLimitGb         = Math.Clamp(data["imgCacheLimitGb"]?.Value<int>() ?? 5, 5, 30);
+            _core.Settings.ImgCacheOptimizeEnabled = data["imgCacheOptimizeEnabled"]?.Value<bool>() ?? true;
             if (_core.ImgCache != null)
             {
-                _core.ImgCache.Enabled    = _core.Settings.ImgCacheEnabled;
-                _core.ImgCache.LimitBytes = (long)_core.Settings.ImgCacheLimitGb * 1024 * 1024 * 1024;
+                _core.ImgCache.Enabled         = _core.Settings.ImgCacheEnabled;
+                _core.ImgCache.OptimizeEnabled  = _core.Settings.ImgCacheOptimizeEnabled;
+                _core.ImgCache.LimitBytes       = (long)_core.Settings.ImgCacheLimitGb * 1024 * 1024 * 1024;
                 if (_core.Settings.ImgCacheEnabled && _core.ImgCache.LimitBytes > 0)
                     _ = Task.Run(() => _core.ImgCache.TrimIfNeeded(_core.ImgCache.LimitBytes));
             }

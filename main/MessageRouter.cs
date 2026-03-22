@@ -190,6 +190,7 @@ public partial class AppShell
                 case "resetSetup":
                 case "clearImgCache":
                 case "getImgCacheSize":
+                case "optimizeImgCache":
                 case "clearFfcCache":
                 case "forceFfcAll":
                 case "setupSaveStartWithWindows":
@@ -590,7 +591,7 @@ public partial class AppShell
                             static string StripNonce(string l) =>
                                 System.Text.RegularExpressions.Regex.Replace(l ?? "", @"~nonce\([^)]*\)", "");
 
-                            var world = await _vrcApi.GetWorldAsync(wdId);
+                            var world = await _vrcApi.GetWorldFreshAsync(wdId);
                             if (world == null)
                             {
                                 Invoke(() => SendToJS("vrcWorldDetailError", new { error = "Could not load world" }));

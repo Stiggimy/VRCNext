@@ -1,32 +1,15 @@
-**2026.11.3**
-
-**New**
-
-* Added **Enable Text Tools**. When enabled, you can select and copy text from any element.
+**2026.11.4**
 
 **Changes**
 
-* Updated the settings menu.
-* Added information to the image cache.
-* Notifications now gently fade in when opened for a smoother experience.
-* Messages now gently fade in when opened for a smoother experience.
-* The notification modal is now responsive so all notification items have the same height.
-* The message modal is now responsive so all message items have the same height.
-
-**World Modal**
-
-* Added PC download size.
-* Added Android download size.
-* Added published date.
-* Added update date.
+* Added a **Refresh** icon next to **Active Instances** in the World Modal to refresh the instance list.
+* Optimized image caching so it takes up less space than before. Cache size should now be reduced by around 40%.
+* Added **Optimize Caching** to the Image Cache. This compresses every `.png` file larger than 1.5 MB.
+* Added a **Force Optimization** button to the Image Cache. If your cache is already large because of a previous VRCNext version, you can now manually run the optimization process.
+* Added memory usage information with a bar to show how much space is being used by the Image Cache.
 
 **Fixes**
 
-* Fixed time calculation when Steam, VRChat, or VRCNext crashes.
-* Fixed time calculation for time spent together when VRChat or VRCNext crashes.
-* Fixed **Spend Together** in your own user profile. It was removed because you are not a friend/user object.
-* Fixed an issue where images from group invites, friend requests, and similar notifications were missing in the notification modal.
-* Fixed an issue that caused VRCNext to close when SteamVR was closed. VRCNext will now remain open.
-* Fixed an issue that caused the app layout to break when scaling it up.
-* Fixed an issue that caused the app to not show the full content when scaled down.
-* Fixed an issue where blocked words in Voice Attack were returned as HTML tags. This is now escaped correctly.
+* Fixed an issue that caused old instances to appear in World Modals.
+* Fixed an issue that caused invalid instances to appear in World Modals.
+* Fixed an issue that caused VRChat to start multiple times when the **Join** or **Play VRChat** button was used. It now launches directly through Steam and only uses the user's path as a fallback.

@@ -79,37 +79,53 @@ public class RelayController : IDisposable
                     var llLoc = msg["location"]?.ToString() ?? "";
                     var llVr  = msg["vr"]?.Value<bool>() ?? false;
 #if WINDOWS
-                    var vrcExe = _core.Settings.VrcPath;
-                    if (!string.IsNullOrWhiteSpace(vrcExe) && File.Exists(vrcExe))
+                    // Build args: --no-vr for Desktop mode, optional join URI
+                    var joinUri2 = !string.IsNullOrEmpty(llLoc) ? VRChatApiService.BuildLaunchUri(llLoc) : "";
+                    var noVrFlag = llVr ? "" : "--no-vr";
+
+                    // Always prefer steam.exe -applaunch so --no-vr is passed correctly.
+                    // steam:// URL does NOT forward args to VRChat, causing SteamVR to open in Desktop mode.
+                    var steamExe = FindSteamExe();
+                    bool llLaunched = false;
+                    if (steamExe != null)
                     {
-                        string llArgs;
-                        if (!string.IsNullOrEmpty(llLoc))
+                        var applaunchArgs = string.IsNullOrEmpty(joinUri2)
+                            ? $"-applaunch 438100 {noVrFlag}".Trim()
+                            : $"-applaunch 438100 {noVrFlag} \"{joinUri2}\"".Trim();
+                        try
                         {
-                            var joinUri = VRChatApiService.BuildLaunchUri(llLoc);
-                            llArgs = llVr ? $"\"{joinUri}\"" : $"--no-vr \"{joinUri}\"";
+                            Process.Start(new ProcessStartInfo
+                            {
+                                FileName = steamExe, Arguments = applaunchArgs,
+                                UseShellExecute = false
+                            });
+                            llLaunched = true;
+                        }
+                        catch { }
+                    }
+                    if (!llLaunched)
+                    {
+                        // Fallback: direct exe path (user-configured)
+                        var vrcExe = _core.Settings.VrcPath;
+                        if (!string.IsNullOrWhiteSpace(vrcExe) && File.Exists(vrcExe))
+                        {
+                            var llArgs = string.IsNullOrEmpty(joinUri2)
+                                ? noVrFlag
+                                : $"{noVrFlag} \"{joinUri2}\"".Trim();
+                            Process.Start(new ProcessStartInfo
+                            {
+                                FileName = vrcExe, Arguments = llArgs,
+                                WorkingDirectory = Path.GetDirectoryName(vrcExe) ?? "",
+                                UseShellExecute = false
+                            });
                         }
                         else
                         {
-                            llArgs = llVr ? "" : "--no-vr";
+                            _core.SendToJS("vrcActionResult", new { action = "join", success = false,
+                                message = "Could not launch VRChat: Steam not found and no exe path configured." });
+                            _core.SendToJS("log", new { msg = "Launch failed: steam.exe not found and VrcPath not set.", color = "err" });
+                            break;
                         }
-                        Process.Start(new ProcessStartInfo
-                        {
-                            FileName = vrcExe, Arguments = llArgs,
-                            WorkingDirectory = Path.GetDirectoryName(vrcExe) ?? "",
-                            UseShellExecute = false
-                        });
-                    }
-                    else if (!string.IsNullOrEmpty(llLoc))
-                    {
-                        Process.Start(new ProcessStartInfo
-                        {
-                            FileName = VRChatApiService.BuildLaunchUri(llLoc), UseShellExecute = true
-                        });
-                    }
-                    else
-                    {
-                        _core.SendToJS("log", new { msg = "VRChat path not configured. Set it in Settings.", color = "err" });
-                        break;
                     }
                     foreach (var exe in _core.Settings.ExtraExe)
                     {
@@ -325,19 +341,36 @@ public class RelayController : IDisposable
         try
         {
 #if WINDOWS
-            var vrcPath = _core.Settings.VrcPath;
-            if (string.IsNullOrWhiteSpace(vrcPath) || !File.Exists(vrcPath))
+            var lvSteamExe = FindSteamExe();
+            bool launched = false;
+            if (lvSteamExe != null)
             {
-                _core.SendToJS("log", new { msg = "VRChat path not set or invalid. Configure in Settings.", color = "err" });
-                return;
+                try
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = lvSteamExe, Arguments = "-applaunch 438100 --no-vr",
+                        UseShellExecute = false
+                    });
+                    launched = true;
+                }
+                catch { }
             }
-
-            Process.Start(new ProcessStartInfo
+            if (!launched)
             {
-                FileName = vrcPath,
-                WorkingDirectory = Path.GetDirectoryName(vrcPath) ?? "",
-                UseShellExecute = true
-            });
+                var vrcPath = _core.Settings.VrcPath;
+                if (string.IsNullOrWhiteSpace(vrcPath) || !File.Exists(vrcPath))
+                {
+                    _core.SendToJS("log", new { msg = "Could not launch VRChat: Steam not found and no exe path configured.", color = "err" });
+                    return;
+                }
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = vrcPath, Arguments = "--no-vr",
+                    WorkingDirectory = Path.GetDirectoryName(vrcPath) ?? "",
+                    UseShellExecute = false
+                });
+            }
 #else
             // On Linux, launch via Steam so Proton is applied automatically
             Process.Start(new ProcessStartInfo
@@ -377,6 +410,36 @@ public class RelayController : IDisposable
             _core.SendToJS("log", new { msg = $"Launch error: {ex.Message}", color = "err" });
         }
     }
+
+    // Find steam.exe via registry (Windows only)
+
+#if WINDOWS
+    private static string? FindSteamExe()
+    {
+        try
+        {
+            using var key = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(@"SOFTWARE\WOW6432Node\Valve\Steam")
+                         ?? Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"SOFTWARE\Valve\Steam");
+            var installPath = key?.GetValue("InstallPath") as string;
+            if (!string.IsNullOrEmpty(installPath))
+            {
+                var exe = Path.Combine(installPath, "steam.exe");
+                if (File.Exists(exe)) return exe;
+            }
+        }
+        catch { }
+        // Fallback: common default paths
+        foreach (var candidate in new[]
+        {
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Steam", "steam.exe"),
+            @"C:\Program Files\Steam\steam.exe"
+        })
+        {
+            if (File.Exists(candidate)) return candidate;
+        }
+        return null;
+    }
+#endif
 
     // Static process checks
 

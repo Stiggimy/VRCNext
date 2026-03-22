@@ -10,7 +10,7 @@
 </head>
 <body>
     <div class="sidebar" id="sidebarEl">
-        <div class="logo"><div class="logo-icon" id="logoIcon">V</div><div class="logo-txt"><div class="logo-text-row"><div class="logo-text">VRCNext</div></div><div class="logo-sub">v2026.11.2</div></div><button class="sb-toggle" onclick="toggleSidebar()" title="Toggle sidebar" data-i18n-title="common.toggle_sidebar"><span class="msi" id="sbIcon">chevron_left</span></button></div>
+        <div class="logo"><div class="logo-icon" id="logoIcon">V</div><div class="logo-txt"><div class="logo-text-row"><div class="logo-text">VRCNext</div></div><div class="logo-sub">v2026.11.3</div></div><button class="sb-toggle" onclick="toggleSidebar()" title="Toggle sidebar" data-i18n-title="common.toggle_sidebar"><span class="msi" id="sbIcon">chevron_left</span></button></div>
         <div class="nav">
             <button class="nav-btn active" onclick="showTab(0)"><span class="ni msi">dashboard</span><span class="nl" data-i18n="nav.dashboard">Dashboard</span></button>
             <button class="nav-btn" onclick="showTab(1)"><span class="ni msi">travel_explore</span><span class="nl" data-i18n="nav.worlds">Worlds</span></button>
@@ -563,6 +563,13 @@
                             <span data-i18n="settings.image_cache.enable">Enable image caching</span>
                             <label class="toggle"><input type="checkbox" id="setImgCacheEnabled" checked onchange="updateImgCacheUi();autoSave()"><div class="toggle-track"><div class="toggle-knob"></div></div></label>
                         </div>
+                        <div class="sf-toggle-row" style="margin-top:10px;">
+                            <div>
+                                <span>Optimize Caching</span>
+                                <div style="font-size:11px;color:var(--tx3);margin-top:2px;">PNG images &gt; 1.5 MB are compressed to JPEG automatically</div>
+                            </div>
+                            <label class="toggle"><input type="checkbox" id="setImgCacheOptimizeEnabled" checked onchange="autoSave()"><div class="toggle-track"><div class="toggle-knob"></div></div></label>
+                        </div>
                         <div id="imgCacheLimitRow" style="margin-top:12px;">
                             <div class="sf-row">
                                 <label style="font-size:12px;color:var(--tx2);flex-shrink:0;margin-right:10px;" data-i18n="settings.image_cache.max_size">Max Cache Size</label>
@@ -577,7 +584,16 @@
                             </div>
                             <div style="font-size:10px;color:var(--tx3);margin-top:6px;" data-i18n="settings.image_cache.limit_hint">When the limit is reached, the oldest ~2 GB of cached images are removed automatically.</div>
                         </div>
-                        <button class="vrcn-button" style="margin-top:12px;" onclick="sendToCS({action:'clearImgCache'})"><span class="msi" style="font-size:16px;">delete_sweep</span> <span data-i18n="settings.image_cache.clear">Clear Image Cache</span></button>
+                        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+                            <button class="vrcn-button" onclick="sendToCS({action:'clearImgCache'})"><span class="msi" style="font-size:16px;">delete_sweep</span> <span data-i18n="settings.image_cache.clear">Clear Image Cache</span></button>
+                            <button class="vrcn-button" id="btnForceOptimize" onclick="startForceOptimize()"><span class="msi" style="font-size:16px;">compress</span> Force Optimization</button>
+                        </div>
+                        <div id="imgOptimizeProgress" style="display:none;margin-top:8px;">
+                            <div class="ts-bar-wrap">
+                                <div id="imgOptimizeBar" class="ts-bar" style="width:0%;background:var(--accent);"></div>
+                            </div>
+                            <span id="imgOptimizeLabel" style="font-size:11px;color:var(--tx3);margin-top:4px;display:block;">Optimizing…</span>
+                        </div>
                     </div>
 
                     <!-- FAST FETCH CACHE -->

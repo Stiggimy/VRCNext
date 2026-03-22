@@ -3,6 +3,7 @@
 let _favRefreshTimer = null;
 let _wdLiveTimer = null;
 let _favWorldsLoaded = false;
+let _wdCurrentId = '';
 let _worldEditMode = false;
 let _worldEditSelected = new Set();
 function _scheduleBgFavRefresh() {
@@ -372,13 +373,24 @@ function worldEditRemoveSelected() {
 function openWorldSearchDetail(id) {
     // Close profile modal if open (e.g. opening world from profile Content tab)
     if (typeof closeFriendDetail === 'function') closeFriendDetail();
+    _wdCurrentId = id;
     const el = document.getElementById('detailModalContent');
     el.innerHTML = sk('detail');
     document.getElementById('modalDetail').style.display = 'flex';
     sendToCS({ action: 'vrcGetWorldDetail', worldId: id });
 }
 
+function refreshWorldInstances() {
+    if (!_wdCurrentId) return;
+    const btn = document.getElementById('wdInstancesRefreshBtn');
+    if (btn) btn.classList.add('spinning');
+    sendToCS({ action: 'vrcGetWorldDetail', worldId: _wdCurrentId });
+}
+
 function renderWorldSearchDetail(w) {
+    // Stop refresh spinner if running
+    const refreshBtn = document.getElementById('wdInstancesRefreshBtn');
+    if (refreshBtn) refreshBtn.classList.remove('spinning');
     // Cache full world data so favorites grid can render it immediately after favoriting
     if (w.id) worldInfoCache[w.id] = w;
     const el = document.getElementById('detailModalContent');
@@ -434,7 +446,7 @@ function renderWorldSearchDetail(w) {
 
     let instancesHtml = '';
     if (allInstances.length > 0) {
-        instancesHtml = `<div class="wd-section-label" style="margin-top:4px;">${tf('worlds.instances.active_title', { count: allInstances.length }, 'ACTIVE INSTANCES ({count})')}</div><div class="wd-instances-list">`;
+        instancesHtml = `<div class="wd-section-label wd-instances-label" style="margin-top:4px;"><span>${tf('worlds.instances.active_title', { count: allInstances.length }, 'ACTIVE INSTANCES ({count})')}</span><button class="mi-refresh-btn" id="wdInstancesRefreshBtn" onclick="refreshWorldInstances()" title="Refresh instances">&#8635;</button></div><div class="wd-instances-list">`;
         allInstances.forEach(inst => {
             instancesHtml += renderInstanceItem({
                 instanceType: inst.type,
