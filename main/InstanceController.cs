@@ -110,8 +110,7 @@ public class InstanceController
                         var effectiveOwner = apiOwnerId.StartsWith("grp_")
                             ? (inst["creatorId"]?.ToString() ?? apiOwnerId)
                             : apiOwnerId;
-                        if (!string.IsNullOrEmpty(myId) && !string.IsNullOrEmpty(effectiveOwner)
-                            && effectiveOwner != myId) { miDead.Add(instLoc); continue; }
+                        if (!string.IsNullOrEmpty(myId) && effectiveOwner != myId) { miDead.Add(instLoc); continue; }
                         var iType = ParseInstanceTypeFromLoc(instLoc);
                         if (iType == "private" && inst["canRequestInvite"]?.Value<bool>() == true) iType = "invite_plus";
                         miResults.Add(new

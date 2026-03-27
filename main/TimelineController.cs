@@ -531,7 +531,7 @@ public class TimelineController
     private void SelectAndPreview()
     {
         var r = Dialog.FileOpen("sqlite3,db");
-        if (!r.IsOk) return;
+        if (!r.IsOk) { _core.SendToJS("vrcxSelectCancelled", null); return; }
         _vrcxImportPath = r.Path;
 
         try

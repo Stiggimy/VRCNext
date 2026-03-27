@@ -730,6 +730,9 @@ case 'popularWorlds':
         case 'ftAlsoWasHere':
             renderFtAlsoWasHereResult(payload);
             break;
+        case 'vrcxSelectCancelled':
+            { const btn = document.getElementById('vrcxSelectBtn'); if (btn) { btn.disabled = false; btn.innerHTML = vrcxSelectBtnHtml(false); } }
+            break;
         case 'vrcxPreview':
             vrcxShowPreview(payload);
             break;
