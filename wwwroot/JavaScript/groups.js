@@ -91,6 +91,7 @@ function renderMyGroups(list) {
     myGroups = list || [];
     myGroupsLoaded = true;
     filterMyGroups();
+    if (typeof renderDashGroupActivity === 'function') renderDashGroupActivity();
 }
 
 function openGroupDetail(groupId) {

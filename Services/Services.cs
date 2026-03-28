@@ -373,6 +373,10 @@ public class AppSettings
     // Legacy Window Manager (requires restart — disables chromeless + custom chrome)
     public bool LegacyWindow { get; set; } = false;
 
+    // Dashboard layout customization
+    public List<string> DashSectionOrder  { get; set; } = new();
+    public List<string> DashSectionHidden { get; set; } = new();
+
     public bool SetupComplete { get; set; }
 
     public List<string> InviteMessages { get; set; } = new()

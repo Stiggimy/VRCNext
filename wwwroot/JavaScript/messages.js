@@ -542,6 +542,12 @@ window.external.receiveMessage(rawMsg => {
                 onWorldsResolved(payload);
                 if (typeof onCreateInstanceWorldResolved === 'function') onCreateInstanceWorldResolved(payload);
                 break;
+            case 'vrcGroupsResolved':
+                if (payload && typeof payload === 'object') {
+                    Object.assign(dashGroupCache, payload);
+                    renderDashboard();
+                }
+                break;
 case 'popularWorlds':
                 onPopularWorlds(payload.worlds);
                 break;

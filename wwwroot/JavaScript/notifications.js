@@ -508,6 +508,7 @@ function openInstanceInfoModal() {
         <h2 style="margin:0 0 4px;color:var(--tx0);font-size:18px;">${esc(name)}</h2>
         <div class="fd-badges-row">
             <span class="vrcn-badge ${instCls}">${instLabel}</span>
+            ${getOwnerBadgeHtml(data.ownerId || '', data.ownerName || '', data.ownerGroup || '', 'closeInstanceInfoModal()')}
             ${copyBadge}
             <span style="font-size:11px;color:var(--tx3);margin-left:4px;"><span class="msi" style="font-size:12px;vertical-align:-2px;">person</span> ${users.length || data.nUsers || 0}${data.capacity ? '/' + data.capacity : ''}</span>
         </div>

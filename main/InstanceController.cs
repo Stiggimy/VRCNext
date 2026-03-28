@@ -11,11 +11,14 @@ public class InstanceController
     private readonly FriendsController _friends;
 
     // Instance State
-    private string _cachedInstLocation  = "";
-    private string _cachedInstWorldName = "";
+    private string _cachedInstLocation   = "";
+    private string _cachedInstWorldName  = "";
     private string _cachedInstWorldThumb = "";
-    private int    _cachedInstCapacity  = 0;
-    private string _cachedInstType      = "";
+    private int    _cachedInstCapacity   = 0;
+    private string _cachedInstType       = "";
+    private string _cachedInstOwnerId    = "";
+    private string _cachedInstOwnerName  = "";
+    private string _cachedInstOwnerGroup = "";
 
     private readonly Dictionary<string, (string displayName, string image)> _cumulativeInstancePlayers = new();
     private readonly HashSet<string> _meetAgainThisInstance = new();
@@ -98,7 +101,8 @@ public class InstanceController
                     }
 
                     // 2. Verify all stored instances via API — remove dead ones, keep active
-                    var miResults = new List<object>();
+                    var miRaw = new List<(string loc, string worldId, string worldName, string worldThumb,
+                        string instanceType, int userCount, int capacity, string region, string ownerId)>();
                     var miDead = new List<string>();
                     foreach (var instLoc in _core.Settings.MyInstances.ToList())
                     {
@@ -113,20 +117,43 @@ public class InstanceController
                         if (!string.IsNullOrEmpty(myId) && effectiveOwner != myId) { miDead.Add(instLoc); continue; }
                         var iType = ParseInstanceTypeFromLoc(instLoc);
                         if (iType == "private" && inst["canRequestInvite"]?.Value<bool>() == true) iType = "invite_plus";
-                        miResults.Add(new
-                        {
-                            location   = instLoc,
-                            worldId    = inst["worldId"]?.ToString() ?? "",
-                            worldName  = inst["world"]?["name"]?.ToString() ?? "",
-                            worldThumb = inst["world"]?["imageUrl"]?.ToString() ?? inst["world"]?["thumbnailImageUrl"]?.ToString() ?? "",
-                            instanceType = iType,
-                            userCount  = inst["userCount"]?.Value<int>() ?? 0,
-                            capacity   = inst["capacity"]?.Value<int>() ?? 0,
-                            region     = inst["region"]?.ToString() ?? ParseRegionFromLoc(instLoc),
-                        });
+                        miRaw.Add((instLoc,
+                            inst["worldId"]?.ToString() ?? "",
+                            inst["world"]?["name"]?.ToString() ?? "",
+                            inst["world"]?["imageUrl"]?.ToString() ?? inst["world"]?["thumbnailImageUrl"]?.ToString() ?? "",
+                            iType,
+                            inst["userCount"]?.Value<int>() ?? 0,
+                            inst["capacity"]?.Value<int>() ?? 0,
+                            inst["region"]?.ToString() ?? ParseRegionFromLoc(instLoc),
+                            apiOwnerId));
                     }
                     foreach (var d in miDead) _core.Settings.MyInstances.Remove(d);
                     if (miDead.Count > 0) _core.Settings.Save();
+
+                    // Resolve owner/group names (same pattern as world modal)
+                    var miGroupIds = miRaw.Where(r => r.ownerId.StartsWith("grp_")).Select(r => r.ownerId).Distinct().ToList();
+                    var miGroupMap = new Dictionary<string, (string name, string shortCode)>();
+                    if (miGroupIds.Count > 0)
+                    {
+                        var gTasks = miGroupIds.ToDictionary(id => id, id => _core.VrcApi.GetGroupAsync(id));
+                        try { await Task.WhenAll(gTasks.Values); } catch { }
+                        foreach (var kv in gTasks)
+                            if (!kv.Value.IsFaulted && kv.Value.Result != null)
+                                miGroupMap[kv.Key] = (kv.Value.Result["name"]?.ToString() ?? "", kv.Value.Result["shortCode"]?.ToString() ?? "");
+                    }
+                    var miResults = miRaw.Select(r => {
+                        var ownerName = "";
+                        var ownerGroup = "";
+                        if (r.ownerId.StartsWith("usr_"))
+                            { var f = _friends.GetStoreValue(r.ownerId); ownerName = f?["displayName"]?.ToString() ?? ""; }
+                        else if (r.ownerId.StartsWith("grp_") && miGroupMap.TryGetValue(r.ownerId, out var info))
+                            (ownerName, ownerGroup) = info;
+                        return (object)new {
+                            location = r.loc, r.worldId, r.worldName, r.worldThumb,
+                            r.instanceType, r.userCount, r.capacity, r.region,
+                            r.ownerId, ownerName, ownerGroup,
+                        };
+                    }).ToList();
                     _core.SendToJS("myInstances", miResults);
                 });
                 break;
@@ -216,6 +243,40 @@ public class InstanceController
                     catch (Exception ex)
                     {
                         _core.SendToJS("log", new { msg = $"World resolve error: {ex.Message}", color = "err" });
+                    }
+                });
+                break;
+
+            case "vrcResolveGroups":
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        var groupIds = msg["groupIds"]?.ToObject<List<string>>() ?? new();
+                        var tasks = groupIds.Select(async gid =>
+                        {
+                            try
+                            {
+                                var grp = await _core.VrcApi.GetGroupAsync(gid);
+                                if (grp == null) return (gid, null as object);
+                                return (gid, (object)new
+                                {
+                                    name      = grp["name"]?.ToString() ?? "",
+                                    shortCode = grp["shortCode"]?.ToString() ?? "",
+                                });
+                            }
+                            catch { return (gid, null as object); }
+                        });
+                        var results = await Task.WhenAll(tasks);
+                        var dict = results
+                            .Where(r => r.Item2 != null)
+                            .ToDictionary(r => r.gid, r => r.Item2!);
+                        if (dict.Count > 0)
+                            _core.SendToJS("vrcGroupsResolved", dict);
+                    }
+                    catch (Exception ex)
+                    {
+                        _core.SendToJS("log", new { msg = $"Group resolve error: {ex.Message}", color = "err" });
                     }
                 });
                 break;
@@ -342,6 +403,9 @@ public class InstanceController
                 _cachedInstWorldThumb = "";
                 _cachedInstCapacity   = 0;
                 _cachedInstType       = "";
+                _cachedInstOwnerId    = "";
+                _cachedInstOwnerName  = "";
+                _cachedInstOwnerGroup = "";
                 Invoke(() =>
                 {
                     _core.PushDiscordPresence?.Invoke();
@@ -354,7 +418,7 @@ public class InstanceController
 
             // Only fetch world info from API once per instance (when location changes or cache is empty).
             // Player count comes from LogWatcher — no need to poll the instance endpoint repeatedly.
-            string worldName, worldThumb;
+            string worldName, worldThumb, ownerId, ownerName, ownerGroup;
             int worldCapacity;
 
             bool locationChanged = _cachedInstLocation != loc || string.IsNullOrEmpty(_cachedInstWorldName);
@@ -364,6 +428,30 @@ public class InstanceController
                 worldName     = inst?["world"]?["name"]?.ToString() ?? "";
                 worldThumb    = inst?["world"]?["imageUrl"]?.ToString() ?? inst?["world"]?["thumbnailImageUrl"]?.ToString() ?? "";
                 worldCapacity = inst?["world"]?["capacity"]?.Value<int>() ?? inst?["capacity"]?.Value<int>() ?? 0;
+
+                // Resolve instance owner / group
+                ownerId = inst?["ownerId"]?.ToString() ?? "";
+                ownerName = "";
+                ownerGroup = "";
+                if (ownerId.StartsWith("grp_"))
+                {
+                    var grp = await _core.VrcApi.GetGroupAsync(ownerId);
+                    if (grp != null)
+                    {
+                        ownerName  = grp["name"]?.ToString() ?? "";
+                        ownerGroup = grp["shortCode"]?.ToString() ?? "";
+                    }
+                }
+                else if (ownerId.StartsWith("usr_"))
+                {
+                    var f = _friends.GetStoreValue(ownerId);
+                    ownerName = f?["displayName"]?.ToString() ?? "";
+                    if (string.IsNullOrEmpty(ownerName))
+                    {
+                        var ownerUser = await _core.VrcApi.GetUserAsync(ownerId);
+                        ownerName = ownerUser?["displayName"]?.ToString() ?? "";
+                    }
+                }
 
                 if (string.IsNullOrEmpty(worldName) && !string.IsNullOrEmpty(parsed.worldId))
                 {
@@ -382,6 +470,9 @@ public class InstanceController
                 worldName     = _cachedInstWorldName;
                 worldThumb    = _cachedInstWorldThumb;
                 worldCapacity = _cachedInstCapacity;
+                ownerId       = _cachedInstOwnerId;
+                ownerName     = _cachedInstOwnerName;
+                ownerGroup    = _cachedInstOwnerGroup;
             }
 
             // Step 4: Build player list. Prefer LogWatcher (reads VRChat logs),
@@ -490,6 +581,9 @@ public class InstanceController
             _cachedInstWorldThumb = worldThumb;
             _cachedInstCapacity   = worldCapacity;
             _cachedInstType       = parsed.instanceType;
+            _cachedInstOwnerId    = ownerId;
+            _cachedInstOwnerName  = ownerName;
+            _cachedInstOwnerGroup = ownerGroup;
 
             Invoke(() =>
             {
@@ -500,6 +594,7 @@ public class InstanceController
                     worldName, worldThumb,
                     instanceType = parsed.instanceType,
                     nUsers, capacity = worldCapacity, users, playerSource,
+                    ownerId, ownerName, ownerGroup,
                 });
             });
         }
@@ -566,6 +661,9 @@ public class InstanceController
             capacity     = _cachedInstCapacity,
             users,
             playerSource = "logfile",
+            ownerId      = _cachedInstOwnerId,
+            ownerName    = _cachedInstOwnerName,
+            ownerGroup   = _cachedInstOwnerGroup,
         });
     }
 

@@ -265,6 +265,7 @@ public partial class AppShell
 
                 // Resolve world IDs to names/thumbnails for dashboard
                 case "vrcResolveWorlds":
+                case "vrcResolveGroups":
                     await _instance.HandleMessage(action, msg);
                     break;
 

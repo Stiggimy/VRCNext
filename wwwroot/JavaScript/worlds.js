@@ -102,6 +102,7 @@ function renderFavWorlds(payload) {
     }
     updateFavWorldGroupHeader();
     filterFavWorlds();
+    if (typeof renderDashFavWorlds === 'function') renderDashFavWorlds();
 }
 
 function setFavWorldGroup(val) {
@@ -967,9 +968,9 @@ function openWorldDetail(worldId) {
     friends.forEach(f => {
         const loc = f.location;
         if (!instanceMap[loc]) {
-            const { instanceType: iType } = parseFriendLocation(loc);
+            const { instanceType: iType, ownerId: iOwner } = parseFriendLocation(loc);
             const numMatch = loc.match(/:(\d+)/);
-            instanceMap[loc] = { location: loc, instanceType: iType, instanceNum: numMatch ? numMatch[1] : '', friends: [] };
+            instanceMap[loc] = { location: loc, instanceType: iType, ownerId: iOwner || '', instanceNum: numMatch ? numMatch[1] : '', friends: [] };
         }
         instanceMap[loc].friends.push(f);
     });
@@ -1011,9 +1012,12 @@ function openWorldDetail(worldId) {
         const mCopyBadge = mnum
             ? `<span class="vrcn-id-clip" style="font-size:10px;" onclick="copyInstanceLink('${jsq(myInst.location)}')"><span class="msi" style="font-size:10px;">content_copy</span>#${esc(mnum)}</span>`
             : '';
+        const myInstOwnerId = myInst.ownerId || parseFriendLocation(myInst.location).ownerId || '';
+        const myInstOwnerBadge = getOwnerBadgeHtml(myInstOwnerId, myInst.ownerName || '', myInst.ownerGroup || '', 'closeWorldDetail()');
         if (totalSections > 1) {
             friendsHtml += `<div class="wd-instance-header">
                 <span class="vrcn-badge ${iCls}">${iLabel}</span>
+                ${myInstOwnerBadge}
                 ${mCopyBadge}
             </div>`;
         }
@@ -1043,9 +1047,11 @@ function openWorldDetail(worldId) {
         const instCopyBadge = inst.instanceNum
             ? `<span class="vrcn-id-clip" style="font-size:10px;" onclick="copyInstanceLink('${jsq(inst.location)}')"><span class="msi" style="font-size:10px;">content_copy</span>#${esc(inst.instanceNum)}</span>`
             : '';
+        const instOwnerBadge = getOwnerBadgeHtml(inst.ownerId || '', '', '', 'closeWorldDetail()');
         if (totalSections > 1) {
             friendsHtml += `<div class="wd-instance-header">
                 <span class="vrcn-badge ${iCls}">${iLabel}</span>
+                ${instOwnerBadge}
                 ${instCopyBadge}
                 ${canJoinInst ? `<button class="vrcn-button-round vrcn-btn-join" style="margin-left:auto;" onclick="worldJoinAction('${instLoc}')">${t('common.join', 'Join')}</button>` : ''}
             </div>`;
@@ -1067,12 +1073,14 @@ function openWorldDetail(worldId) {
     const loc = anyLoc.replace(/'/g, "\\'");
     const canJoin = !myInst && !multiInstance && anyLoc && anyInstType !== 'private' && anyInstType !== 'invite_plus';
 
-    // Single-instance copy badge — shown in fd-badges-row
+    // Single-instance copy badge + owner badge — shown in fd-badges-row
     const instanceLoc = myInst?.location || anyLoc;
     const singleInstNum = instanceLoc.match(/:(\d+)/)?.[1] || '';
     const singleInstCopy = singleInstNum
         ? `<span class="vrcn-id-clip" onclick="copyInstanceLink('${jsq(instanceLoc)}')"><span class="msi" style="font-size:12px;">content_copy</span>#${esc(singleInstNum)}</span>`
         : '';
+    const singleOwnerId = instanceList.length === 1 ? (instanceList[0].ownerId || '') : '';
+    const singleOwnerBadge = singleOwnerId ? getOwnerBadgeHtml(singleOwnerId, '', '', 'closeWorldDetail()') : '';
 
     let actionsHtml = '<div class="fd-actions">';
     if (canJoin) actionsHtml += `<button class="vrcn-button-round vrcn-btn-join" onclick="worldJoinAction('${loc}')">${t('dashboard.instances.join_world', 'Join World')}</button>`;
@@ -1082,7 +1090,11 @@ function openWorldDetail(worldId) {
 
     c.innerHTML = `${bannerHtml}<div class="fd-content${thumb ? ' fd-has-banner' : ''}" style="padding:16px;">
         <h2 style="margin:0 0 4px;color:var(--tx0);font-size:18px;">${esc(worldName)}</h2>
-        <div class="fd-badges-row">${(myInst || multiInstance) ? '' : `<span class="vrcn-badge ${instClass}">${instLabel}</span>${singleInstCopy}`}</div>
+        <div class="fd-badges-row">${multiInstance ? '' : (() => {
+            const _oid = myInst ? (myInst.ownerId || parseFriendLocation(myInst.location).ownerId || '') : singleOwnerId;
+            const _ob = getOwnerBadgeHtml(_oid, myInst?.ownerName || '', myInst?.ownerGroup || '', 'closeWorldDetail()');
+            return `<span class="vrcn-badge ${instClass}">${instLabel}</span>${_ob}${singleInstCopy}`;
+        })()}</div>
         ${friendsHtml}${actionsHtml}</div>`;
     m.style.display = 'flex';
 }

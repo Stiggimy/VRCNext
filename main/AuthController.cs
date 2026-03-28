@@ -887,6 +887,12 @@ public class AuthController
             // Legacy Window (requires restart)
             _core.Settings.LegacyWindow = data["legacyWindow"]?.Value<bool>() ?? false;
 
+            // Dashboard layout
+            var dashOrder  = data["dashSectionOrder"]?.ToObject<List<string>>();
+            var dashHidden = data["dashSectionHidden"]?.ToObject<List<string>>();
+            if (dashOrder  != null) _core.Settings.DashSectionOrder  = dashOrder;
+            if (dashHidden != null) _core.Settings.DashSectionHidden = dashHidden;
+
             _core.Settings.Save();
             if (_core.Settings.LastSaveError != null)
                 _core.SendToJS("log", new { msg = $"\u274c Save failed: {_core.Settings.LastSaveError}", color = "err" });

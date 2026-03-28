@@ -832,6 +832,12 @@ function renderBioLink(url) {
 }
 
 
+function fdToggleBio(btn) {
+    const bio = btn.closest('.fd-group-rep-label').nextElementSibling;
+    const expanded = bio.classList.toggle('expanded');
+    btn.querySelector('.msi').textContent = expanded ? 'expand_less' : 'chevron_right';
+}
+
 function renderFriendDetail(d) {
     currentFriendDetail = d;
     const c = document.getElementById('friendDetailContent');
@@ -860,7 +866,9 @@ function renderFriendDetail(d) {
         worldHtml = `<div style="padding:12px;background:var(--bg-input);border-radius:10px;margin-bottom:14px;font-size:12px;color:var(--tx3);text-align:center;">${t('status.offline', 'Offline')}</div>`;
     }
 
-    const bioHtml = d.bio ? `<div class="fd-bio">${esc(d.bio)}</div>` : '';
+    const bioHtml = d.bio ? `
+        <div class="fd-group-rep-label">${t('profiles.bio.title', 'Biography')}<button class="fd-bio-expand" onclick="fdToggleBio(this)" style="display:none"><span class="msi">chevron_right</span></button></div>
+        <div class="fd-bio">${esc(d.bio)}</div>` : '';
 
     // Bio links (profile links from VRChat API)
     let bioLinksHtml = '';
@@ -918,6 +926,8 @@ function renderFriendDetail(d) {
 
     // Badges
     let badgesHtml = '<div class="fd-badges-row">';
+    const platBadge = getPlatformBadgeHtml(d.platform || d.lastPlatform || '');
+    if (platBadge) badgesHtml += platBadge;
     if (d.isFriend) badgesHtml += `<span class="vrcn-badge ok"><span class="msi" style="font-size:11px;">check_circle</span>${t('profiles.badges.friend', 'Friend')}</span>`;
     if (d.ageVerified) badgesHtml += `<span class="vrcn-badge ok"><span class="msi" style="font-size:11px;">verified</span>18+</span>`;
     const rank = getTrustRank(d.tags || []);
@@ -1095,6 +1105,12 @@ function renderFriendDetail(d) {
 
 
     c.innerHTML = `${bannerHtml}<div class="fd-content${bannerSrc ? ' fd-has-banner' : ''}"><div class="fd-header">${imgTag}<div><div class="fd-name">${esc(d.displayName)}</div>${pronounsHtml}<div class="fd-status" id="fd-live-status"><span class="${fdDotClass} ${fdStatusDotCls}" style="width:8px;height:8px;"></span>${fdIsOffline ? t('status.offline', 'Offline') : statusLabel(d.status)}${(!fdIsOffline && fdIsWeb) ? ' ' + t('profiles.friends.web_suffix', '(Web)') : ''}${(!fdIsOffline && d.statusDescription) ? ' - ' + esc(d.statusDescription) : ''}</div></div></div>${badgesHtml}${actionsHtml}${tabsHtml}<div id="fdTabInfo">${infoContent}</div><div id="fdTabGroups" style="display:none;">${groupsContent}</div><div id="fdTabMutuals" style="display:none;">${mutualsContent}</div><div id="fdTabContent" style="display:none;">${contentHtml}</div><div style="margin-top:10px;text-align:right;"><button class="vrcn-button-round" onclick="closeFriendDetail()">${t('common.close', 'Close')}</button></div></div>`;
+
+    requestAnimationFrame(() => {
+        const bio = c.querySelector('.fd-bio');
+        const btn = c.querySelector('.fd-bio-expand');
+        if (bio && btn && bio.scrollHeight > bio.clientHeight + 2) btn.style.display = '';
+    });
 
     c.querySelectorAll('.fd-group-card-meta').forEach(el => {
         let text = (el.textContent || '').replace(/\s*(?:\u00C2\u00B7|\u00B7)\s*/g, ' \u00B7 ').trim();

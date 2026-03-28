@@ -11,9 +11,9 @@
 </head>
 <body>
     <div class="sidebar" id="sidebarEl">
-        <div class="logo"><div class="logo-icon" id="logoIcon">V</div><div class="logo-txt"><div class="logo-text-row"><div class="logo-text">VRCNext</div></div><div class="logo-sub">v2026.12.2</div></div><button class="sb-toggle" onclick="toggleSidebar()" title="Toggle sidebar" data-i18n-title="common.toggle_sidebar"><span class="msi" id="sbIcon">chevron_left</span></button></div>
+        <div class="logo"><div class="logo-icon" id="logoIcon">V</div><div class="logo-txt"><div class="logo-text-row"><div class="logo-text">VRCNext</div></div><div class="logo-sub">v2026.12.3</div></div><button class="sb-toggle" onclick="toggleSidebar()" title="Toggle sidebar" data-i18n-title="common.toggle_sidebar"><span class="msi" id="sbIcon">chevron_left</span></button></div>
         <div class="nav vrcn-scrollbar">
-            <button class="nav-btn active" onclick="showTab(0)"><span class="ni msi">dashboard</span><span class="nl" data-i18n="nav.dashboard">Dashboard</span></button>
+            <button class="nav-btn active" onclick="showTab(0)" data-nav="dashboard"><span class="ni msi">dashboard</span><span class="nl" data-i18n="nav.dashboard">Dashboard</span></button>
             <button class="nav-btn" onclick="showTab(1)"><span class="ni msi">travel_explore</span><span class="nl" data-i18n="nav.worlds">Worlds</span></button>
             <button class="nav-btn" onclick="showTab(2)"><span class="ni msi">groups</span><span class="nl" data-i18n="nav.groups">Groups</span></button>
             <button class="nav-btn" onclick="showTab(3)"><span class="ni msi">person_search</span><span class="nl" data-i18n="nav.people">People</span></button>
@@ -102,25 +102,81 @@
 
                     </div>
                 </div>
-                <div class="dash-section-label" id="dashMyInstancesLabel" style="display:none;"><span data-i18n="dashboard.section.my_instances">YOUR INSTANCES</span><button class="mi-refresh-btn" id="miRefreshBtn" onclick="refreshMyInstances()" title="Refresh instances" data-i18n-title="dashboard.section.refresh_instances">&#8635;</button></div>
-                <div class="dash-worlds-grid" id="dashMyInstances" style="display:none;"></div>
-                <div class="dash-section-label" data-i18n="dashboard.section.friend_locations">FRIENDS LOCATIONS</div>
-                <div class="dash-worlds-grid" id="dashFavWorlds"><div class="empty-msg" data-i18n="dashboard.section.friend_locations_empty">Login to VRChat to see where friends are</div></div>
-                <div class="disc-tab-row">
-                    <button class="vrcn-dashboard-button disc-tab active" data-tab="popular" onclick="setDiscoveryTab('popular')" data-i18n="dashboard.discovery.popular">POPULAR WORLDS</button>
-                    <span class="disc-tab-sep">|</span>
-                    <button class="vrcn-dashboard-button disc-tab" data-tab="active" onclick="setDiscoveryTab('active')" data-i18n="dashboard.discovery.active">VERY ACTIVE</button>
-                    <span class="disc-tab-sep">|</span>
-                    <button class="vrcn-dashboard-button disc-tab" data-tab="recent" onclick="setDiscoveryTab('recent')" data-i18n="dashboard.discovery.recent">RECENTLY VISITED</button>
-                    <span class="disc-pagination" id="discPagination" style="display:none;">
-                        <button class="disc-page-btn" id="discPrevBtn" onclick="discPageChange(-1)"><span class="msi">chevron_left</span></button>
-                        <span class="disc-page-label" id="discPageLabel">1 / 4</span>
-                        <button class="disc-page-btn" id="discNextBtn" onclick="discPageChange(1)"><span class="msi">chevron_right</span></button>
-                    </span>
+                <div id="dashSectionsContainer">
+                    <div class="dash-section-wrap" data-section="my_instances">
+                        <div class="dash-section-label" id="dashMyInstancesLabel" style="display:none;"><span data-i18n="dashboard.section.my_instances">YOUR INSTANCES</span><button class="mi-refresh-btn" id="miRefreshBtn" onclick="refreshMyInstances()" title="Refresh instances" data-i18n-title="dashboard.section.refresh_instances">&#8635;</button></div>
+                        <div class="dash-worlds-grid" id="dashMyInstances" style="display:none;"></div>
+                    </div>
+                    <div class="dash-section-wrap" data-section="friend_locations">
+                        <div class="dash-section-label"><span data-i18n="dashboard.section.friend_locations">FRIENDS LOCATIONS</span></div>
+                        <div class="dash-worlds-grid" id="dashFavWorlds"><div class="empty-msg" data-i18n="dashboard.section.friend_locations_empty">Login to VRChat to see where friends are</div></div>
+                    </div>
+                    <div class="dash-section-wrap" data-section="discovery">
+                        <div class="disc-tab-row">
+                            <button class="vrcn-dashboard-button disc-tab active" data-tab="popular" onclick="setDiscoveryTab('popular')" data-i18n="dashboard.discovery.popular">POPULAR WORLDS</button>
+                            <span class="disc-tab-sep">|</span>
+                            <button class="vrcn-dashboard-button disc-tab" data-tab="active" onclick="setDiscoveryTab('active')" data-i18n="dashboard.discovery.active">VERY ACTIVE</button>
+                            <span class="disc-tab-sep">|</span>
+                            <button class="vrcn-dashboard-button disc-tab" data-tab="recent" onclick="setDiscoveryTab('recent')" data-i18n="dashboard.discovery.recent">RECENTLY VISITED</button>
+                            <span class="disc-pagination" id="discPagination" style="display:none;">
+                                <button class="disc-page-btn" id="discPrevBtn" onclick="discPageChange(-1)"><span class="msi">chevron_left</span></button>
+                                <span class="disc-page-label" id="discPageLabel">1 / 4</span>
+                                <button class="disc-page-btn" id="discNextBtn" onclick="discPageChange(1)"><span class="msi">chevron_right</span></button>
+                            </span>
+                        </div>
+                        <div class="dash-worlds-grid" id="dashDiscoveryGrid"></div>
+                    </div>
+                    <div class="dash-section-wrap" data-section="friend_activity">
+                        <div class="dash-section-label"><span data-i18n="dashboard.section.friend_activity">FRIENDS ACTIVITY</span></div>
+                        <div class="dash-friends-feed" id="dashFriendsFeed"><div class="empty-msg" data-i18n="dashboard.section.friend_activity_empty">Login to VRChat to see friends</div></div>
+                    </div>
+                    <div class="dash-section-wrap" data-section="fav_worlds">
+                        <div class="dash-section-label">
+                            <span data-i18n="dashboard.section.fav_worlds">FAVORITE WORLDS</span>
+                            <button class="dash-section-seeall" onclick="showTab(1)" data-i18n="dashboard.section.see_all">SEE ALL →</button>
+                        </div>
+                        <div class="vrcn-dash-fav-shelf" id="dashFavWorldsShelf"></div>
+                    </div>
+                    <div class="dash-section-wrap" data-section="recently_visited">
+                        <div class="dash-section-label">
+                            <span data-i18n="dashboard.section.recently_visited">RECENTLY VISITED</span>
+                        </div>
+                        <div class="vrcn-dash-fav-shelf" id="dashRecentlyVisitedShelf"></div>
+                    </div>
+                    <div class="dash-section-wrap" data-section="popular_worlds">
+                        <div class="dash-section-label">
+                            <span data-i18n="dashboard.section.popular_worlds">POPULAR WORLDS</span>
+                        </div>
+                        <div class="vrcn-dash-fav-shelf" id="dashPopularWorldsShelf"></div>
+                    </div>
+                    <div class="dash-section-wrap" data-section="active_worlds">
+                        <div class="dash-section-label">
+                            <span data-i18n="dashboard.section.active_worlds">VERY ACTIVE WORLDS</span>
+                        </div>
+                        <div class="vrcn-dash-fav-shelf" id="dashActiveWorldsShelf"></div>
+                    </div>
+                    <div class="dash-section-wrap" data-section="groups">
+                        <div class="dash-section-label">
+                            <span data-i18n="dashboard.section.your_groups">YOUR GROUPS</span>
+                            <button class="dash-section-seeall" onclick="showTab(2)" data-i18n="dashboard.section.see_all">SEE ALL →</button>
+                        </div>
+                        <div class="vrcn-dash-group-activity" id="dashGroupActivityGrid"></div>
+                    </div>
+                    <div class="dash-section-wrap" data-section="my_recent_activity">
+                        <div class="dash-section-label">
+                            <span data-i18n="dashboard.section.my_recent_activity">MY RECENT ACTIVITY</span>
+                            <button class="dash-section-seeall" onclick="showTab(12)" data-i18n="dashboard.section.see_all">SEE ALL →</button>
+                        </div>
+                        <div id="dashMyRecentTl"></div>
+                    </div>
+                    <div class="dash-section-wrap" data-section="friends_recent_activity">
+                        <div class="dash-section-label">
+                            <span data-i18n="dashboard.section.friends_recent_activity">FRIENDS RECENT ACTIVITY</span>
+                            <button class="dash-section-seeall" onclick="showTab(12);setTimeout(()=>{if(typeof setTlModeFriends==='function')setTlModeFriends();},80)" data-i18n="dashboard.section.see_all">SEE ALL →</button>
+                        </div>
+                        <div id="dashFriendsRecentTl"></div>
+                    </div>
                 </div>
-                <div class="dash-worlds-grid" id="dashDiscoveryGrid"></div>
-                <div class="dash-section-label" data-i18n="dashboard.section.friend_activity">FRIENDS ACTIVITY</div>
-                <div class="dash-friends-feed" id="dashFriendsFeed"><div class="empty-msg" data-i18n="dashboard.section.friend_activity_empty">Login to VRChat to see friends</div></div>
             </div>
             <!-- Tab 1: Worlds -->
             <div class="tab" id="tab1">
@@ -1563,6 +1619,22 @@
     <script src="JavaScript/permini.js"></script>
     <script src="JavaScript/init.js"></script>
 
+    <!-- Dashboard layout editor modal -->
+    <div id="dashLayoutModal" class="modal-overlay" style="display:none;align-items:center;justify-content:center;" onclick="if(event.target===this)closeDashLayoutEditor()">
+        <div class="dash-layout-panel">
+            <div class="dash-layout-header">
+                <span class="msi" style="font-size:18px;color:var(--accent);">dashboard_customize</span>
+                <span data-i18n="dashboard.edit.title">Dashboard Layout</span>
+            </div>
+            <p class="dash-layout-hint" data-i18n="dashboard.edit.hint">Reorder and show/hide sections. Changes are saved immediately.</p>
+            <div class="dash-layout-list" id="dashLayoutList"></div>
+            <div class="dash-layout-footer">
+                <button class="vrcn-button-round" onclick="dashLayoutReset()" style="margin-right:auto;"><span class="msi">restart_alt</span><span data-i18n="dashboard.edit.reset">Reset</span></button>
+                <button class="vrcn-button-round vrcn-btn-primary" onclick="saveDashLayoutFromModal()"><span class="msi">check</span><span data-i18n="common.save">Save</span></button>
+                <button class="vrcn-button-round" onclick="closeDashLayoutEditor()" data-i18n="common.cancel">Cancel</button>
+            </div>
+        </div>
+    </div>
     <!-- Favorite group picker popup (global, outside tabs so it's always visible) -->
     <div id="avFavPickerPanel" style="display:none;position:fixed;z-index:10005;background:var(--bg-card);border:1px solid var(--brd-lt);border-radius:10px;padding:10px;min-width:220px;max-width:280px;box-shadow:0 8px 32px #0008;">
         <div style="font-size:11px;font-weight:700;color:var(--tx3);margin-bottom:8px;letter-spacing:.5px;" data-i18n="avatars.favorites.add_group_title">ADD TO FAVORITE GROUP</div>

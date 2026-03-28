@@ -2187,6 +2187,7 @@ html.text-tools-active * { user-select: text !important; }
     max-height: 80px;
     overflow-y: auto;
     word-break: break-word;
+    white-space: pre-wrap;
 }
 
 /* ── Unified Badge ── */
@@ -2216,6 +2217,7 @@ html.text-tools-active * { user-select: text !important; }
 /* Platform / avatar */
 .vrcn-badge.platform-pc    { background: rgba(100,170,255,.18); color: #64aaff; }
 .vrcn-badge.platform-quest { background: rgba(56,220,120,.18);  color: #38dc78; }
+.vrcn-badge.platform-web   { background: rgba(255,167,38,.18);  color: #FFA726; }
 .vrcn-badge.current        { background: rgba(0,214,143,.2);    color: var(--ok); }
 .vrcn-badge.accent         { background: rgba(56,132,255,.18);  color: var(--accent); }
 
@@ -3113,8 +3115,19 @@ html.text-tools-active * { user-select: text !important; }
     white-space: normal;
 }
 
+.fd-bio.expanded { max-height: none; overflow-y: visible; }
+.fd-bio-expand {
+    display: inline-flex; align-items: center;
+    background: none; border: none; padding: 0; margin-left: 4px;
+    color: var(--tx3); cursor: pointer; line-height: 1;
+    transition: color .15s;
+}
+.fd-bio-expand:hover { color: var(--accent); }
+.fd-bio-expand .msi { font-size: 12px; line-height: 1; }
+
 /* ── Group cards in profile ── */
 .fd-group-rep-label {
+    display: flex; align-items: center;
     font-size: 10px;
     font-weight: 700;
     color: var(--tx3);
@@ -6366,6 +6379,278 @@ div.vn-select {
     background: rgba(56,132,255,.06);
 }
 .vf-add-btn .msi { font-size: 14px; }
+
+/* ═══════════════════════════════════════════════════════════
+   DASHBOARD — Favorite Worlds · Group Activity · Recent Timeline
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── See-all link in section labels ── */
+.dash-section-seeall {
+    margin-left: auto;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .5px;
+    color: var(--accent);
+    font-family: inherit;
+    opacity: .65;
+    transition: opacity .15s;
+}
+.dash-section-seeall:hover { opacity: 1; }
+
+/* ── Favorite Worlds horizontal shelf (small cards) ── */
+.vrcn-dash-fav-shelf {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+}
+.vrcn-dash-fav-shelf::-webkit-scrollbar { display: none; }
+.vrcn-dash-fav-shelf { cursor: grab; }
+.vrcn-dash-fav-shelf:active { cursor: grabbing; }
+
+.vrcn-dash-fav-shelf .vrcn-content-card {
+    flex-shrink: 0;
+    width: 160px;
+    height: 100px;
+    min-height: unset;
+    border-radius: 8px;
+}
+.vrcn-dash-fav-shelf .vrcn-content-card .cc-content { padding: 8px 10px; }
+.vrcn-dash-fav-shelf .vrcn-content-card .cc-name { font-size: 11px; font-weight: 700; margin-bottom: 2px; }
+.vrcn-dash-fav-shelf .vrcn-content-card .cc-meta { font-size: 10px; }
+.vrcn-dash-fav-shelf .vrcn-content-card .cc-meta .msi { font-size: 12px; }
+
+/* ── Group Activity grid ── */
+.vrcn-dash-group-activity {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 8px;
+}
+
+.dash-group-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: var(--bg-card);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background .15s, transform .15s;
+    min-width: 0;
+}
+.dash-group-card:hover {
+    background: var(--bg-hover);
+    transform: translateY(-1px);
+}
+.dash-group-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 9px;
+    flex-shrink: 0;
+    background: var(--bg-input);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--tx3);
+    overflow: hidden;
+}
+.dash-group-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 9px;
+    display: block;
+}
+.dash-group-info { flex: 1; min-width: 0; }
+.dash-group-name {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--tx0);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.dash-group-meta {
+    font-size: 10px;
+    color: var(--tx3);
+    margin-top: 3px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.dash-group-meta .msi { font-size: 12px; }
+
+/* ── Recent Activity Timeline ── */
+#dashMyRecentTl .tl-list-wrap,
+#dashFriendsRecentTl .tl-list-wrap { padding: 0; }
+#dashMyRecentTl .tl-list-table,
+#dashFriendsRecentTl .tl-list-table { font-size: 11px; }
+
+.dash-tl-col-header {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--tx3);
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+.dash-tl-col-header .msi { font-size: 13px; }
+
+.dash-tl-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    background: var(--bg-card);
+    border-radius: 9px;
+    cursor: pointer;
+    transition: background .12s;
+    min-width: 0;
+}
+.dash-tl-row:hover { background: var(--bg-hover); }
+
+.dash-tl-icon {
+    width: 26px;
+    height: 26px;
+    border-radius: 7px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.dash-tl-icon .msi { font-size: 14px; }
+
+.dash-tl-body { flex: 1; min-width: 0; }
+.dash-tl-type {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+}
+.dash-tl-detail {
+    font-size: 11px;
+    color: var(--tx2);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 1px;
+}
+.dash-tl-time {
+    font-size: 9px;
+    color: var(--tx3);
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   DASHBOARD — Sections Layout System
+   ═══════════════════════════════════════════════════════════ */
+
+/* Flex column with gap replaces all the old margin-top rules */
+#dashSectionsContainer {
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+    margin-top: 28px;
+    position: relative;
+    z-index: 1;
+}
+/* Cancel old margin rules for children inside the container */
+#dashSectionsContainer .dash-section-label { margin-top: 0 !important; }
+#dashSectionsContainer .disc-tab-row { margin-top: 0; }
+
+/* my_instances wrap: hide when no instances (JS adds class) */
+.dash-section-wrap[data-section="my_instances"]:not(.mi-has-instances) { display: none; }
+
+/* Layout-hidden sections (set by applyDashLayout) */
+.dash-section-wrap[data-hidden] { display: none !important; }
+
+/* ═══════════════════════════════════════════════════════════
+   DASHBOARD — Layout Editor Modal
+   ═══════════════════════════════════════════════════════════ */
+
+.dash-layout-panel {
+    background: var(--bg-card);
+    border-radius: 16px;
+    width: 400px;
+    max-width: calc(100vw - 32px);
+    max-height: calc(100vh - 64px);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 24px 64px rgba(0,0,0,.65);
+    animation: modalPop .18s ease forwards;
+}
+.dash-layout-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 16px 14px 14px;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--tx0);
+    flex-shrink: 0;
+}
+.dash-layout-hint {
+    font-size: 11px;
+    color: var(--tx3);
+    margin: 8px 14px 2px;
+}
+.dash-layout-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 6px 8px;
+}
+.dash-layout-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 8px;
+    transition: background .1s;
+    cursor: default;
+}
+.dash-layout-item:hover { background: var(--bg-hover); }
+.dash-layout-item.dli-hidden .dash-layout-name { color: var(--tx3); opacity: .6; }
+.dash-layout-item.dli-dragging { opacity: .3; }
+
+.dash-drag-handle {
+    font-size: 18px;
+    color: var(--tx3);
+    cursor: grab;
+    flex-shrink: 0;
+    user-select: none;
+}
+
+.dash-layout-name {
+    flex: 1;
+    min-width: 0;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .8px;
+    color: var(--tx1);
+    text-transform: uppercase;
+}
+
+.dash-layout-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 12px 14px;
+    flex-shrink: 0;
+}
 
 /* ── VRCN Messenger ── */
 #messengerPanel {

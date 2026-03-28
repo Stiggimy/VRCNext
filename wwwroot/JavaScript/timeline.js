@@ -298,6 +298,7 @@ function renderTimeline(payload) {
     tlLoading = false;
     filterTimeline();
     if (typeof updateFdTlPreview === 'function') updateFdTlPreview();
+    if (typeof renderDashMyRecentTimeline === 'function') renderDashMyRecentTimeline();
 }
 
 function handleTimelineEvent(ev) {
@@ -1303,6 +1304,7 @@ function renderFriendTimeline(payload) {
     ftlHasMore = hasMore;
     ftlLoading = false;
     filterFriendTimeline();
+    if (typeof renderDashFriendsRecentTimeline === 'function') renderDashFriendsRecentTimeline();
 }
 
 function handleFriendTimelineEvent(ev) {

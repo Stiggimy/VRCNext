@@ -203,7 +203,9 @@ function saveSettings() {
             memoryTrimEnabled: document.getElementById('setMemoryTrimEnabled').checked,
             legacyWindow: document.getElementById('setLegacyWindow')?.checked ?? false,
             avtrdbReportDeleted: document.getElementById('setAvtrdbReport').checked,
-            avtrdbSubmitAvatars: document.getElementById('setAvtrdbSubmit').checked
+            avtrdbSubmitAvatars: document.getElementById('setAvtrdbSubmit').checked,
+            dashSectionOrder:  (typeof _dashLayout !== 'undefined') ? _dashLayout.order  : [],
+            dashSectionHidden: (typeof _dashLayout !== 'undefined') ? _dashLayout.hidden : []
         }
     };
     // Sync in-memory flags immediately so sound functions see the updated value without waiting for round-trip
@@ -284,6 +286,7 @@ function loadSettingsToUI(s) {
     applyGuiZoom(savedZoom / 100);
 
     dashBgPath = s.DashBgPath || s.dashBgPath || '';
+    if (typeof loadDashLayout === 'function') loadDashLayout({ order: s.DashSectionOrder || s.dashSectionOrder, hidden: s.DashSectionHidden || s.dashSectionHidden });
     dashOpacity = s.DashOpacity || s.dashOpacity || 40;
     document.getElementById('setDashOpacity').value = dashOpacity;
     document.getElementById('dashOpacityVal').textContent = dashOpacity + '%';

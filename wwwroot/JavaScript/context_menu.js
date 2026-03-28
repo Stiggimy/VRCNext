@@ -297,6 +297,10 @@
             return null;
         }
 
+        if (el.closest('.nav-btn[data-nav="dashboard"]')) {
+            return [{ icon: 'dashboard_customize', label: cm('dash_layout', 'Edit Dashboard'), action: () => openDashLayoutEditor() }];
+        }
+
         if (el.closest('#vrcProfileArea') && (typeof currentVrcUser !== 'undefined') && currentVrcUser) {
             return buildSelfItems();
         }
@@ -322,7 +326,7 @@
             if (loc) return buildMyInstanceItems(loc);
         }
 
-        const dashWorld = el.closest('#dashFavWorlds .vrcn-content-card, #dashDiscoveryGrid .vrcn-content-card');
+        const dashWorld = el.closest('#dashFavWorlds .vrcn-content-card, #dashDiscoveryGrid .vrcn-content-card, #dashFavWorldsShelf .vrcn-content-card, #dashRecentlyVisitedShelf .vrcn-content-card, #dashPopularWorldsShelf .vrcn-content-card, #dashActiveWorldsShelf .vrcn-content-card');
         if (dashWorld) {
             const id = extractId(dashWorld, /openWorld(?:Search)?Detail\('([^']+)'\)/);
             if (id) return buildWorldItems(id);

@@ -53,6 +53,7 @@ document.addEventListener('keydown', e => {
 
 let dashBgPath = '', dashBgDataUri = '', dashOpacity = 40;
 let dashWorldCache = {};
+let dashGroupCache = {};
 let vrcFriendsLoaded = false;
 const _fscDefaults = { favorites: false, ingame: false, web: false, offline: true };
 let friendSectionCollapsed = (() => {
@@ -164,6 +165,48 @@ const PLATFORM_ICONS = {
     'booth':     { svg: 'M5.217 0A5.217 5.217 0 000 5.217v13.566A5.217 5.217 0 005.217 24h13.566A5.217 5.217 0 0024 18.783V5.217A5.217 5.217 0 0018.783 0zm5.235 5.4h3.096c1.386 0 2.27.25 2.654.752.383.5.362 1.26-.063 2.28a4.1 4.1 0 01-1.265 1.698c-.584.453-1.317.68-2.2.68H11.26zm-3.52 0h1.67l-2.42 13.2H4.51zm3.52 6.52h1.6c1.076 0 1.821.22 2.235.66.415.44.47 1.1.164 1.98a3.97 3.97 0 01-1.35 1.84c-.62.48-1.42.72-2.4.72h-1.62z' },
     'vrchat':    { svg: 'M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28a.327.327 0 01-.618.04L12.95 12.7l-3.4 4.84a.327.327 0 01-.618-.04l-1.97-9.28a.327.327 0 01.321-.39h.87a.327.327 0 01.318.25l1.28 5.34 2.7-3.9a.327.327 0 01.538 0l2.7 3.9 1.28-5.34a.327.327 0 01.318-.25h.87a.327.327 0 01.317.39z' },
 };
+
+/**
+ * Returns an HTML badge for an instance owner or group.
+ * Can auto-resolve owner name from vrcFriendsData / dashGroupCache when only ownerId is given.
+ * @param {string} ownerId    - 'grp_xxx', 'usr_xxx', or ''
+ * @param {string} [ownerName]  - Display name (auto-resolved if empty)
+ * @param {string} [ownerGroup] - Group shortCode (auto-resolved if empty)
+ * @param {string} [closeModal] - Optional JS to close the parent modal before navigating
+ * @returns {string} HTML string (empty if no owner)
+ */
+function getOwnerBadgeHtml(ownerId, ownerName, ownerGroup, closeModal) {
+    if (!ownerId) return '';
+    // Auto-resolve from caches
+    if (!ownerName && ownerId.startsWith('usr_')) {
+        const f = vrcFriendsData.find(f => f.id === ownerId);
+        ownerName = f?.displayName || '';
+    }
+    if (!ownerName && ownerId.startsWith('grp_')) {
+        const g = dashGroupCache[ownerId];
+        ownerName = g?.name || '';
+        if (!ownerGroup) ownerGroup = g?.shortCode || '';
+    }
+    if (!ownerName) return '';
+    const close = closeModal ? closeModal + ';' : '';
+    if (ownerId.startsWith('grp_'))
+        return `<span class="inst-owner-group-badge" onclick="event.stopPropagation();${close}openGroupDetail('${jsq(ownerId)}')">${esc(ownerName)}${ownerGroup ? `<span class="inst-owner-group-sep">\u00b7</span>${esc(ownerGroup)}` : ''}</span>`;
+    if (ownerId.startsWith('usr_'))
+        return `<span class="vrcn-badge" style="cursor:pointer;" onclick="event.stopPropagation();${close}openFriendDetail('${jsq(ownerId)}')" title="${t('instance.owner', 'Instance Owner')}"><span class="msi" style="font-size:11px;">person</span>${esc(ownerName)}</span>`;
+    return '';
+}
+
+/**
+ * Returns an HTML badge for a VRChat platform string.
+ * @param {string} platform - 'standalonewindows', 'android', 'web', or ''
+ * @returns {string} HTML string (empty if unknown/empty)
+ */
+function getPlatformBadgeHtml(platform) {
+    if (platform === 'standalonewindows') return `<span class="vrcn-badge platform-pc" title="${t('instance.platform.pc', 'PC')}"><span class="msi" style="font-size:11px;">computer</span>${t('instance.platform.pc', 'PC')}</span>`;
+    if (platform === 'android')           return `<span class="vrcn-badge platform-quest" title="${t('instance.platform.quest', 'Quest')}"><span class="msi" style="font-size:11px;">view_in_ar</span>${t('instance.platform.quest', 'Quest')}</span>`;
+    if (platform === 'web')               return `<span class="vrcn-badge platform-web" title="${t('instance.platform.web', 'Web')}"><span class="msi" style="font-size:11px;">language</span>${t('instance.platform.web', 'Web')}</span>`;
+    return '';
+}
 /* === Space Flight === */
 let sfConnected = false;
 /* === Custom Chatbox OSC === */
@@ -970,9 +1013,10 @@ function idBadge(id) {
 // ── Location / instance type helpers (global) ──────────────────────────────
 
 function parseFriendLocation(loc) {
-    if (!loc || loc === 'private' || loc === 'offline' || loc === 'traveling') return { worldId: '', instanceType: loc || 'private' };
+    if (!loc || loc === 'private' || loc === 'offline' || loc === 'traveling') return { worldId: '', instanceType: loc || 'private', ownerId: '' };
     var worldId = loc.includes(':') ? loc.split(':')[0] : loc;
     var instanceType = 'public';
+    var ownerId = '';
     if (loc.includes('~private(')) instanceType = loc.includes('~canRequestInvite') ? 'invite_plus' : 'private';
     else if (loc.includes('~friends+(')) instanceType = 'friends+';
     else if (loc.includes('~friends(')) instanceType = 'friends';
@@ -985,7 +1029,10 @@ function parseFriendLocation(loc) {
         else if (gat === 'members') instanceType = 'group-members';
         else instanceType = 'group';
     }
-    return { worldId, instanceType };
+    // Extract owner ID from location: ~friends(usr_xxx), ~group(grp_xxx), ~hidden(usr_xxx), ~private(usr_xxx)
+    var ownerMatch = loc.match(/~(?:friends\+?|hidden|private|group)\(([^)]+)\)/);
+    if (ownerMatch) ownerId = ownerMatch[1];
+    return { worldId, instanceType, ownerId };
 }
 
 function getInstanceBadge(instanceType) {
