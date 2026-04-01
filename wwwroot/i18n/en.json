@@ -896,6 +896,7 @@
   "dashboard.discovery.popular": "POPULAR WORLDS",
   "dashboard.discovery.active": "VERY ACTIVE",
   "dashboard.discovery.recent": "RECENTLY VISITED",
+  "dashboard.section.quick_controls": "QUICK CONTROLS",
   "dashboard.section.my_instances": "YOUR INSTANCES",
   "dashboard.section.refresh_instances": "Refresh instances",
   "dashboard.section.friend_locations": "FRIENDS LOCATIONS",

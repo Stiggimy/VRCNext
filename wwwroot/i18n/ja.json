@@ -890,6 +890,7 @@
   "dashboard.discovery.popular": "人気のワールド",
   "dashboard.discovery.active": "非常にアクティブ",
   "dashboard.discovery.recent": "最近訪問済み",
+  "dashboard.section.quick_controls": "クイックコントロール",
   "dashboard.section.my_instances": "あなたのインスタンス",
   "dashboard.section.refresh_instances": "インスタンスを更新",
   "dashboard.section.friend_locations": "フレンドのロケーション",

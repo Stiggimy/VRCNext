@@ -1033,6 +1033,7 @@ function relayStatusLabel(running) {
 
 function setRelayState(r, s) {
     relayOn = r;
+    if (typeof updateDashQuickControls === 'function') updateDashQuickControls();
     const b = document.getElementById('btnRelay');
     const dot = document.getElementById('relayDot');
     const txt = document.getElementById('relayStatusText');
@@ -1158,6 +1159,7 @@ function vcInstall() {
 }
 function handleVcState(d) {
     _vcLastState = d;
+    if (typeof updateDashQuickControls === 'function') updateDashQuickControls();
     const running    = !!d.running;
     const installed  = !!d.installed;
     const dot        = document.getElementById('vcDot');

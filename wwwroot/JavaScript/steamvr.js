@@ -53,6 +53,7 @@ function sfAutoSave() {
 function handleSfUpdate(data) {
     _sfLastState = { ...data };
     sfConnected = data.connected;
+    if (typeof updateDashQuickControls === 'function') updateDashQuickControls();
 
     const dot = document.getElementById('sfDot');
     const txt = document.getElementById('sfStatusText');

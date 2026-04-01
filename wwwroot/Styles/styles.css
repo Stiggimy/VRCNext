@@ -6676,6 +6676,47 @@ div.vn-select {
 /* Layout-hidden sections (set by applyDashLayout) */
 .dash-section-wrap[data-hidden] { display: none !important; }
 
+/* ── Dashboard Quick Controls widget ── */
+.dash-qc-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 8px;
+}
+.dash-qc-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    padding: 10px 6px 8px;
+    border-radius: 10px;
+    background: var(--bg-hover);
+    border: 1.5px solid transparent;
+    cursor: pointer;
+    transition: background .15s, border-color .15s;
+}
+.dash-qc-card:hover { filter: brightness(1.12); }
+.dash-qc-card.dqc-on {
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+    border-color: var(--accent);
+}
+.dash-qc-icon {
+    font-size: 22px;
+    color: var(--tx3);
+    transition: color .15s;
+    pointer-events: none;
+}
+.dash-qc-card.dqc-on .dash-qc-icon { color: var(--accent); }
+.dash-qc-label {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+    color: var(--tx3);
+    text-align: center;
+    line-height: 1.3;
+    pointer-events: none;
+}
+
 /* ═══════════════════════════════════════════════════════════
    DASHBOARD — Layout Editor Modal
    ═══════════════════════════════════════════════════════════ */

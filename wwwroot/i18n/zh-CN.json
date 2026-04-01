@@ -890,6 +890,7 @@
   "dashboard.discovery.popular": "热门世界",
   "dashboard.discovery.active": "非常活跃",
   "dashboard.discovery.recent": "最近访问",
+  "dashboard.section.quick_controls": "快速控制",
   "dashboard.section.my_instances": "你的实例",
   "dashboard.section.refresh_instances": "刷新实例",
   "dashboard.section.friend_locations": "好友位置",

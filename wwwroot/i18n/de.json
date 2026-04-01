@@ -895,6 +895,7 @@
   "dashboard.discovery.popular": "BELIEBTE WELTEN",
   "dashboard.discovery.active": "SEHR AKTIV",
   "dashboard.discovery.recent": "KÜRZLICH BESUCHT",
+  "dashboard.section.quick_controls": "SCHNELLSTEUERUNG",
   "dashboard.section.my_instances": "MEINE INSTANZEN",
   "dashboard.section.refresh_instances": "Instanzen aktualisieren",
   "dashboard.section.friend_locations": "FREUNDES-STANDORTE",

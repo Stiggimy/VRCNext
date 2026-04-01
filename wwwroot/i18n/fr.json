@@ -893,6 +893,7 @@
   "dashboard.discovery.popular": "MONDES POPULAIRES",
   "dashboard.discovery.active": "TRÈS ACTIFS",
   "dashboard.discovery.recent": "RÉCEMMENT VISITÉS",
+  "dashboard.section.quick_controls": "CONTRÔLES RAPIDES",
   "dashboard.section.my_instances": "VOS INSTANCES",
   "dashboard.section.refresh_instances": "Actualiser les instances",
   "dashboard.section.friend_locations": "LOCALISATIONS DES AMIS",

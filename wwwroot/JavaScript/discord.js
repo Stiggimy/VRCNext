@@ -65,6 +65,7 @@ function dpToggle() {
 function dpOnState(p) {
     _dpRunning = !!p.running;
     dpSyncUi();
+    if (typeof updateDashQuickControls === 'function') updateDashQuickControls();
     if (_dpRunning) {
         if (!_dpJoinedAt) _dpJoinedAt = Date.now();
         dpUpdateStatusDot();

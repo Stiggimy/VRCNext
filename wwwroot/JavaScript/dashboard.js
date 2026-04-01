@@ -860,6 +860,7 @@ function renderDashRecentTimeline() {
 /* === Dashboard Layout System === */
 
 const DASH_SECTION_META = [
+    { id: 'quick_controls',          nameKey: 'dashboard.section.quick_controls',          name: 'Quick Controls' },
     { id: 'my_instances',            nameKey: 'dashboard.section.my_instances',            name: 'Your Instances' },
     { id: 'friend_locations',        nameKey: 'dashboard.section.friend_locations',        name: 'Friends Locations' },
     { id: 'friend_locations_small',  nameKey: 'dashboard.section.friend_locations_small',  name: 'Friends Location (Small)' },
@@ -877,7 +878,7 @@ const DASH_SECTION_META = [
     { id: 'friends_recent_activity', nameKey: 'dashboard.section.friends_recent_activity', name: 'Friends Recent Activity' },
 ];
 const DASH_DEFAULT_ORDER   = DASH_SECTION_META.map(s => s.id);
-const DASH_DEFAULT_VISIBLE = new Set(['my_instances', 'friend_locations', 'discovery', 'friend_activity']);
+const DASH_DEFAULT_VISIBLE = new Set(['quick_controls', 'my_instances', 'friend_locations', 'discovery', 'friend_activity']);
 
 let _dashLayout = {
     order:  [...DASH_DEFAULT_ORDER],
@@ -911,6 +912,7 @@ function applyDashLayout() {
         const hidden = _dashLayout.hidden.includes(id);
         wrap.toggleAttribute('data-hidden', hidden);
         if (!hidden && id === 'my_instances') renderMyInstances(_myInstancesData);
+        if (!hidden && id === 'quick_controls') renderDashQuickControls();
     });
 }
 
@@ -1063,6 +1065,44 @@ function saveDashLayoutFromModal() {
     });
 })();
 
+/* === Quick Controls Widget === */
+const _DASH_QC = [
+    { id: 'chatbox', icon: 'chat',          labelKey: 'nav.custom_chatbox',   defaultLabel: 'Chatbox',      isOn: () => typeof chatboxEnabled !== 'undefined' && chatboxEnabled,   toggle: () => toggleChatbox() },
+    { id: 'relay',   icon: 'cell_tower',    labelKey: 'nav.media_relay',      defaultLabel: 'Media Relay',  isOn: () => typeof relayOn !== 'undefined' && relayOn,                 toggle: () => toggleRelay() },
+    { id: 'vf',      icon: 'mic',           labelKey: 'nav.voice_fight',      defaultLabel: 'Voice Fight',  isOn: () => typeof vfRunning !== 'undefined' && vfRunning,             toggle: () => { if (!vfRunning) vfOnTabOpen(); vfConnect(); } },
+    { id: 'dp',      icon: 'sensors',       labelKey: 'nav.discord_presence', defaultLabel: 'Discord',      isOn: () => typeof _dpRunning !== 'undefined' && _dpRunning,           toggle: () => dpToggle() },
+    { id: 'yt',      icon: 'smart_display', labelKey: 'nav.youtube_fix',      defaultLabel: 'YouTube Fix',  isOn: () => typeof _vcLastState !== 'undefined' && !!_vcLastState?.running, toggle: () => toggleVc() },
+    { id: 'sf',      icon: 'rocket_launch', labelKey: 'nav.space_flight',     defaultLabel: 'Space Flight', isOn: () => typeof sfConnected !== 'undefined' && sfConnected,         toggle: () => sfConnect() },
+];
+
+function dashQcToggle(id) {
+    const f = _DASH_QC.find(x => x.id === id);
+    if (f) f.toggle();
+}
+
+function renderDashQuickControls() {
+    const grid = document.getElementById('dashQcGrid');
+    if (!grid) return;
+    grid.innerHTML = _DASH_QC.map(f => {
+        const on  = f.isOn();
+        const lbl = t(f.labelKey, f.defaultLabel);
+        const sid = jsq(f.id);
+        return `<button class="dash-qc-card${on ? ' dqc-on' : ''}" data-qc="${esc(f.id)}" onclick="dashQcToggle('${sid}')">
+            <span class="msi dash-qc-icon">${esc(f.icon)}</span>
+            <span class="dash-qc-label">${esc(lbl)}</span>
+        </button>`;
+    }).join('');
+}
+
+function updateDashQuickControls() {
+    const grid = document.getElementById('dashQcGrid');
+    if (!grid) return;
+    _DASH_QC.forEach(f => {
+        const card = grid.querySelector(`.dash-qc-card[data-qc="${CSS.escape(f.id)}"]`);
+        if (card) card.classList.toggle('dqc-on', f.isOn());
+    });
+}
+
 function rerenderDashTranslations() {
     renderDashWorlds();
     renderDashFriendsFeed();
@@ -1077,6 +1117,7 @@ function rerenderDashTranslations() {
     renderDashGroupActivity();
     renderDashMyRecentTimeline();
     renderDashFriendsRecentTimeline();
+    renderDashQuickControls();
     if (_dashModalLayout) _renderDashLayoutList();
 }
 document.documentElement.addEventListener('languagechange', rerenderDashTranslations);

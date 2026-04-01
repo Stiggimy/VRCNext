@@ -4,7 +4,12 @@
 
 As you may know, you can already create custom themes based on your background images. But if that is not enough, there is now a new solution: **Theme Editor**.
 
-You can find it under **Settings > Designs > Colors > Custom Theme** by clicking the **Theme Editor** button. When you press it, a modal opens in the bottom-right corner and shows the current colors of the theme you are using. You can then adjust the colors to your liking and save your own custom theme.
+You can find it under **Settings > Designs > Colors > Custom Theme** by clicking the **Theme Editor** button. When you press it, a modal opens in the bottom-right corner and shows the current colors of the theme you are currently using. You can then adjust the colors to your liking and save your own custom theme.
+
+**Dashboard**
+* Added Quick Feature Widget to the dashboard
+
+This feature is currently in **beta**.
 
 **Activity Log**
 

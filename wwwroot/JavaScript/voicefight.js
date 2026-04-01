@@ -31,6 +31,7 @@ function vfSyncStateUi() {
     if (dot) dot.className = vfRunning ? 'sf-dot online' : 'sf-dot offline';
     if (txt) txt.textContent = vfStatusText();
     if (btn) btn.innerHTML = vfButtonHtml();
+    if (typeof updateDashQuickControls === 'function') updateDashQuickControls();
     const vfBadge = document.getElementById('badgeVoice');
     if (vfBadge) {
         vfBadge.classList.remove(vfRunning ? 'offline' : 'online');
@@ -58,9 +59,11 @@ function vfConnect() {
         sendToCS({ action: 'vfStop' });
     } else {
         const sel = document.getElementById('vfDeviceSelect');
-        const deviceIndex = sel ? parseInt(sel.value, 10) : 0;
+        const rawIdx = sel ? parseInt(sel.value, 10) : NaN;
+        const deviceIndex = isNaN(rawIdx) ? 0 : rawIdx;
         const outSel = document.getElementById('vfOutputDeviceSelect');
-        const outputDeviceIndex = outSel ? parseInt(outSel.value, 10) : -1;
+        const rawOutIdx = outSel ? parseInt(outSel.value, 10) : NaN;
+        const outputDeviceIndex = isNaN(rawOutIdx) ? -1 : rawOutIdx;
         sendToCS({ action: 'vfStart', deviceIndex, outputDeviceIndex });
     }
 }
