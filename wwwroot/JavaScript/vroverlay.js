@@ -227,6 +227,10 @@ function updateModePill() {
 
 // ── Keybind recording ─────────────────────────────────────────────────────────
 
+let _vroManualIds  = [];
+let _vroManualHand = 0;
+let _vroManualEditing = false;
+
 function vroStartRecording() {
     if (!vroConnected) return;
     vroRecording = true;
@@ -238,6 +242,63 @@ function vroCancelRecording() {
     vroRecording = false;
     updateRecordingUI();
     sendToCS({ action: 'vroCancelRecording' });
+}
+
+// ── Manual edit (no C# interaction, pure JS) ─────────────────────────────────
+
+function vroStartManualEdit() {
+    _vroManualEditing = true;
+    // Pre-fill with current keybind so user can tweak it
+    _vroManualIds  = [...vroActiveIds()];
+    _vroManualHand = vroActiveHand();
+    _vroSetManualHandUI(_vroManualHand);
+    // Wire clicks
+    document.getElementById('vroControllerVisual')?.querySelectorAll('.vro-btn').forEach(el => {
+        el.onclick = () => vroToggleManualBtn(parseInt(el.dataset.btnId, 10));
+    });
+    updateRecordingUI();
+}
+
+function vroStopManualEdit() {
+    _vroManualEditing = false;
+    _vroManualIds = [];
+    // Unwire clicks
+    document.getElementById('vroControllerVisual')?.querySelectorAll('.vro-btn').forEach(el => { el.onclick = null; });
+    updateRecordingUI();
+    updateKeybindDisplay(); // restore display to current saved keybind
+}
+
+function vroToggleManualBtn(id) {
+    if (!_vroManualEditing) return;
+    const i = _vroManualIds.indexOf(id);
+    // Double-tap mode: only 1 button allowed
+    const max = vroKeybindMode === 1 ? 1 : 4;
+    if (i >= 0) _vroManualIds.splice(i, 1);
+    else { if (_vroManualIds.length >= max) _vroManualIds = [id]; else _vroManualIds.push(id); }
+    // Update visual
+    document.getElementById('vroControllerVisual')?.querySelectorAll('.vro-btn').forEach(el => {
+        el.classList.toggle('active', _vroManualIds.includes(parseInt(el.dataset.btnId, 10)));
+    });
+}
+
+function vroSetManualHand(hand) {
+    _vroManualHand = hand;
+    _vroSetManualHandUI(hand);
+}
+
+function _vroSetManualHandUI(hand) {
+    ['vroHandAny','vroHandLeft','vroHandRight'].forEach((id, i) => {
+        document.getElementById(id)?.classList.toggle('active', i === hand);
+    });
+}
+
+function vroConfirmManual() {
+    if (_vroManualIds.length === 0) return;
+    if (vroKeybindMode === 0) { vroComboIds = [..._vroManualIds]; vroComboHand = _vroManualHand; }
+    else                      { vroDtIds    = [..._vroManualIds]; vroDtHand    = _vroManualHand; }
+    vroStopManualEdit();
+    updateKeybindDisplay();
+    vroSendConfig();
 }
 
 function vroClearKeybind() {
@@ -299,13 +360,23 @@ function vroToastSendConfig() {
 }
 
 function updateRecordingUI() {
-    const recordBtn = document.getElementById('vroRecordBtn');
-    const cancelBtn = document.getElementById('vroCancelRecordBtn');
-    const hint = document.getElementById('vroRecordHint');
+    const idleBtns     = document.getElementById('vroIdleButtons');
+    const recordBtns   = document.getElementById('vroRecordingButtons');
+    const manualPanel  = document.getElementById('vroManualEditPanel');
+    const hint         = document.getElementById('vroRecordHint');
+
+    if (_vroManualEditing) {
+        if (idleBtns)    idleBtns.style.display   = 'none';
+        if (recordBtns)  recordBtns.style.display  = 'none';
+        if (manualPanel) manualPanel.style.display  = 'block';
+        if (hint) { hint.textContent = ''; }
+        return;
+    }
 
     if (vroRecording) {
-        if (recordBtn) recordBtn.style.display = 'none';
-        if (cancelBtn) cancelBtn.style.display = 'flex';
+        if (idleBtns)    idleBtns.style.display   = 'none';
+        if (recordBtns)  recordBtns.style.display  = 'flex';
+        if (manualPanel) manualPanel.style.display  = 'none';
         if (hint) {
             hint.textContent = vroKeybindMode === 1
                 ? t('vro.keybind.hint.record_double_tap', 'Press one button and hold to record for Double Tap...')
@@ -315,8 +386,10 @@ function updateRecordingUI() {
         return;
     }
 
-    if (recordBtn) recordBtn.style.display = 'flex';
-    if (cancelBtn) cancelBtn.style.display = 'none';
+    // idle state
+    if (idleBtns)    idleBtns.style.display   = 'flex';
+    if (recordBtns)  recordBtns.style.display  = 'none';
+    if (manualPanel) manualPanel.style.display  = 'none';
     if (hint) {
         hint.textContent = vroKeybindMode === 1
             ? t('vro.keybind.hint.idle_double_tap', 'Double-tap a single button to toggle the overlay.')

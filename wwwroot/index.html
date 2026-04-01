@@ -1434,16 +1434,43 @@
                             </button>
                         </div>
 
-                        <!-- Record buttons -->
-                        <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
+                        <!-- Record / Edit Manual buttons (idle) -->
+                        <div id="vroIdleButtons" style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
                             <button class="vrcn-button" id="vroRecordBtn" onclick="vroStartRecording()"
                                 style="flex:1;justify-content:center;">
                                 <span class="msi" style="font-size:15px;">radio_button_checked</span> <span data-i18n="vro.keybind.record">Record</span>
                             </button>
-                            <button class="vrcn-button" id="vroCancelRecordBtn" onclick="vroCancelRecording()"
-                                style="flex:1;justify-content:center;display:none;border-color:var(--warn);">
+                            <button class="vrcn-button" onclick="vroStartManualEdit()"
+                                style="flex:1;justify-content:center;">
+                                <span class="msi" style="font-size:15px;">edit</span> <span data-i18n="vro.keybind.edit_manual">Edit Manual</span>
+                            </button>
+                        </div>
+                        <!-- Cancel (recording VR) -->
+                        <div id="vroRecordingButtons" style="margin-top:8px;display:none;gap:8px;flex-wrap:wrap;">
+                            <button class="vrcn-button" onclick="vroCancelRecording()"
+                                style="flex:1;justify-content:center;border-color:var(--warn);">
                                 <span class="msi" style="font-size:15px;">stop_circle</span> <span data-i18n="common.cancel">Cancel</span>
                             </button>
+                        </div>
+                        <!-- Manual edit panel -->
+                        <div id="vroManualEditPanel" style="margin-top:8px;display:none;">
+                            <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap;">
+                                <span style="font-size:11px;color:var(--tx3);" data-i18n="vro.keybind.hand.label">Hand:</span>
+                                <button class="vrcn-button sub-tab-btn active" id="vroHandAny"   onclick="vroSetManualHand(0)" data-i18n="vro.keybind.hand.any">Any</button>
+                                <button class="vrcn-button sub-tab-btn"        id="vroHandLeft"  onclick="vroSetManualHand(1)" data-i18n="vro.keybind.hand.left">Left</button>
+                                <button class="vrcn-button sub-tab-btn"        id="vroHandRight" onclick="vroSetManualHand(2)" data-i18n="vro.keybind.hand.right">Right</button>
+                            </div>
+                            <div style="font-size:11px;color:var(--tx3);margin-bottom:6px;" data-i18n="vro.keybind.hint.manual_edit">Click the buttons above to select your keybind (up to 4).</div>
+                            <div style="display:flex;gap:8px;">
+                                <button class="vrcn-button" onclick="vroConfirmManual()"
+                                    style="flex:1;justify-content:center;border-color:var(--ok);">
+                                    <span class="msi" style="font-size:15px;">check_circle</span> <span data-i18n="vro.keybind.confirm">Confirm</span>
+                                </button>
+                                <button class="vrcn-button" onclick="vroStopManualEdit()"
+                                    style="flex:1;justify-content:center;border-color:var(--warn);">
+                                    <span class="msi" style="font-size:15px;">close</span> <span data-i18n="common.cancel">Cancel</span>
+                                </button>
+                            </div>
                         </div>
                         <div id="vroRecordHint" style="margin-top:6px;font-size:11px;color:var(--tx3);"></div>
                     </div>
