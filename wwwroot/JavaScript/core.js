@@ -816,6 +816,33 @@ function _updateHttpBadge(code) {
     el.style.display = '';
 }
 
+let _logShowFull = false;
+let _logSearch   = '';
+
+function _applyLogFilter() {
+    const a = document.getElementById('logArea');
+    if (!a) return;
+    const q = _logSearch.toLowerCase();
+    const all = Array.from(a.querySelectorAll('.li-f'));
+    const matched = q ? all.filter(el => el.textContent.toLowerCase().includes(q)) : all;
+    const showFrom = _logShowFull ? 0 : Math.max(0, matched.length - 100);
+    for (const el of all) el.style.display = 'none';
+    for (let i = showFrom; i < matched.length; i++) matched[i].style.display = '';
+}
+
+function toggleLogShowFull() {
+    _logShowFull = !_logShowFull;
+    const btn = document.getElementById('logShowFullBtn');
+    if (btn) btn.textContent = _logShowFull ? 'Show Last 100' : 'Show Full';
+    _applyLogFilter();
+    if (!_logShowFull) { const a = document.getElementById('logArea'); if (a) a.scrollTop = a.scrollHeight; }
+}
+
+function onLogSearch(val) {
+    _logSearch = val.trim();
+    _applyLogFilter();
+}
+
 function addLog(m, c) {
     const a = document.getElementById('logArea');
     if (!a) return;
@@ -867,6 +894,7 @@ function addLog(m, c) {
     const atBottom = a.scrollHeight - a.scrollTop - a.clientHeight < 40;
     a.appendChild(l);
     while (a.childElementCount > 500) a.removeChild(a.firstChild);
+    _applyLogFilter();
     if (atBottom) a.scrollTop = a.scrollHeight;
 }
 
@@ -944,6 +972,9 @@ function rerenderVcTranslations() {
 document.documentElement.addEventListener('languagechange', rerenderVcTranslations);
 
 function clearLog() {
+    _logSearch = ''; _logShowFull = false;
+    const si = document.getElementById('logSearchInput'); if (si) si.value = '';
+    const btn = document.getElementById('logShowFullBtn'); if (btn) btn.textContent = 'Show Full';
     const a = document.getElementById('logArea');
     if (a) a.innerHTML = '';
     for (const code in _httpCounts) {

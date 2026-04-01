@@ -2,7 +2,7 @@
 
 public static class AppInfo
 {
-    public const string Version = "2026.12.8";
+    public const string Version = "2026.12.9";
     public const string ContactEmail = "vrcn@shinyflvres.com";
     public const string Website = "vrcn.shinyflvres.com";
     public const string UserAgent = $"VRCNext/{Version} ({ContactEmail})";

@@ -1297,7 +1297,9 @@ namespace VRCNext.Services
                     // ── Toast overlay tick (always runs, independent of wrist overlay visibility)
                     TickToast();
 
-                    await Task.Delay(11, ct);
+                    // Use minimal delay while scrolling to hit ~90fps; 11ms otherwise (~64fps steady)
+                    bool activeScroll = _scrollDragging || MathF.Abs(_locationScrollVY) > 0.5f || MathF.Abs(_friendsScrollVY) > 0.5f;
+                    await Task.Delay(activeScroll ? 1 : 11, ct);
                 }
                 catch (OperationCanceledException) { break; }
                 catch (Exception ex)
@@ -2228,10 +2230,15 @@ namespace VRCNext.Services
             if (_bitmap == null || OpenVR.Overlay == null || _overlayHandle == 0) return;
             try
             {
+                bool scrolling = _scrollDragging
+                    || MathF.Abs(_locationScrollVY) > 0.5f
+                    || MathF.Abs(_friendsScrollVY)  > 0.5f;
+
                 using var g = Graphics.FromImage(_bitmap);
-                g.SmoothingMode      = SmoothingMode.AntiAlias;
-                g.TextRenderingHint  = TextRenderingHint.ClearTypeGridFit;
-                g.InterpolationMode  = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+                g.SmoothingMode     = scrolling ? SmoothingMode.None          : SmoothingMode.AntiAlias;
+                g.TextRenderingHint = scrolling ? TextRenderingHint.SystemDefault : TextRenderingHint.ClearTypeGridFit;
+                g.InterpolationMode = scrolling ? System.Drawing.Drawing2D.InterpolationMode.Bilinear
+                                                : System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
                 g.Clear(Color.Transparent);
 
                 DrawBackground(g);

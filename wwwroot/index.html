@@ -11,7 +11,7 @@
 </head>
 <body>
     <div class="sidebar" id="sidebarEl">
-        <div class="logo"><div class="logo-icon" id="logoIcon">V</div><div class="logo-txt"><div class="logo-text-row"><div class="logo-text">VRCNext</div></div><div class="logo-sub">v2026.12.8</div></div><button class="sb-toggle" onclick="toggleSidebar()" title="Toggle sidebar" data-i18n-title="common.toggle_sidebar"><span class="msi" id="sbIcon">chevron_left</span></button></div>
+        <div class="logo"><div class="logo-icon" id="logoIcon">V</div><div class="logo-txt"><div class="logo-text-row"><div class="logo-text">VRCNext</div></div><div class="logo-sub">v2026.12.9</div></div><button class="sb-toggle" onclick="toggleSidebar()" title="Toggle sidebar" data-i18n-title="common.toggle_sidebar"><span class="msi" id="sbIcon">chevron_left</span></button></div>
         <div class="nav vrcn-scrollbar">
             <button class="nav-btn active" onclick="showTab(0)" data-nav="dashboard"><span class="ni msi">dashboard</span><span class="nl" data-i18n="nav.dashboard">Dashboard</span></button>
             <button class="nav-btn" onclick="showTab(1)"><span class="ni msi">travel_explore</span><span class="nl" data-i18n="nav.worlds">Worlds</span></button>
@@ -484,7 +484,10 @@
             </div>
             <!-- Tab 8: Activity Log -->
             <div class="tab" id="tab8">
-                <div class="log-header" style="margin-top:0;display:flex;align-items:center;justify-content:flex-end;gap:5px;flex-shrink:0;">
+                <div class="log-header" style="margin-top:0;display:flex;align-items:center;gap:5px;flex-shrink:0;">
+                    <div class="search-bar-row" style="margin-bottom:0;flex:1;min-width:120px;max-width:200px;"><span class="msi search-ico">search</span><input id="logSearchInput" type="text" class="vrcn-input" placeholder="Search..." oninput="onLogSearch(this.value)"></div>
+                    <button id="logShowFullBtn" class="vrcn-button" onclick="toggleLogShowFull()">Show Full</button>
+                    <div style="flex:1;"></div>
                     <div class="mini-badge" id="httpBadge200" style="display:none;background:rgba(59,165,93,.12);border-color:rgba(59,165,93,.4);"><span class="mini-badge-label" style="color:#3ba55d;font-variant-numeric:tabular-nums;">200: 0</span></div>
                     <div class="mini-badge" id="httpBadge429" style="display:none;background:rgba(240,165,0,.12);border-color:rgba(240,165,0,.4);"><span class="mini-badge-label" style="color:#f0a500;font-variant-numeric:tabular-nums;">429: 0</span></div>
                     <div class="mini-badge" id="httpBadge404" style="display:none;background:rgba(237,66,69,.12);border-color:rgba(237,66,69,.4);"><span class="mini-badge-label" style="color:#ed4245;font-variant-numeric:tabular-nums;">404: 0</span></div>
