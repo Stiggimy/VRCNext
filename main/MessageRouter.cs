@@ -397,7 +397,8 @@ public partial class AppShell
                     break;
 
                 case "vrcLookupAvatarByFileId":
-                    await _friends.HandleMessage("vrcLookupAvatarByFileId", msg);
+                case "vrcGetInstanceAvatars":
+                    await _friends.HandleMessage(action, msg);
                     break;
 
                 // Friend actions delegated to FriendsController

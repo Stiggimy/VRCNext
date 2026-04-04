@@ -138,6 +138,44 @@ public class FriendsController
                 break;
             }
 
+            case "vrcGetInstanceAvatars":
+            {
+                var idsToken = msg["userIds"];
+                if (idsToken is JArray idsArr && idsArr.Count > 0)
+                {
+                    var ids = idsArr.Select(t => t.ToString()).Where(s => !string.IsNullOrEmpty(s)).ToList();
+                    _ = Task.Run(async () =>
+                    {
+                        foreach (var uid in ids)
+                        {
+                            try
+                            {
+                                string fileId = "";
+                                JObject? stored = GetStoreValue(uid);
+                                if (stored != null)
+                                    fileId = ExtractAvatarFileId(stored);
+
+                                if (string.IsNullOrEmpty(fileId))
+                                {
+                                    var user = await _core.VrcApi.GetUserAsync(uid);
+                                    if (user != null) fileId = ExtractAvatarFileId(user);
+                                }
+
+                                string avtrId = "";
+                                if (!string.IsNullOrEmpty(fileId))
+                                    avtrId = await _core.VrcApi.GetAvatarIdByFileIdAsync(fileId) ?? "";
+                                _core.SendToJS("vrcInstanceAvatarFound", new { userId = uid, avatarId = avtrId });
+                            }
+                            catch
+                            {
+                                _core.SendToJS("vrcInstanceAvatarFound", new { userId = uid, avatarId = "" });
+                            }
+                        }
+                    });
+                }
+                break;
+            }
+
             case "vrcGetUserAvatars":
             {
                 var uid = msg["userId"]?.ToString();

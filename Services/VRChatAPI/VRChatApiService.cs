@@ -824,7 +824,7 @@ public class VRChatApiService
         using var client = new HttpClient();
         client.Timeout = TimeSpan.FromSeconds(15);
         client.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", UA);
-        client.DefaultRequestHeaders.TryAddWithoutValidation("Referer", $"https://{AppInfo.Website}"); // Changed to VRCN Ident. lol i forgot.
+        client.DefaultRequestHeaders.TryAddWithoutValidation("Referer", "https://vrcx.app");
         client.DefaultRequestHeaders.Accept.ParseAdd("application/json");
         try
         {
@@ -834,8 +834,12 @@ public class VRChatApiService
             Log($"GetAvatarIdByFileId [{(int)resp.StatusCode}]: {body[..Math.Min(400, body.Length)]}");
             if (!resp.IsSuccessStatusCode || string.IsNullOrWhiteSpace(body)) return null;
             var parsed = Newtonsoft.Json.Linq.JToken.Parse(body);
-            if (parsed is JObject single) return single["id"]?.ToString();
-            if (parsed is JArray arr && arr.Count > 0) return arr[0]?["id"]?.ToString();
+            const string robotId = "avtr_c38a1615-5bf5-42b4-84eb-a8b6c37cbd11";
+            string? id = null;
+            if (parsed is JObject single) id = single["id"]?.ToString();
+            else if (parsed is JArray arr && arr.Count > 0) id = arr[0]?["id"]?.ToString();
+            if (id == robotId) return null;
+            return id;
         }
         catch (Exception ex) { Log($"GetAvatarIdByFileId exception: {ex.Message}"); }
         return null;

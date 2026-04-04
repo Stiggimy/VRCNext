@@ -532,19 +532,14 @@ function closeInstanceInfoModal() {
 }
 
 //Avatar Lookup avtrdb context logic
-const _ctxAvatarPending = new Set();
-
 function handleInstanceAvatarFound(payload) {
     const { userId, avatarId } = payload;
     if (!userId) return;
-    _ctxAvatarPending.delete(userId);
     if (avatarId) openAvatarDetail(avatarId);
     else showToast(false, t('context_menu.avatar_not_found', 'No public avatar found'));
 }
 
 function ctxCheckAvatar(userId) {
-    if (_ctxAvatarPending.has(userId)) return;
-    _ctxAvatarPending.add(userId);
     sendToCS({ action: 'vrcGetInstanceAvatars', userIds: [userId] });
 }
 
