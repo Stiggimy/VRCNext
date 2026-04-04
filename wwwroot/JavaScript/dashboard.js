@@ -354,9 +354,24 @@ function openInstanceDetailFromData(inst) {
     const { cls, label: typeLabel } = getInstanceBadge(inst.instanceType);
     const instNum  = (inst.location || '').match(/:(\d+)/)?.[1] || '';
 
-    const instFriends = (typeof vrcFriendsData !== 'undefined')
+    // Friends by API location
+    const locFriends = (typeof vrcFriendsData !== 'undefined')
         ? vrcFriendsData.filter(f => f.location && f.location.match(/:(\d+)/)?.[1] === instNum)
         : [];
+    // Also check LogWatcher players (catches DnD/Ask Me friends whose location is "private")
+    const locBase = (inst.location || '').split('~')[0];
+    const curBase = (currentInstanceData?.location || '').split('~')[0];
+    const logUsers = (locBase && curBase === locBase && currentInstanceData?.users) ? currentInstanceData.users : [];
+    const friendById = {};
+    if (typeof vrcFriendsData !== 'undefined') vrcFriendsData.forEach(f => { if (f.id) friendById[f.id] = f; });
+    const seenIds = new Set(locFriends.map(f => f.id));
+    logUsers.forEach(u => {
+        if (u.id && !seenIds.has(u.id) && friendById[u.id]) {
+            locFriends.push(friendById[u.id]);
+            seenIds.add(u.id);
+        }
+    });
+    const instFriends = locFriends;
 
     const bannerHtml = thumb
         ? `<div class="fd-banner"><img src="${thumb}" onerror="this.parentElement.style.display='none'"><div class="fd-banner-fade"></div></div>`
@@ -407,10 +422,24 @@ function openMyInstanceDetail(worldId, location) {
     const instNum = (inst.location || '').match(/:(\d+)/)?.[1] || '';
     const canJoin = inst.instanceType !== 'private' && inst.instanceType !== 'invite_plus';
 
-    // Friends in this instance (match by instance number)
-    const instFriends = (typeof vrcFriendsData !== 'undefined')
+    // Friends by API location
+    const locFriends2 = (typeof vrcFriendsData !== 'undefined')
         ? vrcFriendsData.filter(f => f.location && f.location.match(/:(\d+)/)?.[1] === instNum)
         : [];
+    // Also check LogWatcher players (catches DnD/Ask Me friends whose location is "private")
+    const locBase2 = (inst.location || '').split('~')[0];
+    const curBase2 = (currentInstanceData?.location || '').split('~')[0];
+    const logUsers2 = (locBase2 && curBase2 === locBase2 && currentInstanceData?.users) ? currentInstanceData.users : [];
+    const friendById2 = {};
+    if (typeof vrcFriendsData !== 'undefined') vrcFriendsData.forEach(f => { if (f.id) friendById2[f.id] = f; });
+    const seenIds2 = new Set(locFriends2.map(f => f.id));
+    logUsers2.forEach(u => {
+        if (u.id && !seenIds2.has(u.id) && friendById2[u.id]) {
+            locFriends2.push(friendById2[u.id]);
+            seenIds2.add(u.id);
+        }
+    });
+    const instFriends = locFriends2;
 
     const bannerHtml = thumb
         ? `<div class="fd-banner"><img src="${thumb}" onerror="this.parentElement.style.display='none'"><div class="fd-banner-fade"></div></div>`

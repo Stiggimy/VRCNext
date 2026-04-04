@@ -3,12 +3,12 @@
 **Smart Links**
 Smart Links make it much easier to open **Groups**, **Worlds**, **Profiles**, and **Avatars** directly inside **VRCN**.
 
-For example, if a friend sends you a **VRChat.com** link that points to an avatar, user profile, world, or group, you can simply right-click it from almost anywhere and choose **Open X Link**, such as **Open Avatar Link**. VRCN will then immediately detect the content type and open the correct modal for it. This makes sharing VRChat content across different platforms much faster, easier, and more accessible.
+For example, if a friend sends you a **VRChat.com** link that points to an avatar, user profile, world, or group, you can simply right-click it from almost anywhere and choose **Open X Link**, such as **Open Avatar Link**. **VRCN** will then immediately detect the content type and open the correct modal for it. This makes sharing **VRChat** content across different platforms much faster, easier, and more accessible.
 
 Smart Links also work with direct IDs, including **Avatar IDs**, **Group IDs**, **World IDs**, and **Profile IDs**. This means you are not limited to full website links and can quickly open content even when only the raw ID is available.
 
 **Instance Share**
-Same as Smart Links, you can now copy an Instance links or send it to friends. When they copy it they can use right click to open the context menu. It will show "Open instance Link" and then you can invite yourself to this instance without the need to open VRChat.com
+Similar to Smart Links, you can now copy **Instance** links or send them to friends. When they copy the link, they can right-click to open the context menu, where **Open Instance Link** will appear. This allows them to invite themselves to that instance without needing to open **VRChat.com**.
 
 **New**
 
@@ -16,7 +16,7 @@ Same as Smart Links, you can now copy an Instance links or send it to friends. W
 * Added a **Share** button to the header of **Avatar** modals.
 * Added a **Share** button to the header of **Group** modals.
 * Added a **Share** button to the header of **User** modals.
-* Added a **Invite** Modal and Button to invite friends to certain groups where you have the permission for.
+* Added an **Invite** modal and button to invite friends to certain groups where you have permission.
 
 **Timeline**
 
@@ -31,4 +31,8 @@ Same as Smart Links, you can now copy an Instance links or send it to friends. W
 * Updated several button placements across all **Timeline** modals for a cleaner, more consistent, and easier-to-use layout.
 * Added the missing **View Profile** button to the **Unfriended** list in **Timeline**.
 * Added the missing **Group ID** badge to **Group** modals.
-* Added missing i18n language entries
+* Added missing i18n language entries.
+
+**Fixes**
+
+* In **Your Instances** on the dashboard, only friends with **Green** or **Blue** status were shown before. It will now also show friends with **Red** or **Yellow** status, but only if you are in the same instance. If you are in a different instance, they will not appear in the list.
