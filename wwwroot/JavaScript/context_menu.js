@@ -64,14 +64,21 @@
             ? (window.getSelection()?.toString().trim() ?? '')
             : '';
         const copyItem = sel
-            ? { icon: 'content_copy', label: 'Copy', action: () => navigator.clipboard.writeText(sel).catch(() => {}) }
+            ? { icon: 'content_copy', label: cm('copy', 'Copy'), action: () => navigator.clipboard.writeText(sel).catch(() => {}) }
             : null;
 
-        let cfg = getMenuConfig(e);
-        if (copyItem && cfg) cfg = [copyItem, 'sep', ...cfg];
-        else if (copyItem && !cfg) cfg = [copyItem];
-
         const clipText = await navigator.clipboard.readText().catch(() => '');
+        const tgt = e.target;
+        const isEditable = tgt && (tgt.tagName === 'INPUT' || tgt.tagName === 'TEXTAREA' || tgt.isContentEditable);
+        const pasteItem = (isEditable && clipText)
+            ? { icon: 'content_paste', label: cm('paste', 'Paste'), action: () => { tgt.focus(); document.execCommand('insertText', false, clipText); } }
+            : null;
+
+        const editItems = [copyItem, pasteItem].filter(Boolean);
+
+        let cfg = getMenuConfig(e);
+        if (editItems.length && cfg) cfg = [...editItems, 'sep', ...cfg];
+        else if (editItems.length && !cfg) cfg = editItems;
         const vrcData = detectVrcClipboard(clipText);
         if (vrcData) {
             const meta = VRC_CTX_META[vrcData.type];

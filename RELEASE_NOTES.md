@@ -24,7 +24,10 @@ Similar to Smart Links, you can now copy **Instance** links or send them to frie
 * Added a **Force Join** button to the **Locations** modal under **Friends**, allowing you to join an instance if it is still valid.
 * Added the **Profile** image to the **Timeline** list view for better visual context and easier recognition.
 
-**Changes**
+**Context Menu**
+* Added "Paste" button so you can now paste texts into any text input fields.
+
+**Other Changes**
 
 * Changed the button location in the **Personal Timeline > Instances** modal.
 * Changed the button locations in **Friends Timeline > Locations**.

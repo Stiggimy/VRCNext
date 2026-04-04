@@ -1079,6 +1079,8 @@
   "notifications.types.vrcplus_gift": "Regalo VRC+",
   "notifications.types.group_default": "Grupo: {name}",
   "context_menu.loading_groups": "Cargando grupos...",
+  "context_menu.copy": "Copiar",
+  "context_menu.paste": "Pegar",
   "context_menu.confirm": "¿Confirmar?",
   "context_menu.group.unban_member": "Desbanear miembro",
   "context_menu.group.open_details": "Abrir detalles",

@@ -1076,6 +1076,8 @@
   "notifications.types.vrcplus_gift": "VRC+ 礼物",
   "notifications.types.group_default": "群组：{name}",
   "context_menu.loading_groups": "正在加载群组...",
+  "context_menu.copy": "复制",
+  "context_menu.paste": "粘贴",
   "context_menu.confirm": "确认？",
   "context_menu.group.unban_member": "取消封禁成员",
   "context_menu.group.open_details": "打开详情",

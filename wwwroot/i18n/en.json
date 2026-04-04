@@ -1103,6 +1103,8 @@
   "notifications.types.vrcplus_gift": "VRC+ Gift",
   "notifications.types.group_default": "Group: {name}",
   "context_menu.loading_groups": "Loading groups...",
+  "context_menu.copy": "Copy",
+  "context_menu.paste": "Paste",
   "context_menu.confirm": "Confirm?",
   "context_menu.group.unban_member": "Unban Member",
   "context_menu.group.open_details": "Open Details",
