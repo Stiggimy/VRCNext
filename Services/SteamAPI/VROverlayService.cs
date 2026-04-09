@@ -50,7 +50,7 @@ namespace VRCNext.Services
         public event Action<string, string, string, string>? OnNotifAccept; // (notifId, notifType, senderId, notifData)
 
         //  OpenVR handles 
-        private CVRSystem? _vrSystem;
+        private volatile CVRSystem? _vrSystem;
         private bool _ownedInit;
         private ulong _overlayHandle;
 
@@ -1329,23 +1329,18 @@ namespace VRCNext.Services
 
         private void PollEvents()
         {
-            if (_vrSystem == null) return;
+            // Read once into a local — volatile ensures the JIT cannot cache the field
+            var sys = _vrSystem;
+            if (sys == null) return;
 
-            //  Reconcile event-driven button state with GetControllerState 
-            // OpenVR can drop ButtonUnpress events (e.g. during focus transitions,
-            // overlay show/hide, or compositor restarts), leaving stale bits in
-            // _event*Held that permanently block keybind re-arming.
-            // GetControllerState is authoritative when available (returns 0 when
-            // Steam overlay has focus — that's fine, events cover that case).
-            // We AND the event bits with the polled state so any bit that the
-            // runtime considers released gets cleared even if we missed the event.
+            //  Reconcile event-driven button state with GetControllerState
             {
                 var s  = new VRControllerState_t();
                 var sz = (uint)Marshal.SizeOf<VRControllerState_t>();
                 ulong polledAll = 0;
                 if (_leftIdx != OpenVR.k_unTrackedDeviceIndexInvalid)
                 {
-                    if (_vrSystem.GetControllerState(_leftIdx, ref s, sz))
+                    if (sys.GetControllerState(_leftIdx, ref s, sz))
                     {
                         _eventLeftHeld &= s.ulButtonPressed;
                         polledAll |= s.ulButtonPressed;
@@ -1353,7 +1348,7 @@ namespace VRCNext.Services
                 }
                 if (_rightIdx != OpenVR.k_unTrackedDeviceIndexInvalid)
                 {
-                    if (_vrSystem.GetControllerState(_rightIdx, ref s, sz))
+                    if (sys.GetControllerState(_rightIdx, ref s, sz))
                     {
                         _eventRightHeld &= s.ulButtonPressed;
                         polledAll |= s.ulButtonPressed;
@@ -1369,15 +1364,15 @@ namespace VRCNext.Services
             var evtSize = (uint)Marshal.SizeOf<VREvent_t>();
 
             // Drain system-level events.
-            while (_vrSystem.PollNextEvent(ref evt, evtSize))
+            while (sys.PollNextEvent(ref evt, evtSize))
             {
                 var eType = (EVREventType)evt.eventType;
                 if (eType == EVREventType.VREvent_Quit)
                 {
-                    // Null _vrSystem FIRST so any subsequent call in this or the next
-                    var sys = _vrSystem;
+                    // Null _vrSystem FIRST... sys (local snapshot) is used for the
+                    // acknowledge call so no further code touches the field.
                     _vrSystem = null;
-                    try { sys?.AcknowledgeQuit_Exiting(); } catch { }
+                    try { sys.AcknowledgeQuit_Exiting(); } catch { }
                     _cts?.Cancel();
                     OnVRQuit?.Invoke();
                     return;

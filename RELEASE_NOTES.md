@@ -15,6 +15,7 @@
 * Fixed a fatal crash (`0x80131506`) caused by `SendWebMessage` being called from a background timer thread — all messages are now marshalled to the UI thread via `Invoke`
 * Fixed a fatal access violation in `SubclassWndProc` → `CallWindowProc` during window teardown — replaced `SetWindowLongPtr` subclassing with the correct `SetWindowSubclass` / `DefSubclassProc` / `RemoveWindowSubclass` API
 * Fixed a fatal crash in `CVRSystem.PollNextEvent` when SteamVR is closed while Space Flight / VR Overlay is active — added a `volatile bool _vrQuit` guard that prevents further native calls after the quit event
+* Fixed a fatal access violation (`0xC0000005`) in `CVRSystem.GetControllerState` when SteamVR exits or hard-crashes while the VR Overlay is active — `_vrSystem` is now nulled immediately on `VREvent_Quit` before acknowledging, and a background monitor (`WaitForExitAsync` on vrserver.exe) ensures the interface is invalidated instantly on hard crashes with zero poll-loop overhead
 
 **Project Changes**
 
