@@ -354,6 +354,18 @@
             return buildSelfItems();
         }
 
+        // Image context menu: banner or profile/group icon inside detail modals
+        if (el.closest('#modalFriendDetail, #modalMyProfile, #modalDetail, #modalWorldDetail, #modalAvatarDetail')) {
+            const bannerDiv = el.closest('.fd-banner');
+            if (bannerDiv) {
+                const img = bannerDiv.querySelector('img');
+                if (img?.src) return buildModalImageItems(img.src);
+            }
+            if (el.tagName === 'IMG' && el.classList.contains('fd-avatar') && el.src) {
+                return buildModalImageItems(el.src);
+            }
+        }
+
         const libCard = el.closest('.lib-card, .dash-photo-item');
         if (libCard) {
             const path = libCard.dataset.path || '';
@@ -817,6 +829,13 @@
         items.push('sep');
         items.push({ icon: 'delete', label: cm('library.delete', 'Delete'), danger: true, action: () => showDeleteModal(path, name) });
         return items;
+    }
+
+    function buildModalImageItems(src) {
+        return [
+            { icon: 'download',     label: cm('image.download', 'Download Image'), action: () => sendToCS({ action: 'invDownload', url: src, fileName: 'image.png' }) },
+            { icon: 'open_in_full', label: cm('image.inspect',  'Inspect Image'),  action: () => openLightbox(src, 'image') },
+        ];
     }
 
     function buildSelfItems() {

@@ -52,21 +52,33 @@ public class WindowController
 
     private delegate nint SUBCLASSPROC(nint hWnd, uint uMsg, nint wParam, nint lParam, nuint uIdSubclass, nuint dwRefData);
     private static SUBCLASSPROC? _subclassProc; // must stay rooted — prevents GC collection of the delegate
+    private static volatile bool _ncDestroyed;  // set on WM_NCDESTROY; guards re-entrant calls and post-destroy messages
     private const nuint SubclassId = 1;
 
     private static nint SubclassWndProc(nint hWnd, uint msg, nint wParam, nint lParam, nuint uIdSubclass, nuint dwRefData)
     {
+        const uint WM_DESTROY    = 0x0002;
         const uint WM_NCDESTROY  = 0x0082;
         const uint WM_NCCALCSIZE = 0x0083;
         const uint WM_NCHITTEST  = 0x0084;
         const uint WM_SYSCOMMAND = 0x0112;
         const int  SC_MINIMIZE   = 0xF020;
 
-        if (msg == WM_NCDESTROY)
+        if (msg == WM_DESTROY)
         {
-            RemoveWindowSubclass(hWnd, _subclassProc!, SubclassId);
-            _subclassProc = null;
-            return DefSubclassProc(hWnd, msg, wParam, lParam);
+            _ncDestroyed = true;
+            return DefSubclassProc(hWnd, msg, wParam, lParam); // safe — handle still valid here
+        }
+
+        // Drop everything after teardown started, EXCEPT WM_NCDESTROY which needs cleanup.
+        if (_ncDestroyed)
+        {
+            if (msg == WM_NCDESTROY && _subclassProc != null)
+            {
+                RemoveWindowSubclass(hWnd, _subclassProc, SubclassId);
+                _subclassProc = null;
+            }
+            return 0;
         }
 
         if (msg == WM_NCCALCSIZE && wParam == 1)
@@ -103,6 +115,7 @@ public class WindowController
     private void InstallWndProcSubclass(nint hWnd)
     {
         if (_subclassProc != null) return; // already installed
+        _ncDestroyed = false;
         _subclassProc = SubclassWndProc;
         SetWindowSubclass(hWnd, _subclassProc, SubclassId, 0);
     }

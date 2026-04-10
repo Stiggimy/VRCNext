@@ -39,11 +39,17 @@ public class VRChatLogWatcher : IDisposable
 
     private static DateTime ParseLogTimestamp(string line)
     {
-        if (line.Length >= 19 && DateTime.TryParseExact(
-            line.Substring(0, 19), "yyyy.MM.dd HH:mm:ss",
-            System.Globalization.CultureInfo.InvariantCulture,
-            System.Globalization.DateTimeStyles.None, out var dt))
-            return dt;
+        // Manual parse avoids Interop+Globalization.CompareString (ICU)
+        if (line.Length >= 19
+            && int.TryParse(line.AsSpan(0,  4), out int yr)
+            && int.TryParse(line.AsSpan(5,  2), out int mo)
+            && int.TryParse(line.AsSpan(8,  2), out int dy)
+            && int.TryParse(line.AsSpan(11, 2), out int hh)
+            && int.TryParse(line.AsSpan(14, 2), out int mm)
+            && int.TryParse(line.AsSpan(17, 2), out int ss))
+        {
+            try { return new DateTime(yr, mo, dy, hh, mm, ss); } catch { }
+        }
         return DateTime.Now;
     }
 

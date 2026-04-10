@@ -238,6 +238,7 @@ namespace VRCNext.Services
             if (_running) return;
             _cts = new CancellationTokenSource();
             _running = true;
+            StartVrserverMonitor(_cts.Token);
             _ = PollLoopAsync(_cts.Token);
         }
 
@@ -290,9 +291,13 @@ namespace VRCNext.Services
                 if ((EVREventType)evt.eventType == EVREventType.VREvent_Quit)
                 {
                     _vrQuit = true;
-                    try { _vrSystem.AcknowledgeQuit_Exiting(); } catch { }
+                    _vrSystem = null; // null immediately — no further P/Invoke calls reach dead memory
+                    try { OpenVR.System?.AcknowledgeQuit_Exiting(); } catch { }
                     _cts?.Cancel();
-                    OnVRQuit?.Invoke();
+                    // Fire OnVRQuit on a thread pool thread — handlers (e.g. Disconnect) make OpenVR
+                    // calls that would AV if called synchronously from inside ProcessFrame while
+                    // SteamVR is mid-teardown.
+                    _ = Task.Run(() => OnVRQuit?.Invoke());
                     return;
                 }
             }
@@ -518,6 +523,34 @@ namespace VRCNext.Services
             LeftHandEnabled = leftHand;
             RightHandEnabled = rightHand;
             UseGripButton = useGrip;
+        }
+
+        // Monitors vrserver.exe with WaitForExitAsync — zero overhead in the poll loop.
+        // If vrserver hard-crashes (no VREvent_Quit), sets _vrQuit and cancels the CTS
+        // before the next ProcessFrame tick so no further P/Invoke calls reach dead memory.
+        private void StartVrserverMonitor(CancellationToken ct)
+        {
+            var procs = System.Diagnostics.Process.GetProcessesByName("vrserver");
+            if (procs.Length == 0) return;
+            var proc = procs[0];
+            for (int i = 1; i < procs.Length; i++) procs[i].Dispose();
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await proc.WaitForExitAsync(ct);
+                    if (!ct.IsCancellationRequested && !_vrQuit)
+                    {
+                        _log("[SteamVR] vrserver.exe exited — nulling OpenVR interface");
+                        _vrQuit = true;
+                        _vrSystem = null;
+                        _cts?.Cancel();
+                        _ = Task.Run(() => OnVRQuit?.Invoke());
+                    }
+                }
+                catch { }
+                finally { proc.Dispose(); }
+            }, CancellationToken.None); // use None so monitor survives ct cancellation during cleanup
         }
 
         public void Dispose()
