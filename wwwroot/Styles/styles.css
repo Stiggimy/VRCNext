@@ -1852,7 +1852,7 @@ html.text-tools-active * { user-select: text !important; }
     inset: 0;
     background-size: cover;
     background-position: center;
-    filter: brightness(0.25);
+    filter: brightness(0.15);
     z-index: 0;
 }
 .sloc-inst-content {
@@ -1860,14 +1860,22 @@ html.text-tools-active * { user-select: text !important; }
     z-index: 1;
 }
 .sloc-inst-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
     font-size: 10px;
     font-weight: 700;
     color: var(--tx2);
-    padding: 6px 10px 2px;
+    padding: 8px 8px 10px;
     letter-spacing: .04em;
-    white-space: nowrap;
     overflow: hidden;
-    text-overflow: ellipsis;
+}
+.sloc-inst-label > span.sloc-inst-count {
+    flex-shrink: 0;
+}
+.sloc-inst-label > .vrcn-badge {
+    margin-left: auto;
+    flex-shrink: 0;
 }
 .sloc-inst-count {
     color: var(--tx3);

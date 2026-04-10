@@ -1,5 +1,9 @@
 **2026.15.0**
 
+*Friends Sidebar**
+* Improved Instance Design.
+* Added Instance Type badges.
+
 **World Section**
 
 * Added a **Visibility** option in Edit mode. You can now change the visibility of each Favorites group, allowing others to see which worlds you have favorited

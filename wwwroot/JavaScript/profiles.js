@@ -567,10 +567,13 @@ function renderVrcFriends(friends, counts) {
                 const _grpLabel = _wname
                     ? `${_wname}${_iid ? ' · #' + _iid : ''}`
                     : (_iid ? '#' + _iid : _wid);
+                const { instanceType: _iType } = parseFriendLocation(list[0]?.location || '');
+                const { cls: _iCls, label: _iLabel } = getInstanceBadge(_iType);
+                const _badgeHtml = `<span class="vrcn-badge ${_iCls}">${esc(_iLabel)}</span>`;
                 h += `<div class="sloc-inst-card">`;
                 if (_wthumb) h += `<div class="sloc-inst-bg" style="background-image:url('${cssUrl(_wthumb)}')"></div>`;
                 h += `<div class="sloc-inst-content">`;
-                h += `<div class="sloc-inst-label">${esc(_grpLabel)} <span class="sloc-inst-count">${list.length}</span></div>`;
+                h += `<div class="sloc-inst-label">${esc(_grpLabel)} <span class="sloc-inst-count">${list.length}</span>${_badgeHtml}</div>`;
                 list.forEach(f => { h += renderCard(f, 'game'); });
                 h += `</div></div>`;
             });
