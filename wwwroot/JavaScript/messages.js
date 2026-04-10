@@ -443,6 +443,9 @@ window.external.receiveMessage(rawMsg => {
             case 'vrcUserAvatars':
                 renderFdUserAvatars(payload);
                 break;
+            case 'vrcUserFavWorlds':
+                if (typeof renderUserFavWorlds === 'function') renderUserFavWorlds(payload);
+                break;
             case 'vrcAvatarsDeleted':
                 _markDeletedAvatars(payload.ids || []);
                 break;

@@ -15,6 +15,7 @@ public class CacheHandler
     public static readonly string KeyPermini      = "permini_list.json";
 
     public static string KeyUserProfile(string userId) => $"profiles/{userId}.json";
+    public static string KeyUserFavWorlds(string userId) => $"favworlds/{userId}.json";
 
     public object? LoadRaw(string key)
     {
@@ -54,6 +55,9 @@ public class CacheHandler
             var profilesDir = Path.Combine(_dir, "profiles");
             if (Directory.Exists(profilesDir))
                 Directory.Delete(profilesDir, true);
+            var favWorldsDir = Path.Combine(_dir, "favworlds");
+            if (Directory.Exists(favWorldsDir))
+                Directory.Delete(favWorldsDir, true);
         }
         catch { }
     }

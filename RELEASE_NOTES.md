@@ -1,5 +1,11 @@
 **2026.14.5**
 
+**Modal Changes Overall**
+* Increased the Modal size to make more space for new elements.
+* Updated load-times for Modals. They should load a little faster now.
+* Updated Cache logic for Modals to improve loading speed.
+* Added FFC Caching for Favorited Worlds.
+
 **Group Modal**
 
 * The group owner is now shown below the group name
@@ -13,6 +19,7 @@
 * Updated the profile modal to look more similar to the Group, World, and your own profile modals
 * Removed unused CSS
 * Made the **Info** section smaller, including items like **Last Seen**, **Joined**, and **Time Together**, to create more space inside the profile modal
+* Added new Navbar Section "Favs." In Favorites you can see the favorited worlds of an user or an friend if they have set it to "Friends" or "Public"
 
 **Timeline in User Profiles**
 
@@ -43,3 +50,9 @@ This has now been split into two separate startup lists, so you can choose which
 * Fixed an issue that causes Start Up Apps not to be saved in Settings.
 * Reduced the status text limit from 64 chars. to 32 chars. as the API only allows max 32 chars.
 * Fixed an issue that caused images to not be updated when doing changes on the dashboard widget
+* Fixed some dashboard related issues that cause the dashboard to show wrong contents.
+* Fixed an User Profile issue that caused long load times.
+* Fixed an Group Modal issue that causes infinity load times.
+* Fixed some caching related issues.
+* Fixed an issue that causes 429 Errors because of loading too many user requests in group modals.
+* Fixed some REST API request methods to improve loading and reduce GET Requests.

@@ -2545,6 +2545,60 @@ html.text-tools-active * { user-select: text !important; }
 .dash-floc-card .dash-feed-status { color: rgba(255,255,255,.65); }
 .dash-floc-card .dash-feed-loc   { color: rgba(255,255,255,.45); }
 
+/* === World Card Small (Favs tab, matches Friends Location Small style) === */
+.vrcn-world-grid-small {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 8px;
+}
+.vrcn-world-card-small {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: flex-end;
+    padding: 10px 10px;
+    border-radius: 10px;
+    cursor: pointer;
+    min-height: 72px;
+    transition: transform .15s;
+}
+.vrcn-world-card-small:hover { transform: translateY(-2px); }
+.vrcn-world-card-small .vwcs-bg {
+    position: absolute;
+    inset: 0;
+    background-size: cover;
+    background-position: center;
+    background-color: var(--bg-card);
+    transition: transform .3s ease;
+}
+.vrcn-world-card-small:hover .vwcs-bg { transform: scale(1.06); }
+.vrcn-world-card-small .vwcs-scrim {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba(0,0,0,.82) 0%, rgba(0,0,0,.25) 60%, rgba(0,0,0,.1) 100%);
+}
+.vrcn-world-card-small .vwcs-info {
+    position: relative;
+    z-index: 1;
+    min-width: 0;
+}
+.vrcn-world-card-small .vwcs-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: rgba(255,255,255,.95);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.vrcn-world-card-small .vwcs-meta {
+    font-size: 11px;
+    color: rgba(255,255,255,.55);
+    margin-top: 2px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
 .wd-friends-label {
     font-size: 10px;
     font-weight: 700;

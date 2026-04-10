@@ -1400,6 +1400,33 @@ public class VRChatApiService
         return new JArray();
     }
 
+    public async Task<JArray> GetUserFavWorldGroupsAsync(string userId)
+    {
+        if (!IsLoggedIn) return new JArray();
+        try
+        {
+            var resp = await _http.GetAsync($"{BASE}/favorite/groups?ownerId={Uri.EscapeDataString(userId)}&n=100");
+            if (!resp.IsSuccessStatusCode) return new JArray();
+            var body = await resp.Content.ReadAsStringAsync();
+            return JArray.Parse(body);
+        }
+        catch (Exception ex) { Log($"GetUserFavWorldGroups exception: {ex.Message}"); return new JArray(); }
+    }
+
+    public async Task<JArray> GetUserFavWorldsInGroupAsync(string userId, string groupName)
+    {
+        if (!IsLoggedIn) return new JArray();
+        try
+        {
+            var resp = await _http.GetAsync($"{BASE}/worlds/favorites?userId={Uri.EscapeDataString(userId)}&tag={Uri.EscapeDataString(groupName)}&n=100");
+            if (resp.StatusCode == System.Net.HttpStatusCode.Forbidden) return new JArray(); // private group
+            if (!resp.IsSuccessStatusCode) return new JArray();
+            var body = await resp.Content.ReadAsStringAsync();
+            return JArray.Parse(body);
+        }
+        catch (Exception ex) { Log($"GetUserFavWorldsInGroup exception: {ex.Message}"); return new JArray(); }
+    }
+
     public async Task<bool> SetGroupMemberVisibilityAsync(string groupId, string userId, string visibility)
     {
         if (!IsLoggedIn) return false;

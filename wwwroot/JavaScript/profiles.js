@@ -805,7 +805,82 @@ function switchFdTab(tab, btn) {
     if (mutualsEl) mutualsEl.style.display = tab === 'mutuals' ? '' : 'none';
     const contentEl = document.getElementById('fdTabContent');
     if (contentEl) contentEl.style.display = tab === 'content' ? '' : 'none';
+    const favsEl = document.getElementById('fdTabFavs');
+    if (favsEl) favsEl.style.display = tab === 'favs' ? '' : 'none';
     document.querySelectorAll('.fd-tab').forEach(t => t.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    if (tab === 'favs') {
+        const uid = favsEl?.dataset.userId;
+        if (uid && !favsEl.dataset.loaded) {
+            favsEl.dataset.loaded = '1';
+            // Only show loading spinner if no content yet (cache will arrive quickly if present)
+            if (!favsEl.querySelector('.fd-content-pills'))
+                favsEl.innerHTML = `<div class="empty-msg">${t('profiles.favs.loading', 'Loading favorites...')}</div>`;
+            sendToCS({ action: 'vrcGetUserFavWorlds', userId: uid });
+        }
+    }
+}
+
+function renderUserFavWorlds(payload) {
+    const el = document.getElementById('fdTabFavs');
+    if (!el || el.dataset.userId !== payload.userId) return;
+    const groups = payload.groups || [];
+    if (!groups.length) {
+        el.innerHTML = `<div class="empty-msg">${t('profiles.favs.none', 'No public favorite worlds.')}</div>`;
+        return;
+    }
+
+    // Preserve active pill index across background refreshes
+    let activePill = 0;
+    const existingPill = el.querySelector('.fd-content-pill.active');
+    if (existingPill) {
+        const idx = [...el.querySelectorAll('.fd-content-pill')].indexOf(existingPill);
+        if (idx >= 0) activePill = idx;
+    }
+
+    // Build pills row
+    let pillsHtml = `<div class="fd-content-pills">`;
+    groups.forEach((g, i) => {
+        const label = esc(g.displayName || g.name);
+        const count = g.worlds ? g.worlds.length : 0;
+        pillsHtml += `<button class="fd-tab fd-content-pill${i === activePill ? ' active' : ''}" onclick="switchFavPill(${i},this)">${label} (${count})</button>`;
+    });
+    pillsHtml += `</div>`;
+
+    // Build grid panels for each group
+    let panelsHtml = '';
+    groups.forEach((g, i) => {
+        panelsHtml += `<div id="fdFavPanel_${i}" style="${i !== activePill ? 'display:none;' : ''}">`;
+        if (g.visibility === 'private') {
+            panelsHtml += `<div class="empty-msg">${t('profiles.favs.private', 'This list is private.')}</div>`;
+        } else if (!g.worlds || !g.worlds.length) {
+            panelsHtml += `<div class="empty-msg">${t('profiles.favs.empty_group', 'Empty.')}</div>`;
+        } else {
+            panelsHtml += `<div class="vrcn-world-grid-small">`;
+            for (const w of g.worlds) {
+                const thumb = w.thumbnailImageUrl || '';
+                panelsHtml += `<div class="vrcn-world-card-small" onclick="closeFriendDetail();openWorldSearchDetail('${jsq(w.id)}')">
+                    <div class="vwcs-bg"${thumb ? ` style="background-image:url('${cssUrl(thumb)}')"` : ''}></div>
+                    <div class="vwcs-scrim"></div>
+                    <div class="vwcs-info">
+                        <div class="vwcs-name">${esc(w.name)}</div>
+                        <div class="vwcs-meta"><span class="msi" style="font-size:11px;">person</span>${w.occupants} <span class="msi" style="font-size:11px;">star</span>${w.favorites}</div>
+                    </div>
+                </div>`;
+            }
+            panelsHtml += `</div>`;
+        }
+        panelsHtml += `</div>`;
+    });
+
+    el.innerHTML = pillsHtml + panelsHtml;
+}
+
+function switchFavPill(idx, btn) {
+    const el = document.getElementById('fdTabFavs');
+    if (!el) return;
+    el.querySelectorAll('[id^="fdFavPanel_"]').forEach((p, i) => p.style.display = i === idx ? '' : 'none');
+    el.querySelectorAll('.fd-content-pill').forEach(p => p.classList.remove('active'));
     if (btn) btn.classList.add('active');
 }
 
@@ -1168,6 +1243,7 @@ function renderFriendDetail(d) {
         if (hasGroups) tabsHtml += `<button class="fd-tab" onclick="switchFdTab('groups',this)">${tf('profiles.tabs.groups', { count: allGroups.length }, 'Groups ({count})')}</button>`;
         if (hasMutuals) tabsHtml += `<button class="fd-tab" onclick="switchFdTab('mutuals',this)">${tf('profiles.tabs.mutuals', { count: allMutuals.length }, 'Mutuals ({count})')}</button>`;
         tabsHtml += `<button class="fd-tab" id="fdTabContentBtn" onclick="switchFdTab('content',this)">${tf('profiles.tabs.content', { count: allUserWorlds.length }, 'Content ({count})')}</button>`;
+        tabsHtml += `<button class="fd-tab" onclick="switchFdTab('favs',this)">${t('profiles.tabs.favs', 'Favs.')}</button>`;
         tabsHtml += `</div>`;
     }
 
@@ -1209,7 +1285,7 @@ function renderFriendDetail(d) {
         </div>`;
 
 
-    c.innerHTML = `${bannerHtml}<div class="fd-content${bannerSrc ? ' fd-has-banner' : ''}"><div class="fd-header">${imgTag}<div><div class="fd-name">${esc(d.displayName)}</div>${pronounsHtml}<div class="fd-status" id="fd-live-status"><span class="${fdDotClass} ${fdStatusDotCls}" style="width:8px;height:8px;"></span>${fdIsOffline ? t('status.offline', 'Offline') : statusLabel(d.status)}${(!fdIsOffline && fdIsWeb) ? ' ' + t('profiles.friends.web_suffix', '(Web)') : ''}${(!fdIsOffline && d.statusDescription) ? ' - ' + esc(d.statusDescription) : ''}</div></div></div>${badgesHtml}${actionsHtml}${tabsHtml}<div id="fdTabInfo">${infoContent}</div><div id="fdTabGroups" style="display:none;">${groupsContent}</div><div id="fdTabMutuals" style="display:none;">${mutualsContent}</div><div id="fdTabContent" style="display:none;">${contentHtml}</div><div style="margin-top:10px;text-align:right;"><button class="vrcn-button-round" onclick="closeFriendDetail()">${t('common.close', 'Close')}</button></div></div>`;
+    c.innerHTML = `${bannerHtml}<div class="fd-content${bannerSrc ? ' fd-has-banner' : ''}"><div class="fd-header">${imgTag}<div><div class="fd-name">${esc(d.displayName)}</div>${pronounsHtml}<div class="fd-status" id="fd-live-status"><span class="${fdDotClass} ${fdStatusDotCls}" style="width:8px;height:8px;"></span>${fdIsOffline ? t('status.offline', 'Offline') : statusLabel(d.status)}${(!fdIsOffline && fdIsWeb) ? ' ' + t('profiles.friends.web_suffix', '(Web)') : ''}${(!fdIsOffline && d.statusDescription) ? ' - ' + esc(d.statusDescription) : ''}</div></div></div>${badgesHtml}${actionsHtml}${tabsHtml}<div id="fdTabInfo">${infoContent}</div><div id="fdTabGroups" style="display:none;">${groupsContent}</div><div id="fdTabMutuals" style="display:none;">${mutualsContent}</div><div id="fdTabContent" style="display:none;">${contentHtml}</div><div id="fdTabFavs" style="display:none;" data-user-id="${esc(userId)}"></div><div style="margin-top:10px;text-align:right;"><button class="vrcn-button-round" onclick="closeFriendDetail()">${t('common.close', 'Close')}</button></div></div>`;
 
     // Auto-lookup avatar ID from avtrdb if we have a file_ ID (chip-only, no modal open)
     if (avatarFileId) sendToCS({ action: 'vrcLookupAvatarByFileId', fileId: avatarFileId, openModal: false });

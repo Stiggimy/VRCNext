@@ -556,6 +556,14 @@ public class FriendsController
                 break;
             }
 
+            case "vrcGetUserFavWorlds":
+            {
+                var uid = msg["userId"]?.ToString();
+                if (!string.IsNullOrEmpty(uid))
+                    _ = Task.Run(async () => await GetUserFavWorldsAsync(uid));
+                break;
+            }
+
             case "vrcGetUser":
             {
                 var uid = msg["userId"]?.ToString();
@@ -580,6 +588,48 @@ public class FriendsController
         }
     }
 
+    private async Task GetUserFavWorldsAsync(string userId)
+    {
+        // Serve cached data immediately so the tab renders without waiting
+        var cached = _core.Cache.LoadRaw(CacheHandler.KeyUserFavWorlds(userId));
+        if (cached != null)
+            _core.SendToJS("vrcUserFavWorlds", cached);
+
+        // Fetch fresh data from API
+        var groups = await _core.VrcApi.GetUserFavWorldGroupsAsync(userId);
+        var result = new List<object>();
+        foreach (var g in groups)
+        {
+            if (g is not JObject grp) continue;
+            var type = grp["type"]?.ToString() ?? "";
+            if (type != "world") continue;
+            var name = grp["name"]?.ToString() ?? "";
+            var displayName = grp["displayName"]?.ToString() ?? name;
+            var visibility = grp["visibility"]?.ToString() ?? "private";
+            List<object> worlds = new();
+            if (visibility != "private")
+            {
+                var wArr = await _core.VrcApi.GetUserFavWorldsInGroupAsync(userId, name);
+                foreach (var w in wArr)
+                {
+                    if (w is not JObject wo) continue;
+                    worlds.Add(new {
+                        id = wo["id"]?.ToString() ?? "",
+                        name = wo["name"]?.ToString() ?? "",
+                        thumbnailImageUrl = wo["thumbnailImageUrl"]?.ToString() ?? "",
+                        occupants = wo["occupants"]?.Value<int>() ?? 0,
+                        favorites = wo["favorites"]?.Value<int>() ?? 0,
+                        authorName = wo["authorName"]?.ToString() ?? "",
+                    });
+                }
+            }
+            result.Add(new { name, displayName, visibility, worlds });
+        }
+        var payload = new { userId, groups = result };
+        _core.Cache.Save(CacheHandler.KeyUserFavWorlds(userId), payload);
+        _core.SendToJS("vrcUserFavWorlds", payload);
+    }
+
     // Set of actions this controller handles
     private static readonly HashSet<string> _handledActions = new()
     {
@@ -590,7 +640,7 @@ public class FriendsController
         "vrcSendFriendRequest", "vrcUnfriend", "vrcGetBlocked", "vrcGetMuted",
         "vrcBlock", "vrcMute", "vrcUnblock", "vrcUnmute", "vrcBoop",
         "vrcSendChatMessage", "vrcGetChatHistory", "vrcGetUser",
-        "vrcGetUserAvatars",
+        "vrcGetUserAvatars", "vrcGetUserFavWorlds",
     };
 
     public static bool HandlesAction(string action) => _handledActions.Contains(action);

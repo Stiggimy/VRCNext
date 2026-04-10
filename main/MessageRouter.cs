@@ -411,6 +411,7 @@ public partial class AppShell
                 case "vrcUpdateInviteMessage":
                 case "vrcRequestInvite":
                 case "vrcGetUserAvatars":
+                case "vrcGetUserFavWorlds":
                     await _friends.HandleMessage(action, msg);
                     break;
 
