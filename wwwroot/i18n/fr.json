@@ -1551,6 +1551,8 @@
   "settings.crash.title": "Rapports de plantage",
   "settings.crash.label": "Envoyer des rapports de plantage anonymes",
   "settings.crash.desc": "En cas de plantage, la trace d'appel est envoyée anonymement pour aider à corriger les problèmes. Aucune donnée personnelle: ni chemins, ni noms d'utilisateur ou d'ordinateur. Uniquement la trace d'appel.",
+  "settings.crash.restart_after_crash": "Redémarrer après plantage",
+  "settings.crash.restart_after_crash_desc": "VRCNext redémarre automatiquement après un plantage inattendu. Ne s'applique pas en cas de fermeture normale ou de fermeture forcée via le Gestionnaire des tâches.",
   "settings.update.title": "Mettre à jour VRCNext",
   "settings.update.check_btn": "Vérifier les mises à jour",
   "settings.update.available_label": "Nouvelle version disponible :",

@@ -1553,6 +1553,8 @@
   "settings.crash.title": "Absturzberichte",
   "settings.crash.label": "Anonyme Absturzberichte senden",
   "settings.crash.desc": "Bei einem Absturz wird der Stack-Trace anonym übermittelt, um Fehler zu beheben. Keine persönlichen Daten: keine Pfade, Benutzernamen oder Computernamen. Nur der Stack-Trace.",
+  "settings.crash.restart_after_crash": "Nach Absturz neu starten",
+  "settings.crash.restart_after_crash_desc": "VRCNext startet nach einem unerwarteten Absturz automatisch neu. Gilt nicht, wenn die App normal geschlossen oder über den Task-Manager beendet wird.",
   "settings.update.title": "VRCNext aktualisieren",
   "settings.update.check_btn": "Nach Update suchen",
   "settings.update.available_label": "Neue Version verfügbar:",

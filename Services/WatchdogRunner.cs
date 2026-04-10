@@ -14,14 +14,20 @@ internal static class WatchdogRunner
         if (!int.TryParse(args[1], out var targetPid)) return;
         var sentinelPath = args[2];
         var crashDir     = args[3];
+
+        int exitCode = 0;
         try
         {
             var proc = Process.GetProcessById(targetPid);
             proc.WaitForExit();
+            try { exitCode = proc.ExitCode; } catch { }
         }
-        catch (ArgumentException) { /* already gone — fall through, check sentinel */ }
+        catch (ArgumentException) { /* already gone — exit code unknown, treat as clean */ }
         catch { return; }
         if (!File.Exists(sentinelPath)) return;
+
+        // exitCode >= 0 is deliberate termination eg taskkill /F is 1, clean close is 0, VSCode restart is prob. 0/1).
+        if (exitCode >= 0) return;
 
         string sentinelContent = "";
         try { sentinelContent = File.ReadAllText(sentinelPath, Encoding.UTF8); } catch { }
@@ -71,6 +77,24 @@ internal static class WatchdogRunner
 
             // Send anonymous crash data to developer Discord webhook (if user has not opted out)
             SendToDiscordAsync(sentinelContent, sb.ToString()).GetAwaiter().GetResult();
+        }
+        catch { }
+
+        // Restart after crash, only for native crashes (exitCode < 0 = Windows exception code like 0xC0000005)
+        // Still sending reports in case of an crash lol
+        try
+        {
+            if (exitCode < 0
+                && IsRestartAfterCrashEnabled()
+                && UptimeSeconds(sentinelContent) >= 30)
+            {
+                var exePath = ParseSentinelField(sentinelContent, "Exe");
+                if (!string.IsNullOrEmpty(exePath) && File.Exists(exePath))
+                {
+                    Thread.Sleep(2000);
+                    Process.Start(new ProcessStartInfo { FileName = exePath, UseShellExecute = true });
+                }
+            }
         }
         catch { }
     }
@@ -129,6 +153,37 @@ internal static class WatchdogRunner
         }
         catch { }
         return true; // default on
+    }
+
+    private static bool IsRestartAfterCrashEnabled()
+    {
+        try
+        {
+            var settingsPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "VRCNext", "settings.json");
+            if (!File.Exists(settingsPath)) return true; // default on
+
+            var json = File.ReadAllText(settingsPath, Encoding.UTF8);
+            var match = RxRestartAfterCrash.Match(json);
+            if (match.Success)
+                return match.Groups[1].Value.Equals("true", StringComparison.OrdinalIgnoreCase);
+        }
+        catch { }
+        return true; // default on
+    }
+
+    /// <summary>Returns how many seconds the crashed session had been running (from sentinel's Started field).</summary>
+    private static int UptimeSeconds(string sentinelContent)
+    {
+        try
+        {
+            var started = ParseSentinelField(sentinelContent, "Started");
+            if (DateTime.TryParse(started, out var t))
+                return (int)(DateTime.Now - t).TotalSeconds;
+        }
+        catch { }
+        return int.MaxValue; // unknown → assume long uptime, allow restart
     }
 
     /// <summary>
@@ -266,6 +321,8 @@ internal static class WatchdogRunner
     // ── Compiled regexes ──────────────────────────────────────────────────
     private static readonly System.Text.RegularExpressions.Regex RxSendCrashData =
         new(@"""[Ss]end[Cc]rash[Dd]ata""\s*:\s*(true|false)", System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
+    private static readonly System.Text.RegularExpressions.Regex RxRestartAfterCrash =
+        new(@"""[Rr]estart[Aa]fter[Cc]rash""\s*:\s*(true|false)", System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
     private static readonly System.Text.RegularExpressions.Regex RxWindowsPath =
         new(@"[A-Za-z]:\\[^\s\n,""']+", System.Text.RegularExpressions.RegexOptions.Compiled);
     private static readonly System.Text.RegularExpressions.Regex RxFaultPid =

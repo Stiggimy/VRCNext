@@ -1548,6 +1548,8 @@
   "settings.crash.title": "崩溃报告",
   "settings.crash.label": "发送匿名崩溃报告",
   "settings.crash.desc": "如果 VRCNext 崩溃，堆栈跟踪将匿名发送以帮助修复问题。不包含任何个人数据——无文件路径、用户名或计算机名。仅发送崩溃堆栈跟踪。",
+  "settings.crash.restart_after_crash": "崩溃后自动重启",
+  "settings.crash.restart_after_crash_desc": "VRCNext 在意外崩溃后会自动重启。正常关闭或通过任务管理器强制退出时不适用。",
   "settings.update.title": "更新 VRCNext",
   "settings.update.check_btn": "检查更新",
   "settings.update.available_label": "有新版本可用：",

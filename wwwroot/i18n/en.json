@@ -1572,6 +1572,8 @@
   "settings.crash.title": "Crash Reporting",
   "settings.crash.label": "Send anonymous crash reports",
   "settings.crash.desc": "If VRCNext crashes, the stack trace is sent anonymously to help fix issues. No personal data is included: no file paths, usernames, or machine names. Only the crash stack trace.",
+  "settings.crash.restart_after_crash": "Restart After Crash",
+  "settings.crash.restart_after_crash_desc": "VRCNext will automatically restart after an unexpected crash. Does not apply when the app is closed normally or force-quit via Task Manager.",
   "settings.update.title": "Update VRCNext",
   "settings.update.check_btn": "Check for Update",
   "settings.update.available_label": "New version available:",
