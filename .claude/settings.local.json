@@ -1,7 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(grep -h \"chatbox.badge\\\\|voicefight.badge\\\\|sidebar.play\\\\|memory_trim_desc\" c:/Users/Johns/Documents/GitHub/VRCNext/wwwroot/i18n/*.json)"
-    ]
-  }
-}
