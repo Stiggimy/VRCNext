@@ -219,7 +219,7 @@ public class VRChatApiService
         if (!IsLoggedIn) { if (!offline) Log("GetFriends: not logged in"); return all; }
 
         const int pageSize   = 50;
-        const int concurrency = 3;
+        const int concurrency = 1;
         var nextOffset = 0;
         var done       = false;
         var lck        = new object();

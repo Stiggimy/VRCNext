@@ -15,9 +15,8 @@ function renderEventDetail(ev) {
         return;
     }
 
-    const bannerHtml = ev.imageUrl
-        ? `<div class="fd-banner"><img src="${ev.imageUrl}" onerror="this.parentElement.style.display='none'"><div class="fd-banner-fade"></div></div>`
-        : '';
+    const bannerSrc = ev.imageUrl || 'fallback_cover.png';
+    const bannerHtml = `<div class="fd-banner"><img src="${bannerSrc}" onerror="this.src='fallback_cover.png'"><div class="fd-banner-fade"></div></div>`;
 
     const start = ev.startsAt ? new Date(ev.startsAt) : null;
     const end = ev.endsAt ? new Date(ev.endsAt) : null;
@@ -39,17 +38,32 @@ function renderEventDetail(ev) {
         ? `<span class="vrcn-badge ${accessCls}">${esc(ev.accessType)}</span>`
         : '';
 
-    const groupHtml = ev.group
+    // Resolve group info: prefer ev.group, fall back to local myGroups cache
+    const myGroupsList = (typeof myGroups !== 'undefined') ? myGroups : [];
+    const gid = ev.ownerId || ev.groupId || '';
+    const groupCache = myGroupsList.find(g => g.id === gid) || {};
+    const groupName = ev.group?.name || groupCache.name || '';
+    const groupIconUrl = ev.group?.iconUrl || groupCache.iconUrl || '';
+    const groupOpenId = jsq(ev.group?.id || gid);
+
+    const groupTopHtml = groupName
+        ? `<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;">
+               ${groupIconUrl ? `<img src="${groupIconUrl}" style="width:16px;height:16px;border-radius:3px;object-fit:cover;flex-shrink:0;">` : `<span class="msi" style="font-size:14px;color:var(--tx3);">group</span>`}
+               <span style="font-size:11px;color:var(--tx2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(groupName)}</span>
+           </div>`
+        : '';
+
+    const groupHtml = groupName
         ? `<div class="fd-section-label" style="margin-top:12px;">${t('calendar.detail.organizer', 'Organizer')}</div>
-           <div style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:6px 0;" onclick="openGroupDetail('${esc(ev.group.id || ev.ownerId || '')}')">
-               ${ev.group.iconUrl ? `<img src="${ev.group.iconUrl}" style="width:28px;height:28px;border-radius:6px;object-fit:cover;">` : ''}
-               <span style="font-size:13px;color:var(--tx1);">${esc(ev.group.name || '')}</span>
+           <div style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:6px 0;" onclick="openGroupDetail('${groupOpenId}')">
+               ${groupIconUrl ? `<img src="${groupIconUrl}" style="width:28px;height:28px;border-radius:6px;object-fit:cover;">` : ''}
+               <span style="font-size:13px;color:var(--tx1);">${esc(groupName)}</span>
                <span class="msi" style="font-size:14px;color:var(--tx3);">chevron_right</span>
            </div>`
         : '';
 
     const isFollowing = ev.userInterest?.isFollowing === true;
-    const groupId = esc(ev.ownerId || '');
+    const groupId = esc(gid);
     const calendarId = esc(ev.id || '');
     const followBtnId = `evFollowBtn_${ev.id}`;
     const followLabel = isFollowing
@@ -60,6 +74,7 @@ function renderEventDetail(ev) {
         ${bannerHtml}
         <div class="fd-content${bannerHtml ? ' fd-has-banner' : ''}">
             <div class="fd-header" style="flex-direction:column;align-items:flex-start;gap:6px;">
+                ${groupTopHtml}
                 <div class="fd-name" style="font-size:18px;">${esc(ev.title || t('calendar.untitled_event', 'Untitled Event'))}</div>
                 ${dateLine ? `<div style="font-size:12px;color:var(--tx2);display:flex;align-items:center;gap:4px;"><span class="msi" style="font-size:14px;">calendar_today</span>${esc(dateLine)}</div>` : ''}
                 ${timeLine ? `<div style="font-size:12px;color:var(--tx2);display:flex;align-items:center;gap:4px;"><span class="msi" style="font-size:14px;">schedule</span>${esc(timeLine)}</div>` : ''}
@@ -67,9 +82,10 @@ function renderEventDetail(ev) {
             </div>
             ${groupHtml}
             ${ev.description ? `<div class="fd-section-label" style="margin-top:12px;">${t('calendar.detail.about', 'About')}</div><div class="fd-bio">${esc(ev.description)}</div>` : ''}
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;">
+            <div style="display:flex;justify-content:flex-start;align-items:center;gap:8px;margin-top:16px;">
                 <button class="vrcn-button-round vrcn-btn-join" id="${followBtnId}" onclick="toggleFollowEvent('${groupId}','${calendarId}',${isFollowing},this)"><span class="msi">${isFollowing ? 'notifications_off' : 'notifications_active'}</span><span class="ev-follow-lbl">${followLabel}</span></button>
-                <button class="vrcn-button-round" onclick="document.getElementById('modalDetail').style.display='none'">${t('common.close', 'Close')}</button>
+                ${gid ? `<button class="vrcn-button-round" onclick="openGroupDetail('${groupOpenId}')"><span class="msi">group</span><span>${t('calendar.detail.open_group', 'Open Group')}</span></button>` : ''}
+                <button class="vrcn-button-round" onclick="document.getElementById('modalDetail').style.display='none'" style="margin-left:auto;">${t('common.close', 'Close')}</button>
             </div>
         </div>`;
 }

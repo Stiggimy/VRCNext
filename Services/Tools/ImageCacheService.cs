@@ -86,12 +86,14 @@ public class ImageCacheService
         var pngPath = Path.Combine(_dir, pngName);
 
         // Check both extensions — PNGs with alpha are stored as .png
-        if (File.Exists(pngPath) && DateTime.UtcNow - File.GetCreationTimeUtc(pngPath) < ttl)
+        // Use LastWriteTimeUtc (not CreationTimeUtc) — NTFS tunneling can cause a re-created file
+        // to inherit the old creation time, making freshly downloaded files appear immediately expired.
+        if (File.Exists(pngPath) && DateTime.UtcNow - File.GetLastWriteTimeUtc(pngPath) < ttl)
         {
             _reverseMap[pngName] = url;
             return $"http://localhost:{Port}/imgcache/{pngName}";
         }
-        if (File.Exists(jpgPath) && DateTime.UtcNow - File.GetCreationTimeUtc(jpgPath) < ttl)
+        if (File.Exists(jpgPath) && DateTime.UtcNow - File.GetLastWriteTimeUtc(jpgPath) < ttl)
         {
             _reverseMap[jpgName] = url;
             return $"http://localhost:{Port}/imgcache/{jpgName}";
@@ -126,12 +128,12 @@ public class ImageCacheService
         var jpgPath = Path.Combine(_dir, jpgName);
         var pngPath = Path.Combine(_dir, pngName);
 
-        if (File.Exists(pngPath) && DateTime.UtcNow - File.GetCreationTimeUtc(pngPath) < ttl)
+        if (File.Exists(pngPath) && DateTime.UtcNow - File.GetLastWriteTimeUtc(pngPath) < ttl)
         {
             _reverseMap[pngName] = url;
             return $"http://localhost:{Port}/imgcache/{pngName}";
         }
-        if (File.Exists(jpgPath) && DateTime.UtcNow - File.GetCreationTimeUtc(jpgPath) < ttl)
+        if (File.Exists(jpgPath) && DateTime.UtcNow - File.GetLastWriteTimeUtc(jpgPath) < ttl)
         {
             _reverseMap[jpgName] = url;
             return $"http://localhost:{Port}/imgcache/{jpgName}";

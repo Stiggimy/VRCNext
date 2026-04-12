@@ -7,10 +7,11 @@ public class CacheHandler
     private static readonly string _dir = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "VRCNext");
 
-    public static readonly string KeyFavWorlds    = "fav_worlds_cache.json";
-    public static readonly string KeyAvatars      = "avatars_cache.json";
-    public static readonly string KeyGroups       = "groups_cache.json";
-    public static readonly string KeyFriends      = "friends_cache.json";
+    public static readonly string KeyFavWorlds    = "Caches/fav_worlds_cache.json";
+    public static readonly string KeyAvatars      = "Caches/avatars_cache.json";
+    public static readonly string KeyGroups       = "Caches/groups_cache.json";
+    public static readonly string KeyFriends      = "Caches/friends_cache.json";
+    public static readonly string KeyMutuals      = "Caches/mutual_cache.json";
     public static readonly string KeyCustomColors = "custom_colors.json";
     public static readonly string KeyPermini      = "permini_list.json";
 
@@ -37,6 +38,14 @@ public class CacheHandler
     }
 
     public bool Has(string key) => File.Exists(Path.Combine(_dir, key));
+
+    /// <summary>Returns true if the cache file exists and was written less than <paramref name="ttl"/> ago.</summary>
+    public bool IsFresh(string key, TimeSpan ttl)
+    {
+        var path = Path.Combine(_dir, key);
+        if (!File.Exists(path)) return false;
+        return DateTime.UtcNow - File.GetLastWriteTimeUtc(path) < ttl;
+    }
 
     public void Delete(string key)
     {

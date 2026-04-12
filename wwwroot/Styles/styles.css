@@ -1840,7 +1840,6 @@ html.text-tools-active * { user-select: text !important; }
 .vrc-status-ring.s-busy    { border-color: var(--status-busy); }
 .vrc-status-ring.s-offline { border-color: var(--status-offline); }
 
-/* Same-location instance card */
 .sloc-inst-card {
     position: relative;
     border-radius: 10px;
@@ -2590,7 +2589,6 @@ html.text-tools-active * { user-select: text !important; }
 .dash-floc-card .dash-feed-status { color: rgba(255,255,255,.65); }
 .dash-floc-card .dash-feed-loc   { color: rgba(255,255,255,.45); }
 
-/* === World Card Small (Favs tab, matches Friends Location Small style) === */
 .vrcn-world-grid-small {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));

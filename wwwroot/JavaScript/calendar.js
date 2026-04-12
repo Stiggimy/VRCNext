@@ -7,6 +7,8 @@ let _calSelectedDay = null;
 let _calYear = new Date().getFullYear();
 let _calMonth = new Date().getMonth();
 let _calLoading = false;
+var _calDashPending = 0;
+var _calDashRawEvents = [];
 
 (function _calCSS() {
     if (document.getElementById('cal-css')) return;
@@ -164,15 +166,26 @@ function setCalFilter(filter) {
 }
 
 function renderCalendarEvents(payload) {
-    calendarLoaded = true;
-    _calLoading = false;
-
     let raw = payload;
     if (raw?.events) raw = raw.events;
     else if (raw?.results) raw = raw.results;
     else if (raw?.data) raw = raw.data;
-
     let all = Array.isArray(raw) ? raw : [];
+
+    // Dashboard-only fetch: accumulate but don't touch calendar state or UI
+    if (_calDashPending > 0) {
+        _calDashRawEvents = _calDashRawEvents.concat(all);
+        _calDashPending--;
+        if (_calDashPending <= 0 && typeof onCalendarEventsForDash === 'function') {
+            onCalendarEventsForDash(_calDashRawEvents);
+        }
+        return;
+    }
+
+    // Normal calendar flow
+    calendarLoaded = true;
+    _calLoading = false;
+
     if (calendarFilter === 'featured') {
         all = all.filter(e => e.featured === true || _isFeatured(e));
     }
@@ -180,6 +193,7 @@ function renderCalendarEvents(payload) {
     _calEvents = all;
     _calSelectedDay = null;
     _syncCalView();
+    if (typeof onCalendarEventsForDash === 'function') onCalendarEventsForDash(_calEvents);
 }
 
 function _calNavMonth(delta) {

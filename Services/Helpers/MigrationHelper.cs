@@ -50,4 +50,40 @@ public static class MigrationHelper
         settings.Favorites.Clear();
         settings.Save();
     }
+
+    /// <summary>
+    /// Moves the 5 cache JSON files from the VRCNext root into the Caches/ subdirectory
+    /// if they still exist at the old location. Safe to call on every startup.
+    /// </summary>
+    public static void MigrateCachesToSubdir()
+    {
+        var root  = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "VRCNext");
+        var subdir = Path.Combine(root, "Caches");
+
+        string[] files =
+        [
+            "fav_worlds_cache.json",
+            "avatars_cache.json",
+            "groups_cache.json",
+            "friends_cache.json",
+            "mutual_cache.json",
+        ];
+
+        try { Directory.CreateDirectory(subdir); } catch { }
+
+        foreach (var name in files)
+        {
+            var oldPath = Path.Combine(root, name);
+            var newPath = Path.Combine(subdir, name);
+            if (!File.Exists(oldPath)) continue;
+            try
+            {
+                if (!File.Exists(newPath))
+                    File.Move(oldPath, newPath);
+                else
+                    File.Delete(oldPath); // new one already exists, just remove the old
+            }
+            catch { }
+        }
+    }
 }

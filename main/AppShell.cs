@@ -105,7 +105,8 @@ public partial class AppShell
     public AppShell(string[] args)
     {
         _settings = AppSettings.Load();
-        MigrationHelper.MigrateFavorites(_settings); // silently moves Favorites → favorited_images.json
+        MigrationHelper.MigrateFavorites(_settings);    // silently moves Favorites → favorited_images.json
+        MigrationHelper.MigrateCachesToSubdir();         // moves 5 cache JSONs from root → Caches/
         if (_settings.MemoryTrimEnabled) _memTrim.SetEnabled(true);
         _timeEngine = UnifiedTimeEngine.Load(
             () => _core?.IsVrcRunning?.Invoke() ?? false,

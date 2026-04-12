@@ -66,6 +66,9 @@ function renderDashboard() {
     renderDashActiveWorlds();
     renderDashGroupActivity();
     renderDashRecentTimeline();
+    if (currentVrcUser && _dashUpcomingEvents === null && !_dashUpcomingLoading && !_dashLayout.hidden.includes('upcoming_events')) {
+        refreshDashUpcomingEvents();
+    }
     const now = Date.now();
     if (now - _dashOnlineCountLastFetch >= 10 * 60 * 1000) {
         _dashOnlineCountLastFetch = now;
@@ -500,17 +503,21 @@ let _recentInFlight  = false;
 let _popularInFlight = false;
 let _activeInFlight  = false;
 
-// Refresh every 10 minutes — only when Dashboard tab is active
+// Refresh every 10 minutes — only when Dashboard tab is active and at least one consumer is visible
 setInterval(() => {
     const tab0 = document.getElementById('tab0');
     if (!tab0 || !tab0.classList.contains('active')) return;
-    sendToCS({ action: 'vrcGetPopularWorlds' });
-    sendToCS({ action: 'vrcGetActiveWorlds' });
+    const popHidden = _dashLayout.hidden.includes('discovery') && _dashLayout.hidden.includes('popular_worlds');
+    const actHidden = _dashLayout.hidden.includes('discovery') && _dashLayout.hidden.includes('active_worlds');
+    if (!popHidden) sendToCS({ action: 'vrcGetPopularWorlds' });
+    if (!actHidden) sendToCS({ action: 'vrcGetActiveWorlds' });
 }, DISC_CACHE_TTL);
 
 function fetchWorldTabs() {
-    sendToCS({ action: 'vrcGetPopularWorlds' });
-    sendToCS({ action: 'vrcGetActiveWorlds' });
+    if (!(_dashLayout.hidden.includes('discovery') && _dashLayout.hidden.includes('popular_worlds')))
+        sendToCS({ action: 'vrcGetPopularWorlds' });
+    if (!(_dashLayout.hidden.includes('discovery') && _dashLayout.hidden.includes('active_worlds')))
+        sendToCS({ action: 'vrcGetActiveWorlds' });
 }
 
 function setDiscoveryTab(tab) {
@@ -637,6 +644,7 @@ function renderDashFavWorlds() {
     const worlds = (typeof favWorldsData !== 'undefined') ? favWorldsData : [];
     const loaded = (typeof _favWorldsLoaded !== 'undefined') ? _favWorldsLoaded : false;
     if (!worlds.length && !loaded) {
+        if (_dashLayout.hidden.includes('fav_worlds')) return;
         el.innerHTML = _dashWorldShelfSkeleton();
         sendToCS({ action: 'vrcGetFavoriteWorlds' });
         return;
@@ -661,6 +669,7 @@ function renderDashFavAvatars() {
     }
     const avatars = (typeof favAvatarsData !== 'undefined') ? favAvatarsData : [];
     if (!avatars.length && !_dashFavAvatarsRequested) {
+        if (_dashLayout.hidden.includes('fav_avatars')) return;
         _dashFavAvatarsRequested = true;
         el.innerHTML = _dashWorldShelfSkeleton();
         sendToCS({ action: 'vrcGetAvatars', filter: 'favorites' });
@@ -687,6 +696,7 @@ function renderDashOwnAvatars() {
     const avatars = (typeof avatarsData !== 'undefined') ? avatarsData : [];
     const loaded  = (typeof avatarsLoaded !== 'undefined') ? avatarsLoaded : false;
     if (!avatars.length && !loaded && !_dashOwnAvatarsRequested) {
+        if (_dashLayout.hidden.includes('own_avatars')) return;
         _dashOwnAvatarsRequested = true;
         el.innerHTML = _dashWorldShelfSkeleton();
         sendToCS({ action: 'vrcGetAvatars', filter: 'own' });
@@ -714,6 +724,7 @@ function renderDashRecentPhotos() {
     const photos = files.filter(f => f.type === 'image' && f.url).slice(0, 32);
     if (!photos.length) {
         if (!_dashPhotosRequested) {
+            if (_dashLayout.hidden.includes('recent_photos')) return;
             _dashPhotosRequested = true;
             el.innerHTML = _dashWorldShelfSkeleton();
             sendToCS({ action: 'scanLibrary' });
@@ -773,7 +784,7 @@ function renderDashRecentlyVisited() {
     if (!el) return;
     if (!currentVrcUser) { el.innerHTML = `<div class="empty-msg">${t('dashboard.worlds.login','Login to see worlds')}</div>`; return; }
     const worlds = _recentCache.worlds;
-    if (!worlds.length) { el.innerHTML = _dashWorldShelfSkeleton(); if (!_recentInFlight) { _recentInFlight = true; sendToCS({ action: 'vrcGetRecentWorlds' }); } return; }
+    if (!worlds.length) { el.innerHTML = _dashWorldShelfSkeleton(); if (!_recentInFlight && !(_dashLayout.hidden.includes('recently_visited') && _dashLayout.hidden.includes('discovery'))) { _recentInFlight = true; sendToCS({ action: 'vrcGetRecentWorlds' }); } return; }
     el.innerHTML = worlds.slice(0, 20).map(_dashWorldCard).join('');
 }
 
@@ -782,7 +793,7 @@ function renderDashPopularWorlds() {
     if (!el) return;
     if (!currentVrcUser) { el.innerHTML = `<div class="empty-msg">${t('dashboard.worlds.login','Login to see worlds')}</div>`; return; }
     const worlds = _popularCache.worlds;
-    if (!worlds.length) { el.innerHTML = _dashWorldShelfSkeleton(); if (!_popularInFlight) { _popularInFlight = true; sendToCS({ action: 'vrcGetPopularWorlds' }); } return; }
+    if (!worlds.length) { el.innerHTML = _dashWorldShelfSkeleton(); if (!_popularInFlight && !(_dashLayout.hidden.includes('popular_worlds') && _dashLayout.hidden.includes('discovery'))) { _popularInFlight = true; sendToCS({ action: 'vrcGetPopularWorlds' }); } return; }
     el.innerHTML = worlds.slice(0, 20).map(_dashWorldCard).join('');
 }
 
@@ -791,7 +802,7 @@ function renderDashActiveWorlds() {
     if (!el) return;
     if (!currentVrcUser) { el.innerHTML = `<div class="empty-msg">${t('dashboard.worlds.login','Login to see worlds')}</div>`; return; }
     const worlds = _activeCache.worlds;
-    if (!worlds.length) { el.innerHTML = _dashWorldShelfSkeleton(); if (!_activeInFlight) { _activeInFlight = true; sendToCS({ action: 'vrcGetActiveWorlds' }); } return; }
+    if (!worlds.length) { el.innerHTML = _dashWorldShelfSkeleton(); if (!_activeInFlight && !(_dashLayout.hidden.includes('active_worlds') && _dashLayout.hidden.includes('discovery'))) { _activeInFlight = true; sendToCS({ action: 'vrcGetActiveWorlds' }); } return; }
     el.innerHTML = worlds.slice(0, 20).map(_dashWorldCard).join('');
 }
 
@@ -818,6 +829,7 @@ function renderDashGroupActivity() {
     const groups = (typeof myGroups !== 'undefined') ? myGroups : [];
     const loaded = (typeof myGroupsLoaded !== 'undefined') ? myGroupsLoaded : false;
     if (!groups.length && !loaded) {
+        if (_dashLayout.hidden.includes('groups')) return;
         el.innerHTML = _dashGroupSkeleton();
         sendToCS({ action: 'vrcGetMyGroups' });
         return;
@@ -918,7 +930,7 @@ function renderDashMyRecentTimeline() {
         return;
     }
     const personal = (typeof timelineEvents !== 'undefined') ? timelineEvents : [];
-    if (!personal.length) sendToCS({ action: 'vrcGetTimeline', offset: 0 });
+    if (!personal.length && !_dashLayout.hidden.includes('my_recent_activity')) sendToCS({ action: 'vrcGetTimeline', offset: 0 });
     el.innerHTML = personal.length ? _dashTlRows(personal, false) : _dashTlSkeleton();
 }
 
@@ -930,7 +942,7 @@ function renderDashFriendsRecentTimeline() {
         return;
     }
     const friends = (typeof friendTimelineEvents !== 'undefined') ? friendTimelineEvents : [];
-    if (!friends.length) sendToCS({ action: 'getFriendTimeline', type: '' });
+    if (!friends.length && !_dashLayout.hidden.includes('friends_recent_activity')) sendToCS({ action: 'getFriendTimeline', type: '' });
     el.innerHTML = friends.length ? _dashTlRows(friends, true) : _dashTlSkeleton();
 }
 
@@ -953,6 +965,7 @@ const DASH_SECTION_META = [
     { id: 'own_avatars',             nameKey: 'dashboard.section.own_avatars',             name: 'My Avatars' },
     { id: 'recent_photos',           nameKey: 'dashboard.section.recent_photos',           name: 'Recent Photos' },
     { id: 'groups',                  nameKey: 'dashboard.section.your_groups',             name: 'Your Groups' },
+    { id: 'upcoming_events',         nameKey: 'dashboard.section.upcoming_events',         name: 'Upcoming Events' },
     { id: 'recently_visited',        nameKey: 'dashboard.section.recently_visited',        name: 'Recently Visited' },
     { id: 'popular_worlds',          nameKey: 'dashboard.section.popular_worlds',          name: 'Popular Worlds' },
     { id: 'active_worlds',           nameKey: 'dashboard.section.active_worlds',           name: 'Very Active Worlds' },
@@ -995,6 +1008,18 @@ function applyDashLayout() {
         wrap.toggleAttribute('data-hidden', hidden);
         if (!hidden && id === 'my_instances') renderMyInstances(_myInstancesData);
         if (!hidden && id === 'quick_controls') renderDashQuickControls();
+        if (!hidden && id === 'fav_worlds') renderDashFavWorlds();
+        if (!hidden && id === 'fav_avatars') renderDashFavAvatars();
+        if (!hidden && id === 'own_avatars') renderDashOwnAvatars();
+        if (!hidden && id === 'recent_photos') renderDashRecentPhotos();
+        if (!hidden && id === 'recently_visited') renderDashRecentlyVisited();
+        if (!hidden && id === 'popular_worlds') renderDashPopularWorlds();
+        if (!hidden && id === 'active_worlds') renderDashActiveWorlds();
+        if (!hidden && id === 'discovery') { renderDiscoverySection(); if (!_popularInFlight && (!_popularCache.worlds.length || Date.now() - _popularCache.ts > DISC_CACHE_TTL)) _fetchPopularWorlds(); }
+        if (!hidden && id === 'groups') renderDashGroupActivity();
+        if (!hidden && id === 'my_recent_activity') renderDashMyRecentTimeline();
+        if (!hidden && id === 'friends_recent_activity') renderDashFriendsRecentTimeline();
+        if (!hidden && id === 'upcoming_events') { renderDashUpcomingEvents(); if (_dashUpcomingEvents === null && !_dashUpcomingLoading) refreshDashUpcomingEvents(); }
     });
 }
 
@@ -1200,7 +1225,100 @@ function rerenderDashTranslations() {
     renderDashMyRecentTimeline();
     renderDashFriendsRecentTimeline();
     renderDashQuickControls();
+    renderDashUpcomingEvents();
     if (_dashModalLayout) _renderDashLayoutList();
 }
 document.documentElement.addEventListener('languagechange', rerenderDashTranslations);
+
+/* === Upcoming Events Widget === */
+
+let _dashUpcomingEvents = null;
+let _dashUpcomingLoading = false;
+
+function refreshDashUpcomingEvents() {
+    if (_dashUpcomingLoading || !currentVrcUser) return;
+    _dashUpcomingLoading = true;
+    _calDashRawEvents = [];
+    _calDashPending = 2;
+    renderDashUpcomingEvents();
+    const now = new Date();
+    const nxt = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    sendToCS({ action: 'vrcGetCalendarEvents', filter: 'all', year: now.getFullYear(), month: now.getMonth() + 1 });
+    sendToCS({ action: 'vrcGetCalendarEvents', filter: 'all', year: nxt.getFullYear(), month: nxt.getMonth() + 1 });
+}
+
+function onCalendarEventsForDash(allEvents) {
+    _dashUpcomingLoading = false;
+    const now = new Date();
+    const seen = new Set();
+    _dashUpcomingEvents = (Array.isArray(allEvents) ? allEvents : [])
+        .filter(e => { if (seen.has(e.id)) return false; seen.add(e.id); return true; })
+        .filter(e => new Date(e.startsAt || e.startDate || 0) >= now)
+        .sort((a, b) => new Date(a.startsAt || a.startDate || 0) - new Date(b.startsAt || b.startDate || 0));
+    renderDashUpcomingEvents();
+}
+
+function renderDashUpcomingEvents() {
+    const grid = document.getElementById('dashUpcomingEventsGrid');
+    if (!grid) return;
+
+    const emptyState = (icon, msg, btn = '') =>
+        `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:28px 0;color:var(--tx3);font-size:12px;">
+            <span class="msi" style="font-size:26px;">${icon}</span>${esc(msg)}${btn}
+        </div>`;
+
+    if (_dashUpcomingLoading) {
+        grid.innerHTML = emptyState('event', t('dashboard.upcoming.loading', 'Loading events...'));
+        return;
+    }
+    if (_dashUpcomingEvents === null) {
+        grid.innerHTML = emptyState('event_upcoming', '',
+            `<button class="vrcn-button" onclick="refreshDashUpcomingEvents()">${esc(t('dashboard.upcoming.load', 'Load Events'))}</button>`);
+        return;
+    }
+    if (_dashUpcomingEvents.length === 0) {
+        grid.innerHTML = emptyState('event_busy', t('dashboard.upcoming.empty', 'No upcoming events found'));
+        return;
+    }
+
+    const myGroupsList = (typeof myGroups !== 'undefined') ? myGroups : [];
+
+    const cards = _dashUpcomingEvents.slice(0, 3).map(evt => {
+        const groupId = jsq(evt.ownerId || evt.groupId || '');
+        const eventId = jsq(evt.id || '');
+        const title   = esc(evt.title || evt.name || t('calendar.untitled_event', 'Untitled Event'));
+        const featured = evt.featured === true || (Array.isArray(evt.tags) && evt.tags.some(tag => /featured/i.test(tag)));
+
+        const gid = evt.ownerId || evt.groupId || '';
+        const groupData = myGroupsList.find(g => g.id === gid) || {};
+        const groupIconUrl = evt.group?.iconUrl || groupData.iconUrl || '';
+        const groupName = esc(evt.group?.name || groupData.name || '');
+
+        const startDate = new Date(evt.startsAt || evt.startDateTime || evt.startDate || '');
+        const timeTop = !isNaN(startDate)
+            ? `<div class="cc-time-top"><span class="msi">calendar_today</span>${esc(startDate.toLocaleDateString(getLanguageLocale(), { month: 'short', day: 'numeric' }))} · ${esc(fmtTime(startDate))}</div>`
+            : '';
+        const badgesTop = featured
+            ? `<div class="cc-badges-top"><span class="vrcn-badge warn"><span class="msi" style="font-size:9px;">star</span> ${esc(t('dashboard.upcoming.featured', 'Featured'))}</span></div>`
+            : '';
+
+        const bgStyle = `background-image:url('${evt.imageUrl || 'fallback_cover.png'}')`;
+        const groupMeta = groupName
+            ? `<div class="cc-meta">${groupIconUrl ? `<img src="${groupIconUrl}" style="width:12px;height:12px;border-radius:2px;object-fit:cover;flex-shrink:0;vertical-align:middle;margin-right:3px;">` : '<span class="msi">group</span>'}${groupName}</div>`
+            : '';
+
+        return `<div class="vrcn-content-card" onclick="openEventDetail('${groupId}','${eventId}')">
+            <div class="cc-bg" style="${bgStyle}"></div>
+            <div class="cc-scrim"></div>
+            ${timeTop}
+            ${badgesTop}
+            <div class="cc-content">
+                <div class="cc-name">${title}</div>
+                ${groupMeta ? `<div class="cc-bottom-row">${groupMeta}</div>` : ''}
+            </div>
+        </div>`;
+    }).join('');
+
+    grid.innerHTML = `<div class="dash-worlds-grid">${cards}</div>`;
+}
 

@@ -1328,12 +1328,14 @@ public class AuthController
         if (favWorlds != null) _core.SendToJS("vrcFavoriteWorlds", favWorlds);
     }
 
+    private static readonly TimeSpan StartupCacheTtl = TimeSpan.FromDays(1);
+
     private async Task TriggerStartupBackgroundRefreshAsync()
     {
         if (!_core.VrcApi.IsLoggedIn) return;
-        _ = Task.Run(FetchAndCacheAvatarsAsync);
-        _ = Task.Run(_groups.FetchAndCacheAsync);
-        _ = Task.Run(FetchAndCacheFavWorldsAsync);
+        if (!_core.Cache.IsFresh(CacheHandler.KeyAvatars,   StartupCacheTtl)) _ = Task.Run(FetchAndCacheAvatarsAsync);
+        if (!_core.Cache.IsFresh(CacheHandler.KeyGroups,    StartupCacheTtl)) _ = Task.Run(_groups.FetchAndCacheAsync);
+        if (!_core.Cache.IsFresh(CacheHandler.KeyFavWorlds, StartupCacheTtl)) _ = Task.Run(FetchAndCacheFavWorldsAsync);
         _ = Task.Run(BackfillMissingPlayerImagesAsync);
         _ = Task.Run(CollectWorldStatsIfMissingAsync);
         await Task.CompletedTask;

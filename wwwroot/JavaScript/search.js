@@ -90,7 +90,7 @@ function renderSearchResults(type, results, offset, hasMore) {
         html = state.results.map(w => renderWorldCard(w)).join('');
     } else if (type === 'groups') {
         html = state.results.map(g => `<div class="vrcn-content-card" onclick="openGroupDetail('${esc(g.id)}')">
-            <div class="cc-bg" style="background-image:url('${cssUrl(g.bannerUrl || g.iconUrl || '')}')"></div>
+            <div class="cc-bg"><img src="${g.bannerUrl||'fallback_cover.png'}" onerror="this.src='fallback_cover.png'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;"></div>
             <div class="cc-scrim"></div>
             <div class="cc-content">
                 <div class="cc-name">${esc(g.name)}</div>
