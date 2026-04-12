@@ -1573,6 +1573,8 @@
   "settings.crash.restart_after_crash_desc": "予期しないクラッシュの後、VRCNextが自動的に再起動します。通常の終了またはタスクマネージャーからの強制終了には適用されません。",
   "settings.update.title": "VRCNextを更新",
   "settings.update.check_btn": "アップデートを確認",
+  "settings.update.auto_update": "VRCNextを自動更新",
+  "settings.update.auto_update_desc": "起動時に自動でアップデートをダウンロードしてインストールします。",
   "settings.update.available_label": "新しいバージョンが利用可能：",
   "settings.update.install_btn": "ダウンロードしてインストール",
   "nav.permini": "Permini",

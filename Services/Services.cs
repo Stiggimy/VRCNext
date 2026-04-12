@@ -372,6 +372,9 @@ public class AppSettings
     // Memory Trim
     public bool MemoryTrimEnabled { get; set; } = false;
 
+    // Auto-Update on startup
+    public bool AutoUpdate { get; set; } = true;
+
     // Crash Reporting, send anonymous stack traces to the developer via Discord webhook
     public bool SendCrashData { get; set; } = true;
     // Restart after crash. We do ignore task manager kills here!

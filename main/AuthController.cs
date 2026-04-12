@@ -907,6 +907,9 @@ public class AuthController
             _core.Settings.MemoryTrimEnabled = data["memoryTrimEnabled"]?.Value<bool>() ?? false;
             _core.MemTrim.SetEnabled(_core.Settings.MemoryTrimEnabled);
 
+            // Auto-Update
+            _core.Settings.AutoUpdate = data["autoUpdate"]?.Value<bool>() ?? true;
+
             // Crash Reporting
             _core.Settings.SendCrashData       = data["sendCrashData"]?.Value<bool>()       ?? true;
             _core.Settings.RestartAfterCrash   = data["restartAfterCrash"]?.Value<bool>()   ?? true;
@@ -1338,7 +1341,27 @@ public class AuthController
         if (!_core.Cache.IsFresh(CacheHandler.KeyFavWorlds, StartupCacheTtl)) _ = Task.Run(FetchAndCacheFavWorldsAsync);
         _ = Task.Run(BackfillMissingPlayerImagesAsync);
         _ = Task.Run(CollectWorldStatsIfMissingAsync);
+        if (_core.Settings.AutoUpdate) _ = Task.Run(AutoUpdateAsync);
         await Task.CompletedTask;
+    }
+
+    private async Task AutoUpdateAsync()
+    {
+        try
+        {
+            var version = await _core.UpdateService.CheckAsync();
+            if (version == null) return;
+
+            Invoke(() => _core.SendToJS("updateAvailable", new { version }));
+
+            await _core.UpdateService.DownloadAsync(p =>
+                Invoke(() => _core.SendToJS("updateProgress", p)));
+
+            Invoke(() => _core.SendToJS("updateReady", null));
+            await Task.Delay(800);
+            Invoke(() => _core.UpdateService.ApplyAndRestart());
+        }
+        catch { }
     }
 
     private async Task CollectWorldStatsIfMissingAsync()

@@ -218,6 +218,7 @@ function saveSettings() {
             imgCacheOptimizeEnabled: document.getElementById('setImgCacheOptimizeEnabled').checked,
             ffcEnabled: document.getElementById('setFfcEnabled').checked,
             memoryTrimEnabled: document.getElementById('setMemoryTrimEnabled').checked,
+            autoUpdate: document.getElementById('setAutoUpdate').checked,
             sendCrashData: document.getElementById('setSendCrashData').checked,
             restartAfterCrash: document.getElementById('setRestartAfterCrash').checked,
             legacyWindow: document.getElementById('setLegacyWindow')?.checked ?? false,
@@ -470,6 +471,7 @@ function loadSettingsToUI(s) {
     document.getElementById('setMemoryTrimEnabled').checked = s.MemoryTrimEnabled ?? s.memoryTrimEnabled ?? false;
 
     // Crash Reporting
+    document.getElementById('setAutoUpdate').checked          = s.AutoUpdate          ?? s.autoUpdate          ?? true;
     document.getElementById('setSendCrashData').checked      = s.SendCrashData      ?? s.sendCrashData      ?? true;
     document.getElementById('setRestartAfterCrash').checked  = s.RestartAfterCrash  ?? s.restartAfterCrash  ?? true;
 

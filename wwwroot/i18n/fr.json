@@ -1577,6 +1577,8 @@
   "settings.crash.restart_after_crash_desc": "VRCNext redémarre automatiquement après un plantage inattendu. Ne s'applique pas en cas de fermeture normale ou de fermeture forcée via le Gestionnaire des tâches.",
   "settings.update.title": "Mettre à jour VRCNext",
   "settings.update.check_btn": "Vérifier les mises à jour",
+  "settings.update.auto_update": "Mise à jour automatique de VRCNext",
+  "settings.update.auto_update_desc": "Télécharger et installer automatiquement les mises à jour au démarrage.",
   "settings.update.available_label": "Nouvelle version disponible :",
   "settings.update.install_btn": "Télécharger et installer",
   "nav.permini": "Permini",

@@ -1577,6 +1577,8 @@
   "settings.crash.restart_after_crash_desc": "VRCNext se reinicia automáticamente tras un fallo inesperado. No se aplica si la app se cierra normalmente o se fuerza el cierre desde el Administrador de tareas.",
   "settings.update.title": "Actualizar VRCNext",
   "settings.update.check_btn": "Buscar actualización",
+  "settings.update.auto_update": "Actualización automática de VRCNext",
+  "settings.update.auto_update_desc": "Descargar e instalar actualizaciones automáticamente al inicio.",
   "settings.update.available_label": "Nueva versión disponible:",
   "settings.update.install_btn": "Descargar e instalar",
   "nav.permini": "Permini",

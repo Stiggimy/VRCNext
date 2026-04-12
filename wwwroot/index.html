@@ -536,6 +536,16 @@
                             <button class="vrcn-button-round" id="setUpdCheckBtn" onclick="settingsCheckUpdate()"><span class="msi" style="font-size:15px;">refresh</span> <span data-i18n="settings.update.check_btn">Check for Update</span></button>
                             <span id="setUpdStatus" style="font-size:12px;color:var(--tx3);"></span>
                         </div>
+                        <div class="sf-toggle-row" style="margin-top:10px;">
+                            <div>
+                                <div data-i18n="settings.update.auto_update">Auto-Update VRCNext</div>
+                                <div class="sf-desc" data-i18n="settings.update.auto_update_desc">Automatically download and install updates on startup.</div>
+                            </div>
+                            <label class="toggle">
+                                <input type="checkbox" id="setAutoUpdate" checked onchange="autoSave()">
+                                <div class="toggle-track"><div class="toggle-knob"></div></div>
+                            </label>
+                        </div>
                         <div id="setUpdInstallWrap" style="display:none;margin-top:12px;">
                             <div style="font-size:13px;color:var(--tx1);margin-bottom:8px;">
                                 <span data-i18n="settings.update.available_label">New version available:</span> <strong id="setUpdVersion" style="color:var(--accent);"></strong>

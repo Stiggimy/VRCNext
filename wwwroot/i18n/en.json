@@ -1598,6 +1598,8 @@
   "settings.crash.restart_after_crash_desc": "VRCNext will automatically restart after an unexpected crash. Does not apply when the app is closed normally or force-quit via Task Manager.",
   "settings.update.title": "Update VRCNext",
   "settings.update.check_btn": "Check for Update",
+  "settings.update.auto_update": "Auto-Update VRCNext",
+  "settings.update.auto_update_desc": "Automatically download and install updates on startup.",
   "settings.update.available_label": "New version available:",
   "settings.update.install_btn": "Download & Install",
   "nav.permini": "Permini",

@@ -1,5 +1,8 @@
 **2026.15.2**
 
+**Auto Updating VRCNext**
+* VRCN Auto-Updates by default now. You can turn of that setting in the settings tab.
+
 **Caching Update**
 * Added Avatars Cache
 * Added Groups Cache

@@ -1574,6 +1574,8 @@
   "settings.crash.restart_after_crash_desc": "VRCNext 在意外崩溃后会自动重启。正常关闭或通过任务管理器强制退出时不适用。",
   "settings.update.title": "更新 VRCNext",
   "settings.update.check_btn": "检查更新",
+  "settings.update.auto_update": "自动更新 VRCNext",
+  "settings.update.auto_update_desc": "启动时自动下载并安装更新。",
   "settings.update.available_label": "有新版本可用：",
   "settings.update.install_btn": "下载并安装",
   "nav.permini": "Permini",
