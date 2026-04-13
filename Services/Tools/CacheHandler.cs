@@ -7,13 +7,16 @@ public class CacheHandler
     private static readonly string _dir = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "VRCNext");
 
-    public static readonly string KeyFavWorlds    = "Caches/fav_worlds_cache.json";
-    public static readonly string KeyAvatars      = "Caches/avatars_cache.json";
-    public static readonly string KeyGroups       = "Caches/groups_cache.json";
-    public static readonly string KeyFriends      = "Caches/friends_cache.json";
-    public static readonly string KeyMutuals      = "Caches/mutual_cache.json";
-    public static readonly string KeyCustomColors = "custom_colors.json";
-    public static readonly string KeyPermini      = "permini_list.json";
+    public static readonly string KeyFavWorlds      = "Caches/fav_worlds_cache.json";
+    public static readonly string KeyFavAvatars     = "Caches/fav_avatars_cache.json";
+    public static readonly string KeyAvatars        = "Caches/avatars_cache.json";
+    public static readonly string KeyGroups         = "Caches/groups_cache.json";
+    public static readonly string KeyFriends        = "Caches/friends_cache.json";
+    public static readonly string KeyMutuals        = "Caches/mutual_cache.json";
+    public static readonly string KeyBlockedPersons = "Caches/blocked_persons.json";
+    public static readonly string KeyMutedPersons   = "Caches/muted_persons.json";
+    public static readonly string KeyCustomColors   = "custom_colors.json";
+    public static readonly string KeyPermini        = "permini_list.json";
 
     public static string KeyUserProfile(string userId) => $"profiles/{userId}.json";
     public static string KeyUserFavWorlds(string userId) => $"favworlds/{userId}.json";
@@ -58,9 +61,12 @@ public class CacheHandler
         try
         {
             Delete(KeyFavWorlds);
+            Delete(KeyFavAvatars);
             Delete(KeyAvatars);
             Delete(KeyGroups);
             Delete(KeyFriends);
+            Delete(KeyBlockedPersons);
+            Delete(KeyMutedPersons);
             var profilesDir = Path.Combine(_dir, "profiles");
             if (Directory.Exists(profilesDir))
                 Directory.Delete(profilesDir, true);

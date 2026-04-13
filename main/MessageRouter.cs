@@ -438,6 +438,11 @@ public partial class AppShell
                     }
                     else
                     {
+                        if (_settings.FfcEnabled)
+                        {
+                            var cachedFav = _cache.LoadRaw(CacheHandler.KeyFavAvatars);
+                            if (cachedFav != null) Invoke(() => SendToJS("vrcFavoriteAvatars", cachedFav));
+                        }
                         _ = Task.Run(_authCtrl.FetchAndCacheFavAvatarsAsync);
                     }
                     break;
@@ -1026,6 +1031,7 @@ public partial class AppShell
                         var avType    = msg["groupType"]?.ToString() ?? "avatar";
                         var avOldFvrt = msg["oldFvrtId"]?.ToString();
                         var (avOk, avResult) = await _vrcApi.AddAvatarFavoriteAsync(avId, avGroup, avType, avOldFvrt);
+                        if (avOk) _cache.Delete(CacheHandler.KeyFavAvatars);
                         Invoke(() => SendToJS("vrcAvatarFavoriteResult", new { ok = avOk, avatarId = avId, groupName = avGroup, newFvrtId = avOk ? avResult : "", error = avOk ? "" : avResult }));
                     });
                     break;
@@ -1037,6 +1043,7 @@ public partial class AppShell
                     _ = Task.Run(async () =>
                     {
                         var ok = await _vrcApi.RemoveFavoriteFriendAsync(avFvrtId);
+                        if (ok) _cache.Delete(CacheHandler.KeyFavAvatars);
                         Invoke(() => SendToJS("vrcAvatarUnfavoriteResult", new { ok, avatarId = avRmId }));
                     });
                     break;

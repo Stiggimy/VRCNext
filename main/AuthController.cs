@@ -1277,6 +1277,7 @@ public class AuthController
             }
 
             var payload = new { avatars = allAvatars, groups = groupList };
+            if (_core.Settings.FfcEnabled) _core.Cache.Save(CacheHandler.KeyFavAvatars, payload);
             Invoke(() => _core.SendToJS("vrcFavoriteAvatars", payload));
         }
         catch (Exception ex)
@@ -1329,6 +1330,9 @@ public class AuthController
 
         var favWorlds = _core.Cache.LoadRaw(CacheHandler.KeyFavWorlds);
         if (favWorlds != null) _core.SendToJS("vrcFavoriteWorlds", favWorlds);
+
+        var favAvatars = _core.Cache.LoadRaw(CacheHandler.KeyFavAvatars);
+        if (favAvatars != null) _core.SendToJS("vrcFavoriteAvatars", favAvatars);
     }
 
     private static readonly TimeSpan StartupCacheTtl = TimeSpan.FromDays(1);
@@ -1336,9 +1340,10 @@ public class AuthController
     private async Task TriggerStartupBackgroundRefreshAsync()
     {
         if (!_core.VrcApi.IsLoggedIn) return;
-        if (!_core.Cache.IsFresh(CacheHandler.KeyAvatars,   StartupCacheTtl)) _ = Task.Run(FetchAndCacheAvatarsAsync);
-        if (!_core.Cache.IsFresh(CacheHandler.KeyGroups,    StartupCacheTtl)) _ = Task.Run(_groups.FetchAndCacheAsync);
+        if (!_core.Cache.IsFresh(CacheHandler.KeyAvatars,    StartupCacheTtl)) _ = Task.Run(FetchAndCacheAvatarsAsync);
+        if (!_core.Cache.IsFresh(CacheHandler.KeyGroups,    StartupCacheTtl))  _ = Task.Run(_groups.FetchAndCacheAsync);
         if (!_core.Cache.IsFresh(CacheHandler.KeyFavWorlds, StartupCacheTtl)) _ = Task.Run(FetchAndCacheFavWorldsAsync);
+        if (!_core.Cache.IsFresh(CacheHandler.KeyFavAvatars, StartupCacheTtl)) _ = Task.Run(FetchAndCacheFavAvatarsAsync);
         _ = Task.Run(BackfillMissingPlayerImagesAsync);
         _ = Task.Run(CollectWorldStatsIfMissingAsync);
         if (_core.Settings.AutoUpdate) _ = Task.Run(AutoUpdateAsync);
@@ -1433,11 +1438,13 @@ public class AuthController
         try
         {
             var friendIds = _friends.GetTrackedUserIds();
-            int total = friendIds.Count + 3;
+            int total = friendIds.Count + 4;
             int completed = 0;
 
             Progress(completed, total, "Caching avatars...");
             await FetchAndCacheAvatarsAsync();
+            Progress(++completed, total, "Caching favorite avatars...");
+            await FetchAndCacheFavAvatarsAsync();
             Progress(++completed, total, "Caching groups...");
             await _groups.FetchAndCacheAsync();
             Progress(++completed, total, "Caching worlds...");
