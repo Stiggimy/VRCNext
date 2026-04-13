@@ -1171,6 +1171,7 @@
   "context_menu.friend.send_request": "Freundschaftsanfrage senden",
   "context_menu.library.copy": "In Zwischenablage kopieren",
   "context_menu.library.set_background": "Als Hintergrund setzen",
+  "context_menu.library.reveal_in_explorer": "Im Explorer anzeigen",
   "context_menu.library.remove_favorite": "Favorit entfernen",
   "context_menu.library.favorite": "Favorit",
   "context_menu.library.unhide": "Einblenden",

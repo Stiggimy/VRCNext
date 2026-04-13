@@ -847,6 +847,7 @@
         if (type === 'image') {
             items.push({ icon: 'wallpaper', label: cm('library.set_background', 'Set as Background'), action: () => setLibItemAsDashBg(path) });
         }
+        items.push({ icon: 'folder_open', label: cm('library.reveal_in_explorer', 'Reveal in Explorer'), action: () => sendToCS({ action: 'revealInExplorer', path }) });
         items.push('sep');
         items.push(isFav
             ? { icon: 'star_border', label: cm('library.remove_favorite', 'Remove Favorite'), action: () => toggleFavorite(path) }

@@ -1169,6 +1169,7 @@
   "context_menu.friend.send_request": "Enviar solicitud de amistad",
   "context_menu.library.copy": "Copiar al portapapeles",
   "context_menu.library.set_background": "Establecer como fondo",
+  "context_menu.library.reveal_in_explorer": "Mostrar en el Explorador",
   "context_menu.library.remove_favorite": "Quitar de favoritos",
   "context_menu.library.favorite": "Favorito",
   "context_menu.library.unhide": "Mostrar",

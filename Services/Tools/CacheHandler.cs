@@ -19,8 +19,11 @@ public class CacheHandler
     public static readonly string KeyCustomColors   = "custom_colors.json";
     public static readonly string KeyPermini        = "permini_list.json";
 
-    public static string KeyUserProfile(string userId) => $"profiles/{userId}.json";
-    public static string KeyUserFavWorlds(string userId) => $"favworlds/{userId}.json";
+    public static string KeyUserProfile(string userId)    => $"profiles/{userId}.json";
+    public static string KeyUserFavWorlds(string userId)  => $"favworlds/{userId}.json"; // legacy — kept for FFC profile caching
+    public static string KeyUserGroups(string userId)     => $"Caches/Profiles/{userId}/user_groups_cache.json";
+    public static string KeyUserContent(string userId)    => $"Caches/Profiles/{userId}/user_content_cache.json";
+    public static string KeyUserFavContent(string userId) => $"Caches/Profiles/{userId}/user_fav_content_cache.json";
 
     public object? LoadRaw(string key)
     {
@@ -75,6 +78,9 @@ public class CacheHandler
             var favWorldsDir = Path.Combine(_dir, "favworlds");
             if (Directory.Exists(favWorldsDir))
                 Directory.Delete(favWorldsDir, true);
+            var profilesCacheDir = Path.Combine(_dir, "Caches", "Profiles");
+            if (Directory.Exists(profilesCacheDir))
+                Directory.Delete(profilesCacheDir, true);
         }
         catch { }
     }

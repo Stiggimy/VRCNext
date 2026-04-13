@@ -1166,6 +1166,7 @@
   "context_menu.friend.send_request": "发送好友请求",
   "context_menu.library.copy": "复制到剪贴板",
   "context_menu.library.set_background": "设为背景",
+  "context_menu.library.reveal_in_explorer": "在资源管理器中显示",
   "context_menu.library.remove_favorite": "移除收藏",
   "context_menu.library.favorite": "收藏",
   "context_menu.library.unhide": "取消隐藏",

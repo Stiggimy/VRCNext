@@ -1193,6 +1193,7 @@
   "context_menu.friend.send_request": "Send Friend Request",
   "context_menu.library.copy": "Copy to Clipboard",
   "context_menu.library.set_background": "Set as Background",
+  "context_menu.library.reveal_in_explorer": "Reveal in Explorer",
   "context_menu.library.remove_favorite": "Remove Favorite",
   "context_menu.library.favorite": "Favorite",
   "context_menu.library.unhide": "Unhide",

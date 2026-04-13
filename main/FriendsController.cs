@@ -205,6 +205,17 @@ public class FriendsController
                 {
                     try
                     {
+                        // Serve from cache if fresh (TTL 1 day)
+                        if (_core.Settings.FfcEnabled && _core.Cache.IsFresh(CacheHandler.KeyUserContent(uid), TimeSpan.FromDays(1)))
+                        {
+                            var cached = _core.Cache.LoadRaw(CacheHandler.KeyUserContent(uid)) as JObject;
+                            if (cached?["avatars"] != null)
+                            {
+                                _core.SendToJS("vrcUserAvatars", new { userId = uid, avatars = cached["avatars"] });
+                                break;
+                            }
+                        }
+
                         var raw = await _core.VrcApi.SearchAvatarsByAuthorAsync(uid);
                         var avatars = raw.Cast<JObject>().Select(a => new
                         {
@@ -216,6 +227,13 @@ public class FriendsController
                             releaseStatus     = "public",
                             compatibility     = a["compatibility"] as JArray ?? new JArray(),
                         }).ToList();
+
+                        if (_core.Settings.FfcEnabled)
+                        {
+                            var cf = (_core.Cache.LoadRaw(CacheHandler.KeyUserContent(uid)) as JObject) ?? new JObject();
+                            cf["avatars"] = JToken.FromObject(avatars);
+                            _core.Cache.Save(CacheHandler.KeyUserContent(uid), cf);
+                        }
                         _core.SendToJS("vrcUserAvatars", new { userId = uid, avatars });
                     }
                     catch
@@ -602,10 +620,12 @@ public class FriendsController
 
     private async Task GetUserFavWorldsAsync(string userId)
     {
-        // Serve cached data immediately so the tab renders without waiting
-        var cached = _core.Cache.LoadRaw(CacheHandler.KeyUserFavWorlds(userId));
-        if (cached != null)
-            _core.SendToJS("vrcUserFavWorlds", cached);
+        // Serve from cache if fresh (TTL 3 days) — no API call needed
+        if (_core.Settings.FfcEnabled && _core.Cache.IsFresh(CacheHandler.KeyUserFavContent(userId), TimeSpan.FromDays(3)))
+        {
+            var cached = _core.Cache.LoadRaw(CacheHandler.KeyUserFavContent(userId));
+            if (cached != null) { _core.SendToJS("vrcUserFavWorlds", cached); return; }
+        }
 
         // Fetch fresh data from API
         var groups = await _core.VrcApi.GetUserFavWorldGroupsAsync(userId);
@@ -638,7 +658,7 @@ public class FriendsController
             result.Add(new { name, displayName, visibility, worlds });
         }
         var payload = new { userId, groups = result };
-        _core.Cache.Save(CacheHandler.KeyUserFavWorlds(userId), payload);
+        if (_core.Settings.FfcEnabled) _core.Cache.Save(CacheHandler.KeyUserFavContent(userId), payload);
         _core.SendToJS("vrcUserFavWorlds", payload);
     }
 
@@ -1191,9 +1211,22 @@ public class FriendsController
         var (worldId, instanceId, instanceType) = VRChatApiService.ParseLocation(location);
         bool hasWorld = !string.IsNullOrEmpty(worldId) && worldId.StartsWith("wrld_");
 
-        var instTask = hasWorld ? _core.VrcApi.GetInstanceAsync(location) : Task.FromResult<JObject?>(null);
-        var grpsTask = _core.VrcApi.GetUserGroupsByIdAsync(userId);
-        var worldsTask = _core.VrcApi.GetUserWorldsAsync(userId);
+        // Check per-user caches (TTL 1 day)
+        bool ffc = _core.Settings.FfcEnabled;
+        var profileTtl = TimeSpan.FromDays(1);
+        JArray? cachedGroups = (ffc && _core.Cache.IsFresh(CacheHandler.KeyUserGroups(userId), profileTtl))
+            ? _core.Cache.LoadRaw(CacheHandler.KeyUserGroups(userId)) as JArray : null;
+        JObject? cachedContent = (ffc && _core.Cache.IsFresh(CacheHandler.KeyUserContent(userId), profileTtl))
+            ? _core.Cache.LoadRaw(CacheHandler.KeyUserContent(userId)) as JObject : null;
+        JArray? cachedWorlds = cachedContent?["worlds"] as JArray;
+
+        var instTask    = hasWorld ? _core.VrcApi.GetInstanceAsync(location) : Task.FromResult<JObject?>(null);
+        var grpsTask    = cachedGroups != null
+            ? Task.FromResult(cachedGroups)
+            : _core.VrcApi.GetUserGroupsByIdAsync(userId);
+        var worldsTask  = cachedWorlds != null
+            ? Task.FromResult(cachedWorlds)
+            : _core.VrcApi.GetUserWorldsAsync(userId);
         var mutualsTask = _core.VrcApi.GetUserMutualsAsync(userId);
 
         await Task.WhenAll(new Task[] { instTask, grpsTask, worldsTask, mutualsTask }
@@ -1202,6 +1235,16 @@ public class FriendsController
         var inst = instTask.IsCompletedSuccessfully ? instTask.Result : null;
         var groups = grpsTask.IsCompletedSuccessfully ? grpsTask.Result : new JArray();
         var worlds = worldsTask.IsCompletedSuccessfully ? worldsTask.Result : new JArray();
+
+        // Save fresh fetches to cache
+        if (ffc && cachedGroups == null && grpsTask.IsCompletedSuccessfully)
+            _core.Cache.Save(CacheHandler.KeyUserGroups(userId), groups);
+        if (ffc && cachedWorlds == null && worldsTask.IsCompletedSuccessfully)
+        {
+            var cf = (cachedContent ?? new JObject());
+            cf["worlds"] = JToken.FromObject(worlds);
+            _core.Cache.Save(CacheHandler.KeyUserContent(userId), cf);
+        }
         var (mutualsArr, mutualsOptedOut) = mutualsTask.IsCompletedSuccessfully
             ? mutualsTask.Result : (new JArray(), false);
         var badgesArr = user["badges"] as JArray ?? new JArray();

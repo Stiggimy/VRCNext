@@ -1599,6 +1599,14 @@ public partial class AppShell
                     await _authCtrl.HandleMessage(action, msg);
                     break;
 
+                case "revealInExplorer":
+                {
+                    var filePath = msg["path"]?.ToString();
+                    if (!string.IsNullOrEmpty(filePath) && File.Exists(filePath))
+                        Process.Start("explorer.exe", $"/select,\"{filePath}\"");
+                    break;
+                }
+
                 // Discord Rich Presence
                 case "dpStart":
                 case "dpStop":

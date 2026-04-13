@@ -1169,6 +1169,7 @@
   "context_menu.friend.send_request": "Envoyer une demande d'ami",
   "context_menu.library.copy": "Copier dans le presse-papiers",
   "context_menu.library.set_background": "Définir comme arrière-plan",
+  "context_menu.library.reveal_in_explorer": "Afficher dans l'Explorateur",
   "context_menu.library.remove_favorite": "Retirer des favoris",
   "context_menu.library.favorite": "Favori",
   "context_menu.library.unhide": "Afficher",

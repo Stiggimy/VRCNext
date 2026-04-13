@@ -1165,6 +1165,7 @@
   "context_menu.friend.send_request": "フレンドリクエストを送信",
   "context_menu.library.copy": "クリップボードにコピー",
   "context_menu.library.set_background": "背景に設定",
+  "context_menu.library.reveal_in_explorer": "エクスプローラーで表示",
   "context_menu.library.remove_favorite": "お気に入りを削除",
   "context_menu.library.favorite": "お気に入り",
   "context_menu.library.unhide": "表示",
