@@ -37,6 +37,7 @@ static class VRSubprocess
 
         var httpHandler = new HttpClientHandler { CookieContainer = cookieJar };
         var http = new HttpClient(httpHandler);
+        http.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", AppInfo.UserAgent);
 
         ImageCacheService? imgCache = null;
         if (!string.IsNullOrEmpty(cacheDir))
