@@ -9,6 +9,62 @@ namespace VRCNext;
 
 public partial class AppShell
 {
+    // Persisted cache: contentId -> { name, rawImageUrl }
+    private Dictionary<string, (string name, string rawImageUrl)>? _sharedContentCache;
+    private readonly object _sharedContentCacheLock = new();
+
+    private Dictionary<string, (string name, string rawImageUrl)> GetSharedContentCache()
+    {
+        if (_sharedContentCache != null) return _sharedContentCache;
+        lock (_sharedContentCacheLock)
+        {
+            if (_sharedContentCache != null) return _sharedContentCache;
+            _sharedContentCache = new();
+            if (_cache.LoadRaw(CacheHandler.KeySharedContent) is Newtonsoft.Json.Linq.JObject obj)
+            {
+                foreach (var prop in obj.Properties())
+                    _sharedContentCache[prop.Name] = (
+                        prop.Value["name"]?.ToString()        ?? "",
+                        prop.Value["rawImageUrl"]?.ToString() ?? "");
+            }
+            return _sharedContentCache;
+        }
+    }
+
+    // Called at startup to pre-populate JS _msgrContentCache so first chat open shows images instantly.
+    public async Task PrefetchSharedContentAsync()
+    {
+        var scc = GetSharedContentCache();
+        List<(string id, string name, string rawImageUrl)> entries;
+        lock (_sharedContentCacheLock)
+            entries = scc.Where(kv => !string.IsNullOrEmpty(kv.Value.rawImageUrl))
+                         .Select(kv => (kv.Key, kv.Value.name, kv.Value.rawImageUrl))
+                         .ToList();
+
+        foreach (var (id, name, rawImageUrl) in entries)
+        {
+            var image = _imgCache != null ? await _imgCache.GetAsync(rawImageUrl) : rawImageUrl;
+            if (!string.IsNullOrEmpty(name) || !string.IsNullOrEmpty(image))
+                Invoke(() => SendToJS("vrcSharedContentInfo", new { contentId = id, name, image }));
+        }
+    }
+
+    private void SaveSharedContentCache()
+    {
+        var dict = _sharedContentCache;
+        if (dict == null) return;
+        lock (_sharedContentCacheLock)
+        {
+            var obj = new Newtonsoft.Json.Linq.JObject();
+            foreach (var kv in dict)
+                obj[kv.Key] = new Newtonsoft.Json.Linq.JObject {
+                    ["name"]        = kv.Value.name,
+                    ["rawImageUrl"] = kv.Value.rawImageUrl,
+                };
+            _cache.Save(CacheHandler.KeySharedContent, obj);
+        }
+    }
+
     private readonly HashSet<string> _checkedAvatarIds = new();
     private readonly HashSet<string> _deletedAvatarIds = new();
     private readonly HashSet<string> _reportedToAvtrdb = new();
@@ -868,6 +924,89 @@ public partial class AppShell
                     break;
                 }
 
+                // Shared Content Info (for Messenger content cards)
+                case "vrcGetSharedContentInfo":
+                {
+                    var scId   = msg["contentId"]?.ToString() ?? "";
+                    var scType = msg["contentType"]?.ToString() ?? "";
+                    if (!string.IsNullOrEmpty(scId))
+                    {
+                        _ = Task.Run(async () =>
+                        {
+                            var scc = GetSharedContentCache();
+
+                            string name = "", rawImage = "";
+                            bool fromCache = false;
+
+                            // Check disk cache — skip API call only if we already have the image URL
+                            lock (_sharedContentCacheLock)
+                            {
+                                if (scc.TryGetValue(scId, out var cached) &&
+                                    !string.IsNullOrEmpty(cached.rawImageUrl))
+                                {
+                                    name      = cached.name;
+                                    rawImage  = cached.rawImageUrl;
+                                    fromCache = true;
+                                }
+                            }
+
+                            if (!fromCache)
+                            {
+                                // Use Value<string>() not ToString() — JSON null tokens return ""
+                                // from ToString() which breaks the ?? fallback chain.
+                                if (scType == "wrld")
+                                {
+                                    var w = await _vrcApi.GetWorldFreshAsync(scId);
+                                    name     = w?["name"]?.Value<string>() ?? "";
+                                    rawImage = w?["thumbnailImageUrl"]?.Value<string>()
+                                            ?? w?["imageUrl"]?.Value<string>() ?? "";
+                                }
+                                else if (scType == "avtr")
+                                {
+                                    var a = await _vrcApi.GetAvatarAsync(scId);
+                                    name     = a?["name"]?.Value<string>() ?? "";
+                                    rawImage = a?["thumbnailImageUrl"]?.Value<string>()
+                                            ?? a?["imageUrl"]?.Value<string>() ?? "";
+                                }
+                                else if (scType == "grp")
+                                {
+                                    var g = await _vrcApi.GetGroupAsync(scId);
+                                    name     = g?["name"]?.Value<string>() ?? "";
+                                    rawImage = g?["iconUrl"]?.Value<string>()
+                                            ?? g?["bannerUrl"]?.Value<string>() ?? "";
+                                }
+                                else if (scType == "usr")
+                                {
+                                    var u = await _vrcApi.GetUserAsync(scId);
+                                    name     = u?["displayName"]?.Value<string>() ?? "";
+                                    rawImage = VRChatApiService.GetUserImage(u) ?? "";
+                                }
+
+                                // Persist to disk cache — only save if we got a usable image URL
+                                // so we don't permanently cache "no image" for content that has one
+                                if (!string.IsNullOrEmpty(name) && !string.IsNullOrEmpty(rawImage))
+                                {
+                                    lock (_sharedContentCacheLock)
+                                        scc[scId] = (name, rawImage);
+                                    SaveSharedContentCache();
+                                }
+                            }
+
+                            // Send immediately with raw URL — CDN URLs load in browser right away
+                            if (!string.IsNullOrEmpty(name) || !string.IsNullOrEmpty(rawImage))
+                                Invoke(() => SendToJS("vrcSharedContentInfo", new { contentId = scId, contentType = scType, name, image = rawImage }));
+                            // Await download, then send update with localhost URL
+                            if (!string.IsNullOrEmpty(rawImage) && _imgCache != null)
+                            {
+                                var localImage = await _imgCache.GetAsync(rawImage);
+                                if (!string.IsNullOrEmpty(localImage) && localImage != rawImage)
+                                    Invoke(() => SendToJS("vrcSharedContentInfo", new { contentId = scId, contentType = scType, name, image = localImage }));
+                            }
+                        });
+                    }
+                    break;
+                }
+
                 // Favorite Friends
                 case "vrcGetFavoriteFriends":
                 case "vrcAddFavoriteFriend":
@@ -1690,6 +1829,7 @@ public partial class AppShell
                 case "vroConfig":
                 case "vroAutoSave":
                 case "vroToastConfig":
+                case "vroWaterConfig":
                 case "vroRecordKeybind":
                 case "vroCancelRecording":
                 case "vroSetTab":

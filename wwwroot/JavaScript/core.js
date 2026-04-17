@@ -72,7 +72,7 @@ let _prevTab = -1;
 let hiddenMedia = new Set();
 try { hiddenMedia = new Set(JSON.parse(localStorage.getItem('vrcnext_hidden') || '[]')); } catch {}
 const thumbCache = {};
-let currentTheme = 'midnight', currentSpecialTheme = '', autoColorAccuracy = 50, notifyAudio = null, messageAudio = null, mediaRelayAudio = null, steamOverlayAudio = null, currentVrcUser = null;
+let currentTheme = 'midnight', currentSpecialTheme = '', autoColorAccuracy = 50, notifyAudio = null, messageAudio = null, mediaRelayAudio = null, steamOverlayAudio = null, waterAudio = null, currentVrcUser = null;
 let customThemes = []; // user-saved themes from auto color
 let currentPlayBtnTheme = '';
 let currentCursorTheme = '';
@@ -129,6 +129,7 @@ let friendSectionCollapsed = (() => {
     catch { return { ..._fscDefaults }; }
 })();
 let avatarsData = [], avatarFavData = [], avatarFilter = 'own', avatarsLoaded = false, currentAvatarId = '';
+let avatarInfoCache = {}; // avtr_XXX -> { id, name, thumbnailImageUrl }
 let avatarSearchResults = [], avatarSearchPage = 0, avatarSearchQuery = '', avatarSearchHasMore = false;
 let favAvatarsData = [], favAvatarGroups = [], favAvatarGroupFilter = '';
 let notifications = [], notifPanelOpen = false, myGroups = [], myGroupsLoaded = false;
@@ -983,6 +984,7 @@ function tryInitNotifySound() {
     messageAudio = _initAudio('sounds/notifications/Message.wav');
     mediaRelayAudio = _initAudio('sounds/notifications/MediaRelay.wav');
     steamOverlayAudio = _initAudio('sounds/notifications/SteamOverlay.wav');
+    waterAudio = _initAudio('sounds/notifications/water.wav');
 }
 
 function playNotificationSound() {
@@ -1010,6 +1012,13 @@ function playSteamOverlaySound() {
     if (steamOverlayAudio?._ready && settings.steamOverlaySoundEnabled) {
         steamOverlayAudio.currentTime = 0;
         steamOverlayAudio.play().catch(() => {});
+    }
+}
+
+function playWaterAlarmSound() {
+    if (waterAudio?._ready) {
+        waterAudio.currentTime = 0;
+        waterAudio.play().catch(() => {});
     }
 }
 

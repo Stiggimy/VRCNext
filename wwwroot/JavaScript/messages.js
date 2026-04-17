@@ -410,6 +410,10 @@ window.external.receiveMessage(rawMsg => {
                     avatarsData = payload.avatars || [];
                     if (payload.currentAvatarId) currentAvatarId = payload.currentAvatarId;
                     avatarsLoaded = true;
+                    // Populate avatarInfoCache so messenger content cards resolve immediately
+                    (payload.avatars || []).forEach(a => {
+                        if (a.id) avatarInfoCache[a.id] = { id: a.id, name: a.name || '', thumbnailImageUrl: a.thumbnailImageUrl || a.imageUrl || '' };
+                    });
                     if (avatarFilter === 'own') renderAvatarGrid();
                     renderDashOwnAvatars();
                 }
@@ -534,6 +538,9 @@ window.external.receiveMessage(rawMsg => {
                     const loadMoreDiv = document.getElementById('gdMembersLoadMore');
                     if (loadMoreDiv) loadMoreDiv.innerHTML = '';
                 }
+                break;
+            case 'vrcSharedContentInfo':
+                if (typeof handleSharedContentInfo === 'function') handleSharedContentInfo(payload);
                 break;
             case 'vrcWorldDetail':
                 renderWorldSearchDetail(payload);
@@ -805,6 +812,12 @@ case 'popularWorlds':
             break;
         case 'vroPlayToastSound':
             playSteamOverlaySound();
+            break;
+        case 'vroPlayWaterSound':
+            if (waterAudio) { waterAudio.loop = true; waterAudio.currentTime = 0; waterAudio.play().catch(() => {}); }
+            break;
+        case 'vroStopWaterSound':
+            if (waterAudio) { waterAudio.loop = false; waterAudio.pause(); waterAudio.currentTime = 0; }
             break;
     }
 });

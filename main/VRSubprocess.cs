@@ -83,6 +83,8 @@ static class VRSubprocess
             });
         vro.OnToolToggle  += idx => SendLine(new JObject { ["t"] = "vro_tool_toggle",  ["index"] = idx });
         vro.OnToastSound  += ()  => SendLine(new JObject { ["t"] = "vro_toast_sound" });
+        vro.OnWaterAlarm     += () => SendLine(new JObject { ["t"] = "vro_water_alarm" });
+        vro.OnWaterDismissed += () => SendLine(new JObject { ["t"] = "vro_water_dismissed" });
         vro.OnVRQuit      += ()  => Environment.Exit(0);
 
         sf.SetUpdateCallback(data =>
@@ -158,6 +160,18 @@ static class VRSubprocess
             case "vro_hide":    vro.Hide();    break;
             case "vro_toggle":  vro.Toggle();  break;
             case "vro_set_tab": vro.SetActiveTab(I(cmd, "tab")); break;
+
+            case "vro_water_config":
+                vro.ApplyWaterConfig(B(cmd, "enabled"), I(cmd, "intervalSec") * 1000L);
+                break;
+
+            case "vro_set_language":
+                vro.SetLanguage(S(cmd, "lang"));
+                break;
+
+            case "vro_water_dismiss":
+                vro.DismissWaterAlarm();
+                break;
 
             case "vro_theme_colors":
             {

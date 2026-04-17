@@ -192,6 +192,102 @@ namespace VRCNext.Services
         public event Action? OnToastSound;
         public event Action? OnVRQuit;
 
+        //  Water Reminder (Dashboard tab)
+        private bool     _waterEnabled     = false;
+        private long     _waterIntervalMs  = 3_600_000; // 1 hour default
+        private long     _waterRemainMs    = 3_600_000;
+        private bool     _waterAlarmActive = false;
+        private DateTime _waterLastTick    = DateTime.UtcNow;
+        private int      _lastDashSecond   = -1; // for clock tick dirty
+        private string   _language         = "en";
+        public event Action? OnWaterAlarm;
+        public event Action? OnWaterDismissed;
+
+        public void SetLanguage(string lang) => _language = string.IsNullOrWhiteSpace(lang) ? "en" : lang;
+
+        // Embedded VR-overlay UI strings — keys must be lowercase
+        private static readonly Dictionary<string, Dictionary<string, string>> _vroStrings = new()
+        {
+            ["system_time"] = new() {
+                ["en"] = "SYSTEM TIME",    ["de"] = "SYSTEMZEIT",
+                ["es"] = "HORA SISTEMA",   ["fr"] = "HEURE SYSTÈME",
+                ["ja"] = "システム時刻",     ["zh-cn"] = "系统时间",
+            },
+            ["water_reminder"] = new() {
+                ["en"] = "WATER REMINDER", ["de"] = "WASSERALARM",
+                ["es"] = "RECORDATORIO",   ["fr"] = "RAPPEL D'EAU",
+                ["ja"] = "水分補給",         ["zh-cn"] = "喝水提醒",
+            },
+            ["active"] = new() {
+                ["en"] = "ACTIVE",  ["de"] = "AKTIV",  ["es"] = "ACTIVO",
+                ["fr"] = "ACTIF",   ["ja"] = "有効",    ["zh-cn"] = "活跃",
+            },
+            ["min"] = new() {
+                ["en"] = "MIN", ["de"] = "MIN", ["es"] = "MIN",
+                ["fr"] = "MIN", ["ja"] = "分",  ["zh-cn"] = "分",
+            },
+            ["sec"] = new() {
+                ["en"] = "SEC", ["de"] = "SEK", ["es"] = "SEG",
+                ["fr"] = "SEC", ["ja"] = "秒",  ["zh-cn"] = "秒",
+            },
+            ["recent_notifications"] = new() {
+                ["en"] = "RECENT NOTIFICATIONS", ["de"] = "BENACHRICHTIGUNGEN",
+                ["es"] = "NOTIFICACIONES",        ["fr"] = "NOTIFICATIONS",
+                ["ja"] = "最近の通知",              ["zh-cn"] = "最近通知",
+            },
+            ["no_notifications"] = new() {
+                ["en"] = "No recent notifications", ["de"] = "Keine Benachrichtigungen",
+                ["es"] = "Sin notificaciones",       ["fr"] = "Pas de notifications",
+                ["ja"] = "通知なし",                   ["zh-cn"] = "暂无通知",
+            },
+            ["alarm_title"] = new() {
+                ["en"] = "Drink Water!",     ["de"] = "Trink Wasser!",
+                ["es"] = "¡Bebe Agua!",      ["fr"] = "Buvez de l'eau !",
+                ["ja"] = "水を飲もう！",       ["zh-cn"] = "喝水啦！",
+            },
+            ["alarm_sub"] = new() {
+                ["en"] = "Stay hydrated. Stay focused.",  ["de"] = "Trink genug. Bleib fokussiert.",
+                ["es"] = "Mantente hidratado.",            ["fr"] = "Restez hydraté.",
+                ["ja"] = "水分補給を忘れずに。",             ["zh-cn"] = "保持水分，保持专注。",
+            },
+            ["alarm_btn"] = new() {
+                ["en"] = "I Did Drink!",    ["de"] = "Ich hab getrunken!",
+                ["es"] = "¡Ya bebí!",       ["fr"] = "J'ai bu !",
+                ["ja"] = "飲んだよ！",        ["zh-cn"] = "我喝了！",
+            },
+        };
+
+        private string VroL(string key)
+        {
+            if (_vroStrings.TryGetValue(key, out var map))
+            {
+                var lang = _language.ToLowerInvariant();
+                if (map.TryGetValue(lang, out var s)) return s;
+                if (map.TryGetValue("en", out var fallback)) return fallback;
+            }
+            return key;
+        }
+
+        public void ApplyWaterConfig(bool enabled, long intervalMs)
+        {
+            _waterEnabled    = enabled;
+            _waterIntervalMs = Math.Max(60_000, intervalMs);
+            if (!_waterAlarmActive)
+                _waterRemainMs = _waterIntervalMs;
+            if (enabled && !_waterAlarmActive)
+                _waterLastTick = DateTime.UtcNow;
+            _dirty = true;
+        }
+
+        public void DismissWaterAlarm()
+        {
+            _waterAlarmActive = false;
+            _waterRemainMs    = _waterIntervalMs;
+            _waterLastTick    = DateTime.UtcNow;
+            _dirty = true;
+            OnWaterDismissed?.Invoke();
+        }
+
         public void SetToolStates(bool discord, bool voiceFight, bool ytFix, bool spaceFlight, bool relay, bool chatbox)
         {
             _toolDiscord  = discord;
@@ -1224,7 +1320,7 @@ namespace VRCNext.Services
                     {
                         // Animate tab indicator slide
                         const int tabX = 8;
-                        int tabW = (W - 16) / 5;
+                        int tabW = (W - 16) / 6;
                         float targetX = tabX + 2f + _activeTab * tabW;
                         if (MathF.Abs(_tabIndicatorX - targetX) > 0.5f)
                         {
@@ -1263,9 +1359,23 @@ namespace VRCNext.Services
                             ApplyTransform();
                         }
 
+                        // Dashboard clock — always re-render tab 0 once per second (clock + water)
+                        if (_activeTab == 0)
+                        {
+                            int ds = DateTime.Now.Second;
+                            if (ds != _lastDashSecond)
+                            {
+                                _lastDashSecond = ds;
+                                _dirty = true;
+                            }
+                        }
+
+                        // Keep re-rendering for alarm pulse animation (any tab)
+                        if (_waterAlarmActive) _dirty = true;
+
                         // For the music player tab, re-render only when the displayed second
                         // actually changes — avoids calling SetOverlayRaw every tick.
-                        if (_activeTab == 2 && _mediaPlaying)
+                        if (_activeTab == 3 && _mediaPlaying)
                         {
                             int sec = (int)GetCurrentMediaPosition();
                             if (sec != _lastDisplayedSecond)
@@ -1309,7 +1419,28 @@ namespace VRCNext.Services
                         }
                     }
 
-                    // Toast overlay tick (always runs, independent of wrist overlay visibility).n                    TickToast();
+                    // Water reminder countdown — always runs regardless of overlay visibility
+                    if (_waterEnabled && !_waterAlarmActive)
+                    {
+                        var wNow = DateTime.UtcNow;
+                        long wElapsed = (long)(wNow - _waterLastTick).TotalMilliseconds;
+                        if (wElapsed >= 1000)
+                        {
+                            _waterLastTick  = wNow;
+                            _waterRemainMs -= wElapsed;
+                            if (_waterRemainMs <= 0)
+                            {
+                                _waterAlarmActive = true;
+                                _waterRemainMs    = 0;
+                                OnWaterAlarm?.Invoke();
+                                // Auto-show the overlay so the alarm is visible
+                                if (!IsVisible) Show();
+                            }
+                        }
+                    }
+
+                    // Toast overlay tick (always runs, independent of wrist overlay visibility).
+                    TickToast();
 
                     // Use minimal delay while scrolling to hit ~90fps; 11ms otherwise (~64fps steady)
                     bool activeScroll = _scrollDragging || MathF.Abs(_locationScrollVY) > 0.5f || MathF.Abs(_friendsScrollVY) > 0.5f;
@@ -1423,12 +1554,12 @@ namespace VRCNext.Services
                         _scrollLastNY    = ny;
                         _scrollLastDeltaY = 0f;
                         // Kill inertia on touch-down for scroll tabs
-                        if (_activeTab == 1) _locationScrollVY = 0f;
-                        if (_activeTab == 4) _friendsScrollVY  = 0f;
+                        if (_activeTab == 2) _locationScrollVY = 0f;
+                        if (_activeTab == 5) _friendsScrollVY  = 0f;
                     }
                     else if (oType == EVREventType.VREvent_MouseMove)
                     {
-                        if (_mouseDown && (_activeTab == 1 || _activeTab == 4) && _mouseDownNY < 0.82f)
+                        if (_mouseDown && (_activeTab == 2 || _activeTab == 5) && _mouseDownNY < 0.82f)
                         {
                             var mu = evt.data.mouse;
                             float ny = mu.y / H;
@@ -1440,7 +1571,7 @@ namespace VRCNext.Services
                                 float delta = (ny - _scrollLastNY) * H; // drag up → scroll down (OpenVR y=0 is bottom)
                                 _scrollLastDeltaY = delta;
                                 _scrollLastNY     = ny;
-                                if (_activeTab == 1)
+                                if (_activeTab == 2)
                                     _locationScrollY = Math.Clamp(_locationScrollY + delta, 0f, GetLocationMaxScroll());
                                 else
                                     _friendsScrollY  = Math.Clamp(_friendsScrollY  + delta, 0f, GetFriendsMaxScroll());
@@ -1455,8 +1586,8 @@ namespace VRCNext.Services
                         if (_scrollDragging && totalMove >= 20f)
                         {
                             // Real scroll flick — seed inertia
-                            if (_activeTab == 1) _locationScrollVY = _scrollLastDeltaY * 0.5f;
-                            if (_activeTab == 4) _friendsScrollVY  = _scrollLastDeltaY * 0.5f;
+                            if (_activeTab == 2) _locationScrollVY = _scrollLastDeltaY * 0.5f;
+                            if (_activeTab == 5) _friendsScrollVY  = _scrollLastDeltaY * 0.5f;
                         }
                         else
                         {
@@ -1476,7 +1607,7 @@ namespace VRCNext.Services
             // 4 tabs, each 124px: tabTW=496/4=124 → thresholds at nx 0.25, 0.50, 0.75
             if (ny > 0.84f)
             {
-                _activeTab = nx < 0.20f ? 0 : nx < 0.40f ? 1 : nx < 0.60f ? 2 : nx < 0.80f ? 3 : 4;
+                _activeTab = nx < (1f/6f) ? 0 : nx < (2f/6f) ? 1 : nx < (3f/6f) ? 2 : nx < (4f/6f) ? 3 : nx < (5f/6f) ? 4 : 5;
                 _lastDisplayedSecond = -1;
                 _locationScrollY = 0f; _locationScrollVY = 0f;
                 _friendsScrollY  = 0f; _friendsScrollVY  = 0f;
@@ -1484,8 +1615,15 @@ namespace VRCNext.Services
                 return;
             }
 
+            // Water alarm covers full overlay — any tap dismisses it
+            if (_waterAlarmActive)
+            {
+                DismissWaterAlarm();
+                return;
+            }
+
             // Music player
-            if (_activeTab == 2 && ny >= 0.27f && ny <= 0.35f && _mediaDuration > 0)
+            if (_activeTab == 3 && ny >= 0.27f && ny <= 0.35f && _mediaDuration > 0)
             {
                 const int barPad = 22;
                 float barNxStart = (float)barPad / W;
@@ -1502,7 +1640,7 @@ namespace VRCNext.Services
             // Music player controls:
             //   Controls GDI+ y 286–338 → ny 0.12–0.25
             //   Prev cx=172±18 → nx 0.27–0.40, Play cx=256±26 → nx 0.43–0.57, Next cx=340±18 → nx 0.60–0.73
-            if (_activeTab == 2 && ny >= 0.11f && ny <= 0.27f)
+            if (_activeTab == 3 && ny >= 0.11f && ny <= 0.27f)
             {
                 if      (nx >= 0.27f && nx <= 0.40f) SendSmtcCommand("prev");
                 else if (nx >= 0.43f && nx <= 0.57f) SendSmtcCommand("playpause");
@@ -1510,7 +1648,7 @@ namespace VRCNext.Services
             }
 
             // Tools tab card clicks — same constants as DrawTools
-            if (_activeTab == 3)
+            if (_activeTab == 4)
             {
                 const int startY = 76, gap = 8, padX = 12;
                 int cardW = (W - padX * 2 - gap) / 2;
@@ -1529,7 +1667,7 @@ namespace VRCNext.Services
             }
 
             // Location tab: scrollable 2-column grid — no pagination
-            if (_activeTab == 1)
+            if (_activeTab == 2)
             {
                 int gdixL = (int)(nx * W);
                 int gdiyL = (int)((1f - ny) * H);
@@ -1624,7 +1762,7 @@ namespace VRCNext.Services
             }
 
             // Friends tab: scrollable list — no pagination
-            if (_activeTab == 4)
+            if (_activeTab == 5)
             {
                 int gdixF = (int)(nx * W);
                 int gdiyF = (int)((1f - ny) * H);
@@ -2245,11 +2383,14 @@ namespace VRCNext.Services
 
                 DrawBackground(g);
                 DrawTabBar(g);
-                if      (_activeTab == 0) DrawNotifications(g);
-                else if (_activeTab == 1) DrawLocations(g);
-                else if (_activeTab == 2) DrawMusicPlayer(g);
-                else if (_activeTab == 3) DrawTools(g);
-                else if (_activeTab == 4) DrawFriends(g);
+                if      (_activeTab == 0) DrawDashboard(g);
+                else if (_activeTab == 1) DrawNotifications(g);
+                else if (_activeTab == 2) DrawLocations(g);
+                else if (_activeTab == 3) DrawMusicPlayer(g);
+                else if (_activeTab == 4) DrawTools(g);
+                else if (_activeTab == 5) DrawFriends(g);
+                // Water alarm renders over everything — any tab, full screen
+                if (_waterAlarmActive) DrawDashboardAlarm(g);
 
                 UploadTexture();
             }
@@ -2264,7 +2405,7 @@ namespace VRCNext.Services
             var th = _theme;
             const int r = 24;
 
-            bool hasArt = _activeTab == 2 && _albumArt != null && !string.IsNullOrWhiteSpace(_mediaTitle);
+            bool hasArt = _activeTab == 3 && _albumArt != null && !string.IsNullOrWhiteSpace(_mediaTitle);
 
             if (hasArt)
             {
@@ -2325,9 +2466,9 @@ namespace VRCNext.Services
             int tabH  = 50;
             int tabX  = 8;
             int tabTW = W - 16;           // total usable width
-            int tabW  = tabTW / 5;        // each of 5 tabs
+            int tabW  = tabTW / 6;        // each of 6 tabs
 
-            bool artBg = _activeTab == 2 && _albumArt != null && !string.IsNullOrWhiteSpace(_mediaTitle);
+            bool artBg = _activeTab == 3 && _albumArt != null && !string.IsNullOrWhiteSpace(_mediaTitle);
             if (!artBg)
             {
                 using var tabBg = new SolidBrush(Color.FromArgb(50, th.BgHover));
@@ -2339,11 +2480,12 @@ namespace VRCNext.Services
             using var indicatorBg = new SolidBrush(Color.FromArgb(200, th.Accent));
             FillRoundedRect(g, indicatorBg, (int)_tabIndicatorX, 10, indicatorW, tabH - 4, 12);
 
-            DrawTab(g, "\uE7F4", "Alerts",   0, tabX,               8, tabW,              tabH);
-            DrawTab(g, "\uE0C8", "Location", 1, tabX + tabW,         8, tabW,              tabH);
-            DrawTab(g, "\uE405", "Music",    2, tabX + tabW * 2,     8, tabW,              tabH);
-            DrawTab(g, "\uE869", "Tools",    3, tabX + tabW * 3,     8, tabW,              tabH);
-            DrawTab(g, "\uE7FB", "Friends",  4, tabX + tabW * 4,     8, tabTW - tabW * 4,  tabH);
+            DrawTab(g, "\uE871", "Dash",     0, tabX,               8, tabW,              tabH);
+            DrawTab(g, "\uE7F4", "Alerts",   1, tabX + tabW,         8, tabW,              tabH);
+            DrawTab(g, "\uE0C8", "Location", 2, tabX + tabW * 2,     8, tabW,              tabH);
+            DrawTab(g, "\uE405", "Music",    3, tabX + tabW * 3,     8, tabW,              tabH);
+            DrawTab(g, "\uE869", "Tools",    4, tabX + tabW * 4,     8, tabW,              tabH);
+            DrawTab(g, "\uE7FB", "Friends",  5, tabX + tabW * 5,     8, tabTW - tabW * 5,  tabH);
 
             if (!artBg)
             {
@@ -2366,6 +2508,226 @@ namespace VRCNext.Services
                 ? new Font(_matSymFamily, 18f, FontStyle.Regular, GraphicsUnit.Point)
                 : new Font("Segoe MDL2 Assets", 18f, FontStyle.Regular, GraphicsUnit.Point);
             g.DrawString(icon, iconFont, brush, new RectangleF(x, y, w, h), fmtC);
+        }
+
+        private void DrawDashboard(Graphics g)
+        {
+            var th   = _theme;
+            var fmtC = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
+            const int padX = 18;
+            int cardW = W - padX * 2;
+            int y = 72;
+
+            var now = DateTime.Now;
+
+            int   clockH     = _waterEnabled ? 82 : 162;
+            float timeFontSz = _waterEnabled ? 27f : 36f;
+
+            // ── CLOCK (flat) ──────────────────────────────────────────────────────
+            using (var lf = new Font("Segoe UI", 7f, FontStyle.Bold, GraphicsUnit.Point))
+            using (var lb = new SolidBrush(th.Tx3))
+            using (var ab = new SolidBrush(th.Accent))
+            {
+                g.FillEllipse(ab, padX, y + 6f, 5f, 5f);
+                g.DrawString(VroL("system_time"), lf, lb, new RectangleF(padX + 10, y + 4, cardW - 10, 14));
+            }
+
+            using (var tf = new Font("Segoe UI", timeFontSz, FontStyle.Bold, GraphicsUnit.Point))
+            using (var t1 = new SolidBrush(th.Tx1))
+            {
+                float timeH   = timeFontSz * 1.6f;
+                float timeTop = y + (clockH - timeH) / 2f - 2f;
+                g.DrawString(now.ToString("HH:mm:ss"), tf, t1,
+                    new RectangleF(padX, timeTop, cardW, timeH), fmtC);
+            }
+
+            using (var df = new Font("Segoe UI", 9f, FontStyle.Regular, GraphicsUnit.Point))
+            {
+                var    culture = System.Globalization.CultureInfo.GetCultureInfoByIetfLanguageTag(_language);
+                string dateStr = now.ToString("dd.MM.yyyy");
+                string dayStr  = now.ToString("dddd", culture);
+                var    dsz     = g.MeasureString(dateStr, df);
+                var    daysz   = g.MeasureString(dayStr,  df);
+                const float DOT_GAP = 14f;
+                float lx = (W - dsz.Width - DOT_GAP - daysz.Width) / 2f;
+                float ly = y + clockH - 18f;
+                using (var d2 = new SolidBrush(th.Tx2))
+                {
+                    g.DrawString(dateStr, df, d2, lx, ly);
+                    g.DrawString(dayStr,  df, d2, lx + dsz.Width + DOT_GAP, ly);
+                }
+                float dotX = lx + dsz.Width + DOT_GAP / 2f - 2.5f;
+                float dotY = ly + dsz.Height / 2f - 2.5f;
+                using var acb = new SolidBrush(th.Accent);
+                g.FillEllipse(acb, dotX, dotY, 5f, 5f);
+            }
+
+            using (var sp = new Pen(Color.FromArgb(30, th.Brd), 1f))
+                g.DrawLine(sp, padX, y + clockH, padX + cardW, y + clockH);
+
+            y += clockH + 10;
+
+            // ── WATER (flat, only when enabled) ───────────────────────────────────
+            if (_waterEnabled)
+            {
+                const int waterH = 74;
+
+                using (var wlf = new Font("Segoe UI", 7f, FontStyle.Bold, GraphicsUnit.Point))
+                using (var wlb = new SolidBrush(th.Tx3))
+                using (var wb  = new SolidBrush(th.Cyan))
+                {
+                    g.FillEllipse(wb, padX, y + 6f, 5f, 5f);
+                    g.DrawString(VroL("water_reminder"), wlf, wlb,
+                        new RectangleF(padX + 10, y + 4, cardW - 90, 14));
+                }
+
+                using (var bf = new Font("Segoe UI", 6.5f, FontStyle.Bold, GraphicsUnit.Point))
+                {
+                    string activeStr = VroL("active");
+                    var bsz = g.MeasureString(activeStr, bf);
+                    float bW = bsz.Width + 10f, bH = 14f;
+                    float bX = padX + cardW - bW, bY = y + 4f;
+                    using var bBg  = new SolidBrush(Color.FromArgb(40, th.Ok));
+                    using var bPen = new Pen(Color.FromArgb(80, th.Ok), 1f);
+                    using var bTx  = new SolidBrush(th.Ok);
+                    FillRoundedRect(g, bBg,  (int)bX, (int)bY, (int)bW, (int)bH, 3);
+                    DrawRoundedRect(g, bPen, (int)bX, (int)bY, (int)bW, (int)bH, 3);
+                    g.DrawString(activeStr, bf, bTx, new RectangleF(bX, bY, bW, bH), fmtC);
+                }
+
+                long totalSec = Math.Max(0, _waterRemainMs / 1000);
+                long wMin = totalSec / 60, wSec = totalSec % 60;
+                bool  warn   = totalSec < 60;
+                Color wColor = warn ? th.Warn : th.Cyan;
+
+                using var nf  = new Font("Segoe UI", 21f, FontStyle.Bold, GraphicsUnit.Point);
+                using var uf  = new Font("Segoe UI", 8f,  FontStyle.Bold, GraphicsUnit.Point);
+                using var nb  = new SolidBrush(wColor);
+                using var ub  = new SolidBrush(th.Tx3);
+                using var cb  = new SolidBrush(Color.FromArgb(90, wColor));
+
+                string minStr = wMin.ToString("D2"), secStr = wSec.ToString("D2");
+                string minUnit = VroL("min"), secUnit = VroL("sec");
+                var msz  = g.MeasureString(minStr,  nf);
+                var ssz  = g.MeasureString(secStr,  nf);
+                var csz  = g.MeasureString(":",     nf);
+                var usz  = g.MeasureString(minUnit, uf);
+                var usz2 = g.MeasureString(secUnit, uf);
+                float blkW = msz.Width + 4 + usz.Width + 10 + csz.Width + 10 + ssz.Width + 4 + usz2.Width;
+                float bx   = (W - blkW) / 2f, wny = y + 22f;
+                float uY   = wny + msz.Height - usz.Height - 1f;
+
+                g.DrawString(minStr,  nf, nb, bx, wny); bx += msz.Width + 4;
+                g.DrawString(minUnit, uf, ub, bx, uY);  bx += usz.Width + 8;
+                g.DrawString(":",     nf, cb, bx, wny); bx += csz.Width + 8;
+                g.DrawString(secStr,  nf, nb, bx, wny); bx += ssz.Width + 4;
+                g.DrawString(secUnit, uf, ub, bx, uY);
+
+                float pct  = _waterIntervalMs > 0 ? Math.Clamp((float)_waterRemainMs / _waterIntervalMs, 0f, 1f) : 0f;
+                int barX = padX, barY = y + waterH - 8, barW = cardW;
+                using (var trackBr = new SolidBrush(Color.FromArgb(20, wColor)))
+                    g.FillRectangle(trackBr, barX, barY, barW, 3);
+                int fillW = (int)(barW * pct);
+                if (fillW > 0) { using var fillBr = new SolidBrush(wColor); g.FillRectangle(fillBr, barX, barY, fillW, 3); }
+
+                using (var sp = new Pen(Color.FromArgb(30, th.Brd), 1f))
+                    g.DrawLine(sp, padX, y + waterH, padX + cardW, y + waterH);
+
+                y += waterH + 10;
+            }
+
+            // ── RECENT NOTIFICATIONS ──────────────────────────────────────────────
+            using (var nlf = new Font("Segoe UI", 7f, FontStyle.Bold, GraphicsUnit.Point))
+            using (var nlb = new SolidBrush(th.Tx3))
+                g.DrawString(VroL("recent_notifications"), nlf, nlb, new RectangleF(padX, y + 2, cardW, 12));
+            y += 17;
+
+            List<NotifEntry> recent;
+            lock (_notifications) recent = _notifications.Take(2).ToList();
+
+            if (recent.Count == 0)
+            {
+                using var ef = new Font("Segoe UI", 10f, FontStyle.Italic, GraphicsUnit.Point);
+                using var eb = new SolidBrush(th.Tx3);
+                g.DrawString(VroL("no_notifications"), ef, eb, new RectangleF(padX, y, cardW, 28));
+            }
+            else
+            {
+                const int itemH = 38;
+                foreach (var n in recent)
+                {
+                    DrawNotificationItem(g, n, padX, y, cardW, itemH, showButton: false);
+                    y += itemH + 4;
+                }
+            }
+
+            fmtC.Dispose();
+        }
+
+        private void DrawDashboardAlarm(Graphics g)
+        {
+            var th   = _theme;
+            var fmtC = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
+            const int padX = 20;
+
+            // Clip to overlay's rounded shape (r=24, same as DrawBackground)
+            var oldClip = g.Clip;
+            using var alarmClip = RoundedRectPath(0, 0, W, H, 24);
+            g.SetClip(alarmClip);
+
+            // Dark overlay — covers everything inside rounded rect
+            using (var ovBr = new SolidBrush(Color.FromArgb(250, 6, 9, 20)))
+                g.FillRectangle(ovBr, 0, 0, W, H);
+
+            // Bounce animation (±4px at ~1.5Hz)
+            float bounce = (float)(Math.Sin(DateTime.UtcNow.TimeOfDay.TotalSeconds * Math.PI * 1.5) * 4.0);
+
+            // Button layout (anchored to bottom)
+            double t   = DateTime.UtcNow.TimeOfDay.TotalSeconds;
+            int    btH = 50, btW = W - padX * 3, btX = padX + padX / 2;
+            int    btY = H - btH - 22;
+
+            // Icon + text block: center vertically in the space above the button
+            // Block: icon(54) + 10 + title(28) + 8 + subtitle(18) = 118px
+            int blockH    = 54 + 10 + 28 + 8 + 18;
+            int blockTopY = (btY - blockH) / 2;          // center in [0, btY]
+            int iconY     = blockTopY;
+            int titleY    = iconY  + 54 + 10;
+            int subY      = titleY + 28 + 8;
+
+            // Water drop icon
+            using (var iconFnt = _matSymFamily != null
+                ? new Font(_matSymFamily, 42f, FontStyle.Regular, GraphicsUnit.Point)
+                : new Font("Segoe MDL2 Assets", 42f, FontStyle.Regular, GraphicsUnit.Point))
+            using (var iconBr = new SolidBrush(th.Cyan))
+                g.DrawString("\uE798", iconFnt, iconBr,
+                    new RectangleF(0, iconY + bounce, W, 54), fmtC);
+
+            // "Drink Water!" title
+            using (var tf = new Font("Segoe UI", 17f, FontStyle.Bold, GraphicsUnit.Point))
+            using (var tb = new SolidBrush(th.Cyan))
+                g.DrawString(VroL("alarm_title"), tf, tb,
+                    new RectangleF(padX, titleY + bounce, W - padX * 2, 28), fmtC);
+
+            // Subtitle
+            using (var sf = new Font("Segoe UI", 9f, FontStyle.Regular, GraphicsUnit.Point))
+            using (var sb = new SolidBrush(th.Tx3))
+                g.DrawString(VroL("alarm_sub"), sf, sb,
+                    new RectangleF(padX, subY + bounce, W - padX * 2, 18), fmtC);
+
+            // Pulsing button (fixed at bottom, no bounce)
+            int glowAlpha = (int)(20 + Math.Sin(t * Math.PI * 2) * 15);
+            using (var glowBr = new SolidBrush(Color.FromArgb(Math.Clamp(glowAlpha, 5, 40), th.Cyan)))
+                FillRoundedRect(g, glowBr, btX - 4, btY - 4, btW + 8, btH + 8, 14);
+            using (var btnBr = new SolidBrush(th.Cyan))
+                FillRoundedRect(g, btnBr, btX, btY, btW, btH, 10);
+            using (var btnTf = new Font("Segoe UI", 13f, FontStyle.Bold, GraphicsUnit.Point))
+            using (var btnTb = new SolidBrush(Color.FromArgb(12, 18, 36)))
+                g.DrawString(VroL("alarm_btn"), btnTf, btnTb,
+                    new RectangleF(btX, btY, btW, btH), fmtC);
+
+            g.Clip = oldClip;
+            fmtC.Dispose();
         }
 
         private void DrawLocations(Graphics g)
@@ -2855,12 +3217,12 @@ namespace VRCNext.Services
             }
         }
 
-        private void DrawNotificationItem(Graphics g, NotifEntry entry, int x, int y, int w, int h)
+        private void DrawNotificationItem(Graphics g, NotifEntry entry, int x, int y, int w, int h, bool showButton = true)
         {
             var th       = _theme;
             var evColor  = EventColor(entry.EvType);
-            bool hasJoin = entry.EvType == "friend_gps" && !string.IsNullOrEmpty(entry.Location);
-            bool hasAccept = entry.EvType is "notif_friendreq" or "notif_groupinvite"
+            bool hasJoin = showButton && entry.EvType == "friend_gps" && !string.IsNullOrEmpty(entry.Location);
+            bool hasAccept = showButton && entry.EvType is "notif_friendreq" or "notif_groupinvite"
                           && !string.IsNullOrEmpty(entry.NotifId);
             bool hasButton = hasJoin || hasAccept;
             string buttonCdKey = hasJoin ? entry.FriendId : entry.NotifId;

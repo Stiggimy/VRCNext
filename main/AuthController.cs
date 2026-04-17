@@ -866,6 +866,9 @@ public class AuthController
             _core.Settings.DpAutoStartVR           = data["dpAutoStartVR"]?.Value<bool>()           ?? false;
             _core.Settings.DpAutoStartDesktop      = data["dpAutoStartDesktop"]?.Value<bool>()      ?? false;
             _core.Settings.VroAutoStartVR          = data["vroAutoStartVR"]?.Value<bool>()          ?? false;
+            _core.Settings.VroWaterEnabled = data["vroWaterEnabled"]?.Value<bool>() ?? false;
+            _core.Settings.VroWaterHours   = data["vroWaterHours"]?.Value<int>()    ?? 1;
+            _core.Settings.VroWaterMinutes = data["vroWaterMinutes"]?.Value<int>()  ?? 0;
             _core.Settings.DpHideInstIdJoinMe  = data["dpHideInstIdJoinMe"]?.Value<bool>()  ?? false;
             _core.Settings.DpHideInstIdOnline  = data["dpHideInstIdOnline"]?.Value<bool>()  ?? false;
             _core.Settings.DpHideInstIdAskMe   = data["dpHideInstIdAskMe"]?.Value<bool>()   ?? true;
@@ -1344,6 +1347,7 @@ public class AuthController
         if (!_core.Cache.IsFresh(CacheHandler.KeyGroups,    StartupCacheTtl))  _ = Task.Run(_groups.FetchAndCacheAsync);
         if (!_core.Cache.IsFresh(CacheHandler.KeyFavWorlds, StartupCacheTtl)) _ = Task.Run(FetchAndCacheFavWorldsAsync);
         if (!_core.Cache.IsFresh(CacheHandler.KeyFavAvatars, StartupCacheTtl)) _ = Task.Run(FetchAndCacheFavAvatarsAsync);
+        if (_core.PrefetchSharedContent != null) _ = Task.Run(_core.PrefetchSharedContent);
         _ = Task.Run(BackfillMissingPlayerImagesAsync);
         _ = Task.Run(CollectWorldStatsIfMissingAsync);
         if (_core.Settings.AutoUpdate) _ = Task.Run(AutoUpdateAsync);

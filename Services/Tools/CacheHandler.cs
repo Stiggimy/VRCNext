@@ -18,6 +18,7 @@ public class CacheHandler
     public static readonly string KeyMutedPersons   = "Caches/muted_persons.json";
     public static readonly string KeyCustomColors   = "custom_colors.json";
     public static readonly string KeyPermini        = "permini_list.json";
+    public static readonly string KeySharedContent  = "Caches/shared_content_cache.json";
 
     public static string KeyUserProfile(string userId)    => $"profiles/{userId}.json";
     public static string KeyUserFavWorlds(string userId)  => $"favworlds/{userId}.json"; // legacy — kept for FFC profile caching

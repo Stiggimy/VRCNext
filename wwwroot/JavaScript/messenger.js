@@ -5,6 +5,127 @@
 const MSGR_MAX_CHARS = 60;
 const MSGR_SEND_COOLDOWN = 45; // seconds
 
+// ── Shared Content Cards ──────────────────────────────────────────
+const MSGR_VRC_ID_RE = /^((wrld|avtr|grp|usr|evnt)_[a-zA-Z0-9-]+)$/;
+const MSGR_CONTENT_META = {
+    wrld: { typeKey: 'messenger.shared.type_world',   typeFb: 'World',   icon: 'travel_explore', openKey: 'messenger.shared.open_world',   openFb: 'Open World'   },
+    avtr: { typeKey: 'messenger.shared.type_avatar',  typeFb: 'Avatar',  icon: 'checkroom',      openKey: 'messenger.shared.open_avatar',  openFb: 'Open Avatar'  },
+    grp:  { typeKey: 'messenger.shared.type_group',   typeFb: 'Group',   icon: 'group',          openKey: 'messenger.shared.open_group',   openFb: 'Open Group'   },
+    usr:  { typeKey: 'messenger.shared.type_profile', typeFb: 'Profile', icon: 'person',         openKey: 'messenger.shared.open_profile', openFb: 'Open Profile' },
+    evnt: { typeKey: 'messenger.shared.type_event',   typeFb: 'Event',   icon: 'event',          openKey: 'messenger.shared.open_event',   openFb: 'Open Event'   },
+};
+const _msgrContentCache = {}; // id -> { name, image }
+
+function msgrParseContentId(text) {
+    if (!text) return null;
+    const m = (text || '').trim().match(MSGR_VRC_ID_RE);
+    return m ? { id: m[1], prefix: m[2].toLowerCase() } : null;
+}
+
+function msgrContentOpen(id, prefix) {
+    if (prefix === 'wrld' && typeof openWorldSearchDetail === 'function') return openWorldSearchDetail(id);
+    if (prefix === 'avtr' && typeof openAvatarDetail     === 'function') return openAvatarDetail(id);
+    if (prefix === 'grp'  && typeof openGroupDetail      === 'function') return openGroupDetail(id);
+    if (prefix === 'usr'  && typeof openUserDetail       === 'function') return openUserDetail(id);
+    if (prefix === 'evnt' && typeof openEventDetail      === 'function') return openEventDetail(id);
+}
+
+function msgrBuildContentCard(id, prefix, time) {
+    const meta     = MSGR_CONTENT_META[prefix] || MSGR_CONTENT_META.wrld;
+    const typeLabel = t(meta.typeKey, meta.typeFb);
+    const openLabel = t(meta.openKey, meta.openFb);
+    const cached   = _msgrContentCache[id];
+    const name     = cached?.name  || esc(id);
+    const imgSrc   = cached?.image || '';
+    const hasImage = !!imgSrc;
+    return `<div class="vrcn-shared-content-message" data-content-id="${esc(id)}" data-content-prefix="${esc(prefix)}">
+        <div class="scm-thumb${hasImage ? ' scm-has-image' : ' scm-loading'}">
+            <img alt="" src="${esc(imgSrc)}"${hasImage ? ' class="scm-img-loaded"' : ''}
+                onload="this.classList.add('scm-img-loaded');this.closest('.scm-thumb').classList.add('scm-has-image');this.closest('.scm-thumb').classList.remove('scm-loading');"
+                onerror="this.style.display='none';">
+            <span class="msi scm-thumb-icon">${esc(meta.icon)}</span>
+        </div>
+        <div class="scm-body">
+            <div class="scm-type-row"><span class="msi">${esc(meta.icon)}</span>${esc(typeLabel)}</div>
+            <div class="scm-name">${name}</div>
+            <button class="scm-open-btn" onclick="msgrContentOpen('${jsq(id)}','${jsq(prefix)}')">
+                <span class="msi">open_in_new</span>${esc(openLabel)}
+            </button>
+        </div>
+    </div>
+    <div class="msgr-time">${esc(time)}</div>`;
+}
+
+function msgrFillContentCard(id, prefix, cardEl) {
+    if (!cardEl) return;
+
+    // 1 – try local JS caches (same pattern for all content types)
+    let name = '', image = '';
+
+    if (prefix === 'wrld' && typeof worldInfoCache !== 'undefined' && worldInfoCache[id]) {
+        const w = worldInfoCache[id];
+        name  = w.name  || '';
+        image = w.thumbnailImageUrl || w.imageUrl || '';
+    } else if (prefix === 'avtr' && typeof avatarInfoCache !== 'undefined' && avatarInfoCache[id]) {
+        const a = avatarInfoCache[id];
+        name  = a.name  || '';
+        image = a.thumbnailImageUrl || a.imageUrl || '';
+    } else if (prefix === 'usr' && typeof vrcFriendsData !== 'undefined') {
+        const f = vrcFriendsData.find(x => x.id === id);
+        if (f) { name = f.displayName || ''; image = f.image || ''; }
+    } else if (prefix === 'grp' && typeof myGroups !== 'undefined') {
+        const g = myGroups.find(x => x.id === id);
+        if (g) { name = g.name || ''; image = g.iconUrl || g.bannerUrl || ''; }
+    }
+
+    // Fallback: in-memory session cache populated by previous C# responses / prefetch
+    if (!name && !image && _msgrContentCache[id]) {
+        name  = _msgrContentCache[id].name  || '';
+        image = _msgrContentCache[id].image || '';
+    }
+
+    if (name || image) {
+        _msgrContentCache[id] = { name, image };
+        msgrApplyContentCard(id, name, image);
+        return;
+    }
+
+    // 2 – request from C#
+    sendToCS({ action: 'vrcGetSharedContentInfo', contentId: id, contentType: prefix });
+}
+
+function msgrApplyContentCard(id, name, image) {
+    document.querySelectorAll(`.vrcn-shared-content-message[data-content-id="${CSS.escape(id)}"]`).forEach(card => {
+        const nameEl = card.querySelector('.scm-name');
+        if (nameEl && name) nameEl.textContent = name;
+
+        const thumb = card.querySelector('.scm-thumb');
+        const img   = card.querySelector('.scm-thumb img');
+        if (thumb && img && image) {
+            img.style.display = '';
+            img.src = image;
+            thumb.classList.remove('scm-loading');
+            img.onload  = () => { img.classList.add('scm-img-loaded'); thumb.classList.add('scm-has-image'); };
+            img.onerror = () => { img.style.display = 'none'; };
+        }
+    });
+}
+
+function handleSharedContentInfo(payload) {
+    if (!payload?.contentId) return;
+    const { contentId, contentType, name, image } = payload;
+    if (name || image) {
+        const n = name || '', im = image || '';
+        _msgrContentCache[contentId] = { name: n, image: im };
+        if (contentType === 'avtr' && typeof avatarInfoCache !== 'undefined')
+            avatarInfoCache[contentId] = { id: contentId, name: n, thumbnailImageUrl: im };
+        else if (contentType === 'wrld' && typeof worldInfoCache !== 'undefined')
+            worldInfoCache[contentId] = { id: contentId, name: n, thumbnailImageUrl: im };
+        msgrApplyContentCard(contentId, n, im);
+    }
+}
+// ─────────────────────────────────────────────────────────────────
+
 let _messengerUserId = null;
 let _messengerName = '';
 let _messengerImage = '';
@@ -22,7 +143,16 @@ const _chatInbox = new Map();
 let _chatPanelDismiss = null;
 
 function msgrFormatTime(value) {
-    return fmtTime(new Date(value));
+    const dt = new Date(value);
+    if (!dt || isNaN(dt)) return '';
+    const now   = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const msgDay = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
+    const diffDays = Math.round((today - msgDay) / 86400000);
+    const timeStr = fmtTime(dt);
+    if (diffDays === 0) return t('messenger.date.today', 'Today') + ' · ' + timeStr;
+    if (diffDays === 1) return t('messenger.date.yesterday', 'Yesterday') + ' · ' + timeStr;
+    return fmtShortDate(dt) + ' · ' + timeStr;
 }
 
 function msgrStatusText(status, statusDesc) {
@@ -357,11 +487,20 @@ function appendChatMessage(msg, scroll) {
     if (!container) return;
 
     const isMine = msg.from === 'me';
-    const time = msg.time ? msgrFormatTime(msg.time) : '';
-    const div = document.createElement('div');
+    const time   = msg.time ? msgrFormatTime(msg.time) : '';
+    const div    = document.createElement('div');
     div.className = `msgr-msg ${isMine ? 'msgr-mine' : 'msgr-theirs'}`;
-    div.innerHTML = `<div class="msgr-bubble">${esc(msg.text)}</div><div class="msgr-time">${esc(time)}</div>`;
-    container.appendChild(div);
+
+    const parsed = msgrParseContentId(msg.text);
+    if (parsed) {
+        div.innerHTML = msgrBuildContentCard(parsed.id, parsed.prefix, time);
+        container.appendChild(div);
+        msgrFillContentCard(parsed.id, parsed.prefix, div.querySelector('.vrcn-shared-content-message'));
+    } else {
+        div.innerHTML = `<div class="msgr-bubble">${esc(msg.text)}</div><div class="msgr-time">${esc(time)}</div>`;
+        container.appendChild(div);
+    }
+
     if (scroll) container.scrollTop = container.scrollHeight;
 }
 

@@ -6622,6 +6622,94 @@ div.vn-select {
     color: var(--tx3);
 }
 
+/* ── Shared Content Message Card ──────────────────────────────────── */
+.vrcn-shared-content-message {
+    width: 224px;
+    border-radius: 16px;
+    overflow: hidden;
+    background: var(--bg-card);
+    border: 1px solid var(--brd);
+    transition: box-shadow .15s, border-color .15s;
+}
+.vrcn-shared-content-message:hover {
+    box-shadow: 0 6px 24px rgba(0,0,0,.35);
+    border-color: rgba(255,255,255,.1);
+}
+.scm-thumb {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background: var(--bg-hover);
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.scm-thumb img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: none;
+}
+.scm-thumb img.scm-img-loaded { display: block; }
+.scm-thumb-icon {
+    font-size: 32px;
+    color: var(--tx3);
+    opacity: .45;
+}
+.scm-thumb.scm-has-image .scm-thumb-icon { display: none; }
+@keyframes scm-shimmer {
+    0%, 100% { opacity: .45; }
+    50%       { opacity: .8; }
+}
+.scm-thumb.scm-loading .scm-thumb-icon { animation: scm-shimmer 1.4s ease-in-out infinite; }
+.scm-body {
+    padding: 10px 12px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+.scm-type-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: .4px;
+    text-transform: uppercase;
+}
+.scm-type-row .msi { font-size: 13px; }
+.scm-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--tx1);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.scm-open-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    width: 100%;
+    padding: 7px 12px;
+    border-radius: 10px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    font-family: inherit;
+    transition: background .15s;
+}
+.scm-open-btn:hover { background: var(--accent-lt); }
+.scm-open-btn .msi  { font-size: 14px; }
+
 #msgrCooldownBar {
     display: flex;
     align-items: center;

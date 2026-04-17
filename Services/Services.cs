@@ -340,6 +340,11 @@ public class AppSettings
     public bool       VroToastInvite       { get; set; } = true;
     public bool       VroToastGroupInv     { get; set; } = true;
 
+    // VR Dashboard — Water Reminder
+    public bool VroWaterEnabled { get; set; } = false;
+    public int  VroWaterHours   { get; set; } = 1;
+    public int  VroWaterMinutes { get; set; } = 0;
+
     // Avtrdb Support — report deleted avatars to help clean the database
     public bool AvtrdbReportDeleted { get; set; } = true;
     public bool AvtrdbSubmitAvatars { get; set; }

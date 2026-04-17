@@ -35,6 +35,8 @@ public sealed class VRSubprocessHost : IDisposable
     public event Action<string, string, string, string>? OnVroNotifAccept;
     public event Action<int>? OnVroToolToggle;
     public event Action? OnVroToastSound;
+    public event Action? OnVroWaterAlarm;
+    public event Action? OnVroWaterDismissed;
     public event Action? OnVroQuit;
     public event Action<JObject>? OnSfUpdate;
     public event Action? OnSfQuit;
@@ -178,6 +180,12 @@ public sealed class VRSubprocessHost : IDisposable
             case "vro_toast_sound":
                 OnVroToastSound?.Invoke();
                 break;
+            case "vro_water_alarm":
+                OnVroWaterAlarm?.Invoke();
+                break;
+            case "vro_water_dismissed":
+                OnVroWaterDismissed?.Invoke();
+                break;
             case "sf_update":
                 OnSfUpdate?.Invoke(msg);
                 break;
@@ -220,6 +228,12 @@ public sealed class VRSubprocessHost : IDisposable
 
     public void VroThemeColors(Dictionary<string, string> colors)
         => Send("vro_theme_colors", new { colors });
+
+    public void VroWaterConfig(bool enabled, int intervalSec)
+        => Send("vro_water_config", new { enabled, intervalSec });
+
+    public void VroSetLanguage(string lang)
+        => Send("vro_set_language", new { lang });
 
     // These match VROverlayService's public API so callers on _core.VrOverlay compile unchanged.
     public void AddNotification(string evType, string friendName, string evText, string time,
@@ -324,6 +338,10 @@ public sealed class VRSubprocessHost : IDisposable
     public void SfDisconnect() { }
     public void SfConfig(float a, bool b, bool c, bool d, bool e, bool f, bool g) { }
     public void SfReset() { }
+    public void VroWaterConfig(bool enabled, int intervalSec) { }
+    public void VroSetLanguage(string lang) { }
+    public event System.Action? OnVroWaterAlarm;
+    public event System.Action? OnVroWaterDismissed;
     public void Dispose() { }
 }
 #endif

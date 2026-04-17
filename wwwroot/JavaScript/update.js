@@ -44,7 +44,8 @@ function showUpdateAvailable(version) {
     _setUpdCardAvailable(version);
 }
 
-// Settings card helpers.nfunction _setUpdCardStatus(text) {
+// Settings card helpers.
+function _setUpdCardStatus(text) {
     const el = document.getElementById('setUpdStatus');
     if (el) el.textContent = text;
 }

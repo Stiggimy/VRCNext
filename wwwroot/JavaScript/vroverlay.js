@@ -359,6 +359,21 @@ function vroToastSendConfig() {
     });
 }
 
+// Water reminder settings.
+
+let _vroWaterTimer = null;
+
+function vroWaterAutoSave() {
+    sendToCS({
+        action:   'vroWaterConfig',
+        enabled:  !!document.getElementById('vroWaterEnabled')?.checked,
+        hours:    parseInt(document.getElementById('vroWaterHours')?.value   ?? '1', 10),
+        minutes:  parseInt(document.getElementById('vroWaterMinutes')?.value ?? '0', 10),
+    });
+    clearTimeout(_vroWaterTimer);
+    _vroWaterTimer = setTimeout(() => saveSettings(), 600);
+}
+
 function updateRecordingUI() {
     const idleBtns     = document.getElementById('vroIdleButtons');
     const recordBtns   = document.getElementById('vroRecordingButtons');
@@ -550,6 +565,15 @@ function vroLoadSettings(s) {
         toastStackEl.value = s.vroToastStack ?? 2;
         vroToastUpdateLabel('vroToastStack');
     }
+
+    const waterEnabledEl = document.getElementById('vroWaterEnabled');
+    if (waterEnabledEl) waterEnabledEl.checked = !!(s.vroWaterEnabled ?? false);
+
+    const waterHoursEl = document.getElementById('vroWaterHours');
+    if (waterHoursEl) waterHoursEl.value = s.vroWaterHours ?? 1;
+
+    const waterMinutesEl = document.getElementById('vroWaterMinutes');
+    if (waterMinutesEl) waterMinutesEl.value = s.vroWaterMinutes ?? 0;
 }
 
 function rerenderVroTranslations() {

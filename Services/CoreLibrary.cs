@@ -39,6 +39,7 @@ public class CoreLibrary
 
     public PhotinoWindow? Window { get; set; }
 
+    public Func<Task>? PrefetchSharedContent { get; set; }
     public Action? PushDiscordPresence { get; set; }
     public Func<bool>? IsVrcRunning { get; set; }
     public Func<bool>? IsSteamVrRunning { get; set; }

@@ -71,7 +71,9 @@ public class VROverlayController : IDisposable
                 _core.SendToJS("log", new { msg = ok ? "Invite sent!" : "Failed to send invite.", color = ok ? "ok" : "err" });
             });
 
-            h.OnVroToastSound += () => Invoke(() => _core.SendToJS("vroPlayToastSound", new { }));
+            h.OnVroToastSound     += () => Invoke(() => _core.SendToJS("vroPlayToastSound",  new { }));
+            h.OnVroWaterAlarm     += () => Invoke(() => _core.SendToJS("vroPlayWaterSound",  new { }));
+            h.OnVroWaterDismissed += () => Invoke(() => _core.SendToJS("vroStopWaterSound",  new { }));
 
             h.OnVroNotifAccept += (notifId, notifType, senderId, notifData) => Invoke(async () =>
             {
@@ -167,6 +169,13 @@ public class VROverlayController : IDisposable
                     _core.Settings.VroToastDuration, _core.Settings.VroToastStack,
                     _core.Settings.VroToastFriendReq, _core.Settings.VroToastInvite, _core.Settings.VroToastGroupInv);
 
+                // Send language (for weekday localization in dashboard)
+                host.VroSetLanguage(_core.Settings.Language ?? "en");
+
+                // Send water config
+                host.VroWaterConfig(_core.Settings.VroWaterEnabled,
+                    _core.Settings.VroWaterHours * 3600 + _core.Settings.VroWaterMinutes * 60);
+
                 // Connect — subprocess sends back vro_state with result
                 host.VroConnect();
 
@@ -257,6 +266,17 @@ public class VROverlayController : IDisposable
             case "vroSetTab":
                 _core.VrOverlay?.VroSetTab(msg["tab"]?.Value<int>() ?? 0);
                 break;
+
+            case "vroWaterConfig":
+            {
+                _core.Settings.VroWaterEnabled = msg["enabled"]?.Value<bool>() ?? false;
+                _core.Settings.VroWaterHours   = msg["hours"]?.Value<int>()    ?? 1;
+                _core.Settings.VroWaterMinutes = msg["minutes"]?.Value<int>()  ?? 0;
+                _core.Settings.Save();
+                int intervalSec = _core.Settings.VroWaterHours * 3600 + _core.Settings.VroWaterMinutes * 60;
+                _core.VrOverlay?.VroWaterConfig(_core.Settings.VroWaterEnabled, intervalSec);
+                break;
+            }
 
             case "vroToastConfig":
             {

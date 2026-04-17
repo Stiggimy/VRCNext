@@ -197,6 +197,9 @@ function saveSettings() {
             vroToastFriendReq:  !!document.getElementById('vroToastFriendReq')?.checked,
             vroToastInvite:     !!document.getElementById('vroToastInvite')?.checked,
             vroToastGroupInv:   !!document.getElementById('vroToastGroupInv')?.checked,
+            vroWaterEnabled:    !!document.getElementById('vroWaterEnabled')?.checked,
+            vroWaterHours:      parseInt(document.getElementById('vroWaterHours')?.value   ?? '1', 10),
+            vroWaterMinutes:    parseInt(document.getElementById('vroWaterMinutes')?.value ?? '0', 10),
             dpHideJoinBtnJoinMe: document.getElementById('dpHideJoinBtn_joinme')?.checked ?? false,
             dpHideJoinBtnOnline: document.getElementById('dpHideJoinBtn_online')?.checked ?? false,
             dpHideJoinBtnAskMe:  document.getElementById('dpHideJoinBtn_askme')?.checked  ?? false,
@@ -448,6 +451,9 @@ function loadSettingsToUI(s) {
         vroToastFriendReq:  s.VroToastFriendReq  ?? s.vroToastFriendReq  ?? true,
         vroToastInvite:     s.VroToastInvite     ?? s.vroToastInvite     ?? true,
         vroToastGroupInv:   s.VroToastGroupInv   ?? s.vroToastGroupInv   ?? true,
+        vroWaterEnabled:    s.VroWaterEnabled    ?? s.vroWaterEnabled    ?? false,
+        vroWaterHours:      s.VroWaterHours      ?? s.vroWaterHours      ?? 1,
+        vroWaterMinutes:    s.VroWaterMinutes    ?? s.vroWaterMinutes    ?? 0,
     });
     // Auto-starts are now triggered by vrcLaunched (see messages.js)
 

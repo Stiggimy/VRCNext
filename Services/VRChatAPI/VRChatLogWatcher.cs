@@ -21,6 +21,7 @@ public class VRChatLogWatcher : IDisposable
     private string? _currentLocation; // full instance string e.g. "wrld_abc:12345~private~..."
     private bool _disposed;
     private bool _started;
+    private int _polling; // 0 = idle, 1 = busy — prevents concurrent poll execution
     private int _totalJoinEvents;
     private int _totalLeftEvents;
     private int _totalRoomEvents;
@@ -160,12 +161,14 @@ public class VRChatLogWatcher : IDisposable
     private void PollLogFile()
     {
         if (_disposed) return;
+        if (System.Threading.Interlocked.Exchange(ref _polling, 1) == 1) return; // skip if previous poll still running
         try
         {
             FindLatestLogFile();
             if (_currentLogFile != null) ReadNewLines(catchUp: false);
         }
         catch (Exception ex) { Log($"LogWatcher: Poll error: {ex.Message}"); }
+        finally { System.Threading.Interlocked.Exchange(ref _polling, 0); }
     }
 
     private void ReadNewLines(bool catchUp)
@@ -229,12 +232,14 @@ public class VRChatLogWatcher : IDisposable
                 var name = m.Groups[1].Value.Trim();
                 var uid = m.Groups[2].Success ? m.Groups[2].Value : "";
                 var key = !string.IsNullOrEmpty(uid) ? uid : name;
+                bool isNew;
                 lock (_lock)
                 {
+                    isNew = !_players.ContainsKey(key);
                     _players[key] = new PlayerInfo { DisplayName = name, UserId = uid, JoinedAt = ParseLogTimestamp(line) };
                 }
                 _totalJoinEvents++;
-                if (!catchUp)
+                if (!catchUp && isNew)
                 {
                     Log($"LogWatcher: ➕ {name} ({_players.Count} now)");
                     PlayerJoined?.Invoke(uid, name);
@@ -251,16 +256,18 @@ public class VRChatLogWatcher : IDisposable
                 var name = m.Groups[1].Value.Trim();
                 var uid = m.Groups[2].Success ? m.Groups[2].Value : "";
                 var key = !string.IsNullOrEmpty(uid) ? uid : name;
+                bool wasPresent;
                 lock (_lock)
                 {
-                    if (!_players.Remove(key))
+                    wasPresent = _players.Remove(key);
+                    if (!wasPresent)
                     {
                         var alt = _players.Where(p => p.Value.DisplayName == name).Select(p => p.Key).FirstOrDefault();
-                        if (alt != null) _players.Remove(alt);
+                        if (alt != null) { _players.Remove(alt); wasPresent = true; }
                     }
                 }
                 _totalLeftEvents++;
-                if (!catchUp)
+                if (!catchUp && wasPresent)
                 {
                     Log($"LogWatcher: ➖ {name} ({_players.Count} now)");
                     PlayerLeft?.Invoke(uid, name);
