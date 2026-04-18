@@ -282,7 +282,7 @@ function filterFavWorlds() {
             if (!groupWorlds.length) return;
             const cap = Math.max(g.capacity || 100, 100);
             const isVrcPlus = g.type === 'vrcPlusWorld';
-            const vrcBadge = isVrcPlus ? `<span class="vrcn-badge vrcplus">VRC+</span>` : '';
+            const vrcBadge = isVrcPlus ? `<span class="vrcn-supporter-badge">VRC+</span>` : '';
             const visLabel = _favGroupVisLabel(g.visibility);
             const visHtml = _worldEditMode
                 ? _favGroupVisDropdown(g.name, g.type, g.visibility)
@@ -394,7 +394,7 @@ function worldEditShowMoveMenu(btn) {
         return `<div class="vn-select-option" onclick="worldEditMoveSelected('${gn}','${gt}')">
             <span class="msi" style="font-size:14px;flex-shrink:0;">folder</span>
             <span style="flex:1;">${esc(g.displayName || g.name)}</span>
-            ${isVrcPlus ? '<span class="vrcn-badge vrcplus">VRC+</span>' : ''}
+            ${isVrcPlus ? '<span class="vrcn-supporter-badge">VRC+</span>' : ''}
             <span style="font-size:10px;color:var(--tx3);flex-shrink:0;">${count}</span>
         </div>`;
     }).join('');
@@ -676,7 +676,7 @@ function renderWorldFavPicker(worldId) {
         const isVrcPlus = g.type === 'vrcPlusWorld';
         const isCurrent = g.name === currentGroup;
         const vrcBadge = isVrcPlus
-            ? `<span class="vrcn-badge vrcplus">VRC+</span>`
+            ? `<span class="vrcn-supporter-badge">VRC+</span>`
             : '';
         const check = isCurrent
             ? `<span class="msi" style="color:var(--accent);font-size:18px;flex-shrink:0;">check_circle</span>`
@@ -882,7 +882,7 @@ function openCreateInstanceModal() {
             </div>
 
             <div style="margin-top:14px;">
-                <div class="wd-section-label">${t('worlds.instances.instance_name', 'Instance Name')} <span class="vrcn-badge vrcplus" style="font-size:9px;padding:1px 6px;vertical-align:middle;margin-left:4px;">VRC+</span></div>
+                <div class="wd-section-label">${t('worlds.instances.instance_name', 'Instance Name')} <span class="vrcn-supporter-badge" style="vertical-align:middle;margin-left:4px;">VRC+</span></div>
                 <input type="text" id="ciInstanceName" class="ci-instance-name-input" placeholder="${t('worlds.instances.instance_name_placeholder', 'Optional name...')}" maxlength="64">
             </div>
 

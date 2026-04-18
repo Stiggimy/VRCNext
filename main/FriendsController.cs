@@ -1220,21 +1220,28 @@ public class FriendsController
             ? _core.Cache.LoadRaw(CacheHandler.KeyUserContent(userId)) as JObject : null;
         JArray? cachedWorlds = cachedContent?["worlds"] as JArray;
 
-        var instTask    = hasWorld ? _core.VrcApi.GetInstanceAsync(location) : Task.FromResult<JObject?>(null);
-        var grpsTask    = cachedGroups != null
+        var cachedMutualGroups = ffc && _core.Cache.IsFresh(CacheHandler.KeyUserMutualGroups(userId), TimeSpan.FromDays(1))
+            ? _core.Cache.LoadRaw(CacheHandler.KeyUserMutualGroups(userId)) as JArray : null;
+
+        var instTask           = hasWorld ? _core.VrcApi.GetInstanceAsync(location) : Task.FromResult<JObject?>(null);
+        var grpsTask           = cachedGroups != null
             ? Task.FromResult(cachedGroups)
             : _core.VrcApi.GetUserGroupsByIdAsync(userId);
-        var worldsTask  = cachedWorlds != null
+        var worldsTask         = cachedWorlds != null
             ? Task.FromResult(cachedWorlds)
             : _core.VrcApi.GetUserWorldsAsync(userId);
-        var mutualsTask = _core.VrcApi.GetUserMutualsAsync(userId);
+        var mutualsTask        = _core.VrcApi.GetUserMutualsAsync(userId);
+        var mutualGroupsTask   = cachedMutualGroups != null
+            ? Task.FromResult(cachedMutualGroups)
+            : _core.VrcApi.GetUserMutualGroupsAsync(userId);
 
-        await Task.WhenAll(new Task[] { instTask, grpsTask, worldsTask, mutualsTask }
+        await Task.WhenAll(new Task[] { instTask, grpsTask, worldsTask, mutualsTask, mutualGroupsTask }
             .Select(t => t.ContinueWith(_ => { })));
 
         var inst = instTask.IsCompletedSuccessfully ? instTask.Result : null;
         var groups = grpsTask.IsCompletedSuccessfully ? grpsTask.Result : new JArray();
         var worlds = worldsTask.IsCompletedSuccessfully ? worldsTask.Result : new JArray();
+        var mutualGroupsArr = mutualGroupsTask.IsCompletedSuccessfully ? mutualGroupsTask.Result : new JArray();
 
         // Save fresh fetches to cache
         if (ffc && cachedGroups == null && grpsTask.IsCompletedSuccessfully)
@@ -1245,6 +1252,8 @@ public class FriendsController
             cf["worlds"] = JToken.FromObject(worlds);
             _core.Cache.Save(CacheHandler.KeyUserContent(userId), cf);
         }
+        if (ffc && cachedMutualGroups == null && mutualGroupsTask.IsCompletedSuccessfully && mutualGroupsArr.Count > 0)
+            _core.Cache.Save(CacheHandler.KeyUserMutualGroups(userId), mutualGroupsArr);
         var (mutualsArr, mutualsOptedOut) = mutualsTask.IsCompletedSuccessfully
             ? mutualsTask.Result : (new JArray(), false);
         var badgesArr = user["badges"] as JArray ?? new JArray();
@@ -1308,6 +1317,24 @@ public class FriendsController
                 occupants = wObj["occupants"]?.Value<int>() ?? 0,
                 favorites = wObj["favorites"]?.Value<int>() ?? 0,
                 visits = wObj["visits"]?.Value<int>() ?? 0,
+            });
+        }
+
+        List<object> mutualGroupsList = new();
+        foreach (var mg in mutualGroupsArr)
+        {
+            if (mg is not JObject mgObj) continue;
+            var gid = mgObj["groupId"]?.ToString() ?? mgObj["id"]?.ToString() ?? "";
+            if (string.IsNullOrEmpty(gid)) continue;
+            mutualGroupsList.Add(new
+            {
+                id = gid,
+                name = mgObj["name"]?.ToString() ?? "",
+                shortCode = mgObj["shortCode"]?.ToString() ?? "",
+                discriminator = mgObj["discriminator"]?.ToString() ?? "",
+                iconUrl = mgObj["iconUrl"]?.ToString() ?? "",
+                bannerUrl = mgObj["bannerUrl"]?.ToString() ?? "",
+                memberCount = mgObj["memberCount"]?.Value<int>() ?? 0,
             });
         }
 
@@ -1387,7 +1414,7 @@ public class FriendsController
             pronouns = user["pronouns"]?.ToString() ?? "",
             ageVerificationStatus = user["ageVerificationStatus"]?.ToString() ?? "",
             ageVerified = user["ageVerified"]?.Value<bool>() ?? false,
-            representedGroup, userGroups, mutuals = mutualsList, mutualsOptedOut, userWorlds,
+            representedGroup, userGroups, mutuals = mutualsList, mutualGroups = mutualGroupsList, mutualsOptedOut, userWorlds,
             bioLinks = user["bioLinks"]?.ToObject<List<string>>() ?? new List<string>(),
             isFavorited = _favoriteFriends.ContainsKey(userId),
             favFriendId = _favoriteFriends.GetValueOrDefault(userId, ""),

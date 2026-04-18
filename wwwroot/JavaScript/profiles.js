@@ -904,6 +904,15 @@ function switchFdContentPill(pill, btn) {
     // Avatars are pre-fetched when profile opens, no lazy-load needed
 }
 
+function switchFdMutualsPill(pill, btn) {
+    const friendsEl = document.getElementById('fdMutualsFriends');
+    const groupsEl  = document.getElementById('fdMutualsGroups');
+    if (friendsEl) friendsEl.style.display = pill === 'friends' ? '' : 'none';
+    if (groupsEl)  groupsEl.style.display  = pill === 'groups'  ? '' : 'none';
+    document.querySelectorAll('.fd-mutual-pill').forEach(p => p.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+}
+
 function renderFdUserAvatars(payload) {
     const el = document.getElementById('fdContentAvatars');
     if (!el) return;
@@ -1123,11 +1132,10 @@ function renderFriendDetail(d) {
     if (d.ageVerified) badgesHtml += `<span class="vrcn-badge ok"><span class="msi" style="font-size:11px;">verified</span>18+</span>`;
     const rank = getTrustRank(d.tags || []);
     if (rank) badgesHtml += `<span class="vrcn-badge" style="background:${rank.color}22;color:${rank.color}">${esc(rank.label)}</span>`;
-    const mutualCount = (d.mutuals || []).length;
-    if (mutualCount > 0) badgesHtml += `<span class="vrcn-badge"><span class="msi" style="font-size:11px;">group</span>${getProfileMutualBadgeLabel(mutualCount)}</span>`;
     if (d.id) badgesHtml += idBadge(d.id);
     badgesHtml += '</div>';
 
+    const vrcPlusBadge = (d.tags || []).includes('system_supporter') ? `<span class="vrcn-supporter-badge">VRC+</span>` : '';
     const pronounsHtml = d.pronouns ? `<div class="fd-pronouns">${esc(d.pronouns)}</div>` : '';
     const langs = getLanguages(d.tags || []);
     const langsHtml = langs.length ? `<div class="fd-lang-tags">${langs.map(l => `<span class="vrcn-badge">${esc(l)}</span>`).join('')}</div>` : '';
@@ -1195,14 +1203,18 @@ function renderFriendDetail(d) {
 
     // Mutuals tab content
     const allMutuals = d.mutuals || [];
-    let mutualsContent = '';
+    const allMutualGroups = d.mutualGroups || [];
+    const mutualTotal = allMutuals.length + allMutualGroups.length;
+    window._fdAllMutuals = allMutuals;
+
+    let mutualsFriendsHtml = '';
     if (d.mutualsOptedOut) {
-        mutualsContent = `<div style="padding:24px 16px;text-align:center;font-size:12px;color:var(--tx3);">
+        mutualsFriendsHtml = `<div style="padding:24px 16px;text-align:center;font-size:12px;color:var(--tx3);">
             <span class="msi" style="font-size:28px;display:block;margin-bottom:8px;opacity:.5;">visibility_off</span>
             ${t('profiles.mutuals.opted_out', 'This user has disabled Shared Connections.')}
         </div>`;
     } else if (allMutuals.length === 0) {
-        mutualsContent = `<div style="padding:24px 16px;text-align:center;font-size:12px;color:var(--tx3);">
+        mutualsFriendsHtml = `<div style="padding:24px 16px;text-align:center;font-size:12px;color:var(--tx3);">
             <span class="msi" style="font-size:28px;display:block;margin-bottom:8px;opacity:.5;">group_off</span>
             ${t('profiles.mutuals.empty', 'No mutual friends found.')}<br>
             <span style="font-size:10px;margin-top:6px;display:block;line-height:1.5;">
@@ -1210,17 +1222,46 @@ function renderFriendDetail(d) {
             </span>
         </div>`;
     } else {
-        window._fdAllMutuals = allMutuals;
-        mutualsContent = `<div class="search-bar-row" style="margin-bottom:6px;">
+        mutualsFriendsHtml = `<div class="search-bar-row" style="margin-bottom:6px;">
             <span class="msi search-ico">search</span>
             <input id="fdMutualsSearch" type="text" class="vrcn-input" placeholder="${esc(t('profiles.mutuals.search_placeholder', 'Search users by name...'))}" style="background:var(--bg-input);" oninput="filterFdMutuals()">
         </div>`;
-        mutualsContent += '<div id="fdMutualsGrid" style="display:grid;grid-template-columns:1fr 1fr;column-gap:6px;">';
+        mutualsFriendsHtml += '<div id="fdMutualsGrid" style="display:grid;grid-template-columns:1fr 1fr;column-gap:6px;">';
         allMutuals.forEach(mu => {
-            mutualsContent += renderProfileItem(mu, `closeFriendDetail();openFriendDetail('${jsq(mu.id)}')`);
+            mutualsFriendsHtml += renderProfileItem(mu, `closeFriendDetail();openFriendDetail('${jsq(mu.id)}')`);
         });
-        mutualsContent += '</div>';
+        mutualsFriendsHtml += '</div>';
     }
+
+    let mutualsGroupsHtml = '';
+    if (allMutualGroups.length === 0) {
+        mutualsGroupsHtml = `<div style="padding:24px 16px;text-align:center;font-size:12px;color:var(--tx3);">
+            <span class="msi" style="font-size:28px;display:block;margin-bottom:8px;opacity:.5;">group_off</span>
+            ${t('profiles.mutuals.no_groups', 'No mutual groups found.')}
+        </div>`;
+    } else {
+        mutualsGroupsHtml = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">';
+        allMutualGroups.forEach(g => {
+            const icon = g.iconUrl
+                ? `<img class="fd-group-icon" src="${esc(g.iconUrl)}" onerror="this.style.display='none'">`
+                : `<div class="fd-group-icon fd-group-icon-empty"><span class="msi" style="font-size:18px;">group</span></div>`;
+            mutualsGroupsHtml += `<div class="fd-group-card" style="margin-bottom:0;" onclick="closeFriendDetail();openGroupDetail('${jsq(g.id)}')">
+                ${icon}<div class="fd-group-card-info">
+                    <div class="fd-group-card-name">${esc(g.name)}</div>
+                    <div class="fd-group-card-meta">${esc(g.shortCode || '')}${g.discriminator ? '.' + esc(g.discriminator) : ''} &middot; ${esc(getGroupMemberText(g.memberCount))}</div>
+                </div>
+            </div>`;
+        });
+        mutualsGroupsHtml += '</div>';
+    }
+
+    const mutualsContent = `
+        <div class="fd-content-pills">
+            <button class="fd-tab fd-mutual-pill active" onclick="switchFdMutualsPill('friends',this)">${tf('profiles.mutuals.pill_friends', { count: allMutuals.length }, 'Friends ({count})')}</button>
+            <button class="fd-tab fd-mutual-pill" onclick="switchFdMutualsPill('groups',this)">${tf('profiles.mutuals.pill_groups', { count: allMutualGroups.length }, 'Groups ({count})')}</button>
+        </div>
+        <div id="fdMutualsFriends">${mutualsFriendsHtml}</div>
+        <div id="fdMutualsGroups" style="display:none;">${mutualsGroupsHtml}</div>`;
 
     // Mini-timeline — filled async via timelineForUser response
     const miniTlHtml = `<div class="myp-section">
@@ -1260,7 +1301,7 @@ function renderFriendDetail(d) {
     if (hasTabs) {
         tabsHtml = `<div class="fd-tabs"><button class="fd-tab active" onclick="switchFdTab('info',this)">${t('profiles.tabs.info', 'Info')}</button>`;
         if (hasGroups) tabsHtml += `<button class="fd-tab" onclick="switchFdTab('groups',this)">${tf('profiles.tabs.groups', { count: allGroups.length }, 'Groups ({count})')}</button>`;
-        if (hasMutuals) tabsHtml += `<button class="fd-tab" onclick="switchFdTab('mutuals',this)">${tf('profiles.tabs.mutuals', { count: allMutuals.length }, 'Mutuals ({count})')}</button>`;
+        if (hasMutuals) tabsHtml += `<button class="fd-tab" onclick="switchFdTab('mutuals',this)">${tf('profiles.tabs.mutuals', { count: mutualTotal }, 'Mutuals ({count})')}</button>`;
         tabsHtml += `<button class="fd-tab" id="fdTabContentBtn" onclick="switchFdTab('content',this)">${tf('profiles.tabs.content', { count: allUserWorlds.length }, 'Content ({count})')}</button>`;
         tabsHtml += `<button class="fd-tab" onclick="switchFdTab('favs',this)">${t('profiles.tabs.favs', 'Favs.')}</button>`;
         tabsHtml += `</div>`;
@@ -1304,7 +1345,7 @@ function renderFriendDetail(d) {
         </div>`;
 
 
-    c.innerHTML = `${bannerHtml}<div class="fd-content${bannerSrc ? ' fd-has-banner' : ''}"><div class="fd-header">${imgTag}<div><div class="fd-name">${esc(d.displayName)}</div>${pronounsHtml}<div class="fd-status" id="fd-live-status"><span class="${fdDotClass} ${fdStatusDotCls}" style="width:8px;height:8px;"></span>${fdIsOffline ? t('status.offline', 'Offline') : statusLabel(d.status)}${(!fdIsOffline && fdIsWeb) ? ' ' + t('profiles.friends.web_suffix', '(Web)') : ''}${(!fdIsOffline && d.statusDescription) ? ' - ' + esc(d.statusDescription) : ''}</div></div></div>${badgesHtml}${actionsHtml}${tabsHtml}<div id="fdTabInfo">${infoContent}</div><div id="fdTabGroups" style="display:none;">${groupsContent}</div><div id="fdTabMutuals" style="display:none;">${mutualsContent}</div><div id="fdTabContent" style="display:none;">${contentHtml}</div><div id="fdTabFavs" style="display:none;" data-user-id="${esc(userId)}"></div><div style="margin-top:10px;text-align:right;"><button class="vrcn-button-round" onclick="closeFriendDetail()">${t('common.close', 'Close')}</button></div></div>`;
+    c.innerHTML = `${bannerHtml}<div class="fd-content${bannerSrc ? ' fd-has-banner' : ''}"><div class="fd-header">${imgTag}<div><div class="fd-name" style="display:flex;align-items:center;gap:6px;">${esc(d.displayName)}${vrcPlusBadge}</div>${pronounsHtml}<div class="fd-status" id="fd-live-status"><span class="${fdDotClass} ${fdStatusDotCls}" style="width:8px;height:8px;"></span>${fdIsOffline ? t('status.offline', 'Offline') : statusLabel(d.status)}${(!fdIsOffline && fdIsWeb) ? ' ' + t('profiles.friends.web_suffix', '(Web)') : ''}${(!fdIsOffline && d.statusDescription) ? ' - ' + esc(d.statusDescription) : ''}</div></div></div>${badgesHtml}${actionsHtml}${tabsHtml}<div id="fdTabInfo">${infoContent}</div><div id="fdTabGroups" style="display:none;">${groupsContent}</div><div id="fdTabMutuals" style="display:none;">${mutualsContent}</div><div id="fdTabContent" style="display:none;">${contentHtml}</div><div id="fdTabFavs" style="display:none;" data-user-id="${esc(userId)}"></div><div style="margin-top:10px;text-align:right;"><button class="vrcn-button-round" onclick="closeFriendDetail()">${t('common.close', 'Close')}</button></div></div>`;
 
     // Auto-lookup avatar ID from avtrdb if we have a file_ ID (chip-only, no modal open)
     if (avatarFileId) sendToCS({ action: 'vrcLookupAvatarByFileId', fileId: avatarFileId, openModal: false });

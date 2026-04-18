@@ -585,7 +585,7 @@
                 return `<button class="vn-ctx-item" data-av-fav-name="${esc(g.name)}" data-av-fav-type="${esc(g.type)}" data-avid="${esc(avatarId)}">
                     <span class="msi" style="font-size:14px;">bookmark_border</span>
                     <span class="vn-ctx-label">${esc(g.displayName || g.name)}</span>
-                    ${isVrcPlus ? '<span class="vrcn-badge vrcplus" style="font-size:10px;padding:1px 4px;">VRC+</span>' : ''}
+                    ${isVrcPlus ? '<span class="vrcn-supporter-badge">VRC+</span>' : ''}
                     <span class="vn-ctx-count">${count}</span>
                 </button>`;
             }).join('');
@@ -614,7 +614,7 @@
                 data-av-move-name="${esc(g.name)}" data-av-move-type="${esc(g.type)}" data-avid="${esc(avatarId)}" data-old-fvrt="${esc(favEntry.favoriteId)}" data-is-current="${isCurrent}">
                 ${iconEl}
                 <span class="vn-ctx-label">${esc(g.displayName || g.name)}</span>
-                ${isVrcPlus ? '<span class="vrcn-badge vrcplus" style="font-size:10px;padding:1px 4px;">VRC+</span>' : ''}
+                ${isVrcPlus ? '<span class="vrcn-supporter-badge">VRC+</span>' : ''}
                 <span class="vn-ctx-count">${count}</span>
             </button>`;
         }).join('');
@@ -638,7 +638,7 @@
             return `<button class="vn-ctx-item" data-av-edit-move-name="${esc(g.name)}" data-av-edit-move-type="${esc(g.type)}">
                 <span class="msi" style="font-size:14px;">folder</span>
                 <span class="vn-ctx-label">${esc(g.displayName || g.name)}</span>
-                ${isVrcPlus ? '<span class="vrcn-badge vrcplus" style="font-size:10px;padding:1px 4px;">VRC+</span>' : ''}
+                ${isVrcPlus ? '<span class="vrcn-supporter-badge">VRC+</span>' : ''}
                 <span class="vn-ctx-count">${count}</span>
             </button>`;
         }).join('');
@@ -726,7 +726,7 @@
                 data-edit-move-name="${esc(g.name)}" data-edit-move-type="${esc(g.type)}">
                 <span class="msi" style="font-size:14px;">folder</span>
                 <span class="vn-ctx-label">${esc(g.displayName || g.name)}</span>
-                ${isVrcPlus ? '<span class="vrcn-badge vrcplus" style="font-size:10px;padding:1px 4px;">VRC+</span>' : ''}
+                ${isVrcPlus ? '<span class="vrcn-supporter-badge">VRC+</span>' : ''}
                 <span class="vn-ctx-count">${count}</span>
             </button>`;
         }).join('');

@@ -413,7 +413,7 @@ function filterFavAvatars() {
             if (!groupAvatars.length) return;
             const cap = g.capacity || 25;
             const isVrcPlus = g.name !== 'avatars1';
-            const vrcBadge = isVrcPlus ? `<span class="vrcn-badge vrcplus">VRC+</span>` : '';
+            const vrcBadge = isVrcPlus ? `<span class="vrcn-supporter-badge">VRC+</span>` : '';
             html += `<div class="fav-group-header${first ? ' fav-group-header-first' : ''}">
                 <span class="topbar-title">${esc(g.displayName || g.name)}</span>
                 ${vrcBadge}
@@ -514,7 +514,7 @@ function avEditShowMoveMenu(btn) {
         return `<div class="vn-select-option" onclick="avEditMoveSelected('${gn}','${gt}')">
             <span class="msi" style="font-size:14px;flex-shrink:0;">folder</span>
             <span style="flex:1;">${esc(g.displayName || g.name)}</span>
-            ${isVrcPlus ? '<span class="vrcn-badge vrcplus">VRC+</span>' : ''}
+            ${isVrcPlus ? '<span class="vrcn-supporter-badge">VRC+</span>' : ''}
             <span style="font-size:10px;color:var(--tx3);flex-shrink:0;">${count}</span>
         </div>`;
     }).join('');
@@ -618,7 +618,7 @@ function renderAvFavPickerList(avatarId) {
         const isVrcPlus = g.name !== 'avatars1';
         const isCurrent = g.name === currentGroup;
         const vrcBadge = isVrcPlus
-            ? `<span class="vrcn-badge vrcplus">VRC+</span>`
+            ? `<span class="vrcn-supporter-badge">VRC+</span>`
             : '';
         const check = isCurrent
             ? `<span class="msi" style="color:var(--accent);font-size:18px;flex-shrink:0;">check_circle</span>`

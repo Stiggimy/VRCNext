@@ -1491,7 +1491,7 @@ function initVnSelect(el) {
 
             if (isVrcPlus(opt.value, opt.text)) {
                 const badge = document.createElement('span');
-                badge.className = 'vrcn-badge vrcplus';
+                badge.className = 'vrcn-supporter-badge';
                 badge.textContent = 'VRC+';
                 item.appendChild(badge);
             }

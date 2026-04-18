@@ -632,7 +632,7 @@
   "profiles.friends.location.world": "Dans un monde",
   "profiles.friends.web_suffix": "(Web)",
   "profiles.friends.sections.loading": "EN JEU - ...",
-  "profiles.friends.sections.same_location": "DANS L'INSTANCE - {count}",
+  "profiles.friends.sections.same_location": "MÊME INSTANCE - {count}",
   "profiles.friends.sections_short.same_location": "ICI",
   "profiles.friends.sections.favorites": "FAVORIS - {count}",
   "profiles.friends.sections.in_game": "EN JEU - {count}",

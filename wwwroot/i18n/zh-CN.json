@@ -632,7 +632,7 @@
   "profiles.friends.location.world": "在世界中",
   "profiles.friends.web_suffix": "（网页）",
   "profiles.friends.sections.loading": "游戏中 - ...",
-  "profiles.friends.sections.same_location": "在同一实例 - {count}",
+  "profiles.friends.sections.same_location": "相同实例 - {count}",
   "profiles.friends.sections_short.same_location": "此处",
   "profiles.friends.sections.favorites": "收藏 - {count}",
   "profiles.friends.sections.in_game": "游戏中 - {count}",

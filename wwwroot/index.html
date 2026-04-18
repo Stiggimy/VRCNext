@@ -11,7 +11,7 @@
 </head>
 <body>
     <div class="sidebar" id="sidebarEl">
-        <div class="logo"><div class="logo-icon" id="logoIcon">V</div><div class="logo-txt"><div class="logo-text-row"><div class="logo-text">VRCNext</div></div><div class="logo-sub">v2026.16.0</div></div><button class="sb-toggle" onclick="toggleSidebar()" title="Toggle sidebar" data-i18n-title="common.toggle_sidebar"><span class="msi" id="sbIcon">chevron_left</span></button></div>
+        <div class="logo"><div class="logo-icon" id="logoIcon">V</div><div class="logo-txt"><div class="logo-text-row"><div class="logo-text">VRCNext</div></div><div class="logo-sub">v2026.16.1</div></div><button class="sb-toggle" onclick="toggleSidebar()" title="Toggle sidebar" data-i18n-title="common.toggle_sidebar"><span class="msi" id="sbIcon">chevron_left</span></button></div>
         <div class="nav vrcn-scrollbar">
             <button class="nav-btn active" onclick="showTab(0)" data-nav="dashboard"><span class="ni msi">dashboard</span><span class="nl" data-i18n="nav.dashboard">Dashboard</span></button>
             <button class="nav-btn" onclick="showTab(1)"><span class="ni msi">travel_explore</span><span class="nl" data-i18n="nav.worlds">Worlds</span></button>
@@ -244,7 +244,7 @@
                     <!-- Category label + inline rename -->
                     <div id="favWorldGroupHeader" style="display:flex;align-items:center;gap:6px;margin-bottom:10px;min-height:24px;">
                         <span id="favWorldGroupLabel" style="font-size:13px;font-weight:600;color:var(--tx1);" data-i18n="worlds.favorites.group.all">All Favorites</span>
-                        <span id="favWorldGroupVrcPlusBadge" class="vrcn-badge vrcplus" style="display:none;">VRC+</span>
+                        <span id="favWorldGroupVrcPlusBadge" class="vrcn-supporter-badge" style="display:none;">VRC+</span>
                         <button id="favWorldGroupEditBtn" class="myp-edit-btn" onclick="startEditWorldGroupName()" style="display:none;" title="Rename category" data-i18n-title="worlds.favorites.rename_category"><span class="msi" style="font-size:14px;">edit</span></button>
                         <span id="favWorldGroupVisLabel" style="display:none;font-size:11px;color:var(--tx3);font-weight:400;"></span>
                         <div id="favWorldGroupVisDropWrap" style="display:none;">
@@ -355,7 +355,7 @@
                 <div id="avatarFavArea" style="display:none;">
                     <div id="favAvatarGroupHeader" style="display:flex;align-items:center;gap:6px;margin-bottom:10px;min-height:24px;">
                         <span id="favAvatarGroupLabel" style="font-size:13px;font-weight:600;color:var(--tx1);" data-i18n="avatars.favorites.group.all">All Favorites</span>
-                        <span id="favAvatarGroupVrcPlusBadge" class="vrcn-badge vrcplus" style="display:none;">VRC+</span>
+                        <span id="favAvatarGroupVrcPlusBadge" class="vrcn-supporter-badge" style="display:none;">VRC+</span>
                         <button id="favAvatarGroupEditBtn" class="myp-edit-btn" onclick="startEditAvatarGroupName()" style="display:none;" title="Rename category" data-i18n-title="avatars.favorites.rename_category"><span class="msi" style="font-size:14px;">edit</span></button>
                     </div>
                     <div id="favAvatarGroupRenameRow" style="display:none;align-items:center;gap:6px;margin-bottom:10px;">

@@ -1385,6 +1385,31 @@ public class VRChatApiService
         return (new JArray(), false);
     }
 
+    public async Task<JArray> GetUserMutualGroupsAsync(string userId)
+    {
+        if (!IsLoggedIn) return new JArray();
+        try
+        {
+            const int pageSize = 100;
+            var all = new JArray();
+            int offset = 0;
+            while (true)
+            {
+                var resp = await _http.GetAsync($"{BASE}/users/{userId}/mutuals/groups?n={pageSize}&offset={offset}");
+                var body = await resp.Content.ReadAsStringAsync();
+                if (!resp.IsSuccessStatusCode) break;
+                var token = JToken.Parse(body);
+                var page = token is JArray a ? a : new JArray();
+                foreach (var item in page) all.Add(item);
+                if (page.Count < pageSize) break;
+                offset += pageSize;
+            }
+            return all;
+        }
+        catch (Exception ex) { Log($"GetUserMutualGroups({userId}) exception: {ex.Message}"); }
+        return new JArray();
+    }
+
     public async Task<JArray> GetPlayerModerationsAsync(string type)
     {
         if (!IsLoggedIn) return new JArray();

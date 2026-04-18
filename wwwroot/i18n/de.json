@@ -632,7 +632,7 @@
   "profiles.friends.location.world": "In Welt",
   "profiles.friends.web_suffix": "(Web)",
   "profiles.friends.sections.loading": "IM SPIEL - ...",
-  "profiles.friends.sections.same_location": "IN INSTANZ - {count}",
+  "profiles.friends.sections.same_location": "GLEICHE INSTANZ - {count}",
   "profiles.friends.sections_short.same_location": "HIER",
   "profiles.friends.sections.favorites": "FAVORITEN - {count}",
   "profiles.friends.sections.in_game": "IM SPIEL - {count}",
