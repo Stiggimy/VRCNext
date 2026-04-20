@@ -1609,7 +1609,6 @@ public class TimelineService : IDisposable
                     Visits     = kv.Value.Visits,
                 })
                 .OrderByDescending(w => w.Seconds)
-                .Take(200)
                 .ToList(),
             Persons = personStats
                 .Select(kv => new PersonTimeEntry
@@ -1621,7 +1620,6 @@ public class TimelineService : IDisposable
                     Meets       = kv.Value.Meets,
                 })
                 .OrderByDescending(p => p.Seconds)
-                .Take(200)
                 .ToList(),
         };
     }

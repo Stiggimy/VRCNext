@@ -1745,15 +1745,20 @@ public class FriendsController
 
     // Friend Timeline Payload
 
-    public object BuildFriendTimelinePayload(TimelineService.FriendTimelineEvent ev) => new
+    public object BuildFriendTimelinePayload(TimelineService.FriendTimelineEvent ev)
     {
-        id = ev.Id, type = ev.Type, timestamp = ev.Timestamp,
-        friendId = ev.FriendId, friendName = ev.FriendName,
-        friendImage = _core.ResolveAndCache(ResolvePlayerImage(ev.FriendId, ev.FriendImage)),
-        worldId = ev.WorldId, worldName = ev.WorldName,
-        worldThumb = _core.ResolveAndCache(ev.WorldThumb, longTtl: true),
-        location = ev.Location, oldValue = ev.OldValue, newValue = ev.NewValue,
-    };
+        var wThumb = !string.IsNullOrEmpty(ev.WorldThumb) ? ev.WorldThumb
+            : (!string.IsNullOrEmpty(ev.WorldId) && _core.WorldThumbCache.TryGetValue(ev.WorldId, out var wt) && !string.IsNullOrEmpty(wt) ? wt : "");
+        return new
+        {
+            id = ev.Id, type = ev.Type, timestamp = ev.Timestamp,
+            friendId = ev.FriendId, friendName = ev.FriendName,
+            friendImage = _core.ResolveAndCache(ResolvePlayerImage(ev.FriendId, ev.FriendImage)),
+            worldId = ev.WorldId, worldName = ev.WorldName,
+            worldThumb = _core.ResolveAndCache(wThumb, longTtl: true),
+            location = ev.Location, oldValue = ev.OldValue, newValue = ev.NewValue,
+        };
+    }
 
     // Chat Storage
 

@@ -769,7 +769,8 @@ c
     display: block;
 }
 
-#tab8.active {
+#tab8.active,
+#tab16.active {
     display: flex;
     flex-direction: column;
     height: 100%;
@@ -1211,7 +1212,8 @@ html.text-tools-active * { user-select: text !important; }
     max-width: 90px;
 }
 .content.tab7-active,
-.content.tab12-active { overflow-y: hidden; padding-bottom: 0; }
+.content.tab12-active,
+.content.tab16-active { overflow-y: hidden; padding-bottom: 0; }
 #tab7.active {
     display: flex;
     flex-direction: column;
@@ -5829,6 +5831,11 @@ div.vn-select {
     flex-shrink: 0;
 }
 
+.ts-search-wrap {
+    padding: 10px 20px 0;
+    flex-shrink: 0;
+}
+
 .ts-stat-row {
     display: flex;
     gap: 10px;
@@ -5898,6 +5905,12 @@ div.vn-select {
     overflow-y: auto;
     padding: 12px 20px 20px;
     margin-top: 12px;
+    min-height: 0;
+}
+
+.ts-root .tl-paginator-bar {
+    margin: 0 -20px;
+    padding: 10px 20px 14px;
 }
 
 .ts-loading {
@@ -5920,6 +5933,14 @@ div.vn-select {
     display: flex;
     flex-direction: column;
     gap: 6px;
+}
+
+.ts-sk-item {
+    height: 56px;
+    border-radius: 10px;
+    background: linear-gradient(90deg, var(--bg-card) 25%, var(--bg-hover) 50%, var(--bg-card) 75%);
+    background-size: 200% 100%;
+    animation: sk-shimmer 1.4s linear infinite;
 }
 
 .ts-item {

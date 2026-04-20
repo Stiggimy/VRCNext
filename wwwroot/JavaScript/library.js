@@ -23,7 +23,6 @@ function destroyLibrary() {
         g.innerHTML = '';
     }
     _setLibPaginator('');
-    libraryFiles   = [];
     _libFiltered   = [];
     _libPage       = 0;
     _libTotal      = 0;

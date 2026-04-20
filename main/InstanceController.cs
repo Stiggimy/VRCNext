@@ -358,8 +358,13 @@ public class InstanceController
 
             case "vrcGetTimeSpent":
             {
-                var tsMyId = _core.VrcApi.CurrentUserId ?? "";
-                _ = Task.Run(() =>
+                var tsMyId    = _core.VrcApi.CurrentUserId ?? "";
+                var tsView    = msg["view"]?.ToString() ?? "worlds";
+                var tsQuery   = (msg["query"]?.ToString() ?? "").Trim().ToLowerInvariant();
+                var tsPage    = msg["page"]?.ToObject<int>() ?? 0;
+                const int tsPageSize = 100;
+
+                _ = Task.Run(async () =>
                 {
                     var stats = _core.Timeline.GetTimeSpentStats(tsMyId);
 
@@ -374,25 +379,20 @@ public class InstanceController
                             .Where(p => !string.IsNullOrEmpty(p.UserId)).Select(p => p.UserId))
                         : new HashSet<string>();
 
-                    var personList = _core.TimeEngine.Users
+                    var allPersons = _core.TimeEngine.Users
                         .Where(kv => kv.Key != tsMyId)
                         .Select(kv =>
                         {
                             var isCoPresent = logPlayerIds.Contains(kv.Key);
-                            // GetUserStats includes live session delta when co-present
                             var (effectiveSec, _) = _core.TimeEngine.GetUserStats(kv.Key, isCoPresent);
-                            if (effectiveSec <= 0) return default; // skip zero-time entries
+                            if (effectiveSec <= 0) return default;
 
                             tlPersons.TryGetValue(kv.Key, out var tl);
-                            // Priority: live caches (correct) -> UserRecord -> timeline -> friendStore
                             var name  = !string.IsNullOrEmpty(kv.Value.DisplayName) ? kv.Value.DisplayName
                                       : tl?.DisplayName ?? "";
                             var image = _friends.ResolvePlayerImage(kv.Key, null);
                             if (string.IsNullOrEmpty(image))
-                            {
-                                image = !string.IsNullOrEmpty(kv.Value.Image) ? kv.Value.Image
-                                      : tl?.Image ?? "";
-                            }
+                                image = !string.IsNullOrEmpty(kv.Value.Image) ? kv.Value.Image : tl?.Image ?? "";
                             if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(image))
                             {
                                 var fj = _friends.GetStoreValue(kv.Key);
@@ -402,17 +402,15 @@ public class InstanceController
                                     if (string.IsNullOrEmpty(image)) image = VRChatApiService.GetUserImage(fj);
                                 }
                             }
-                            if (string.IsNullOrEmpty(name)) return default; // truly unknown, skip
+                            if (string.IsNullOrEmpty(name)) return default;
                             return (UserId: kv.Key, DisplayName: name, Image: image,
                                     Seconds: effectiveSec, Meets: tl?.Meets ?? 0);
                         })
                         .Where(p => p.UserId != null)
                         .OrderByDescending(p => p.Seconds)
-                        .Take(200)
                         .ToList();
 
-                    // WORLDS: GetWorldStats includes live session delta automatically.
-                    var worldList = _core.TimeEngine.Worlds
+                    var allWorlds = _core.TimeEngine.Worlds
                         .Select(kv =>
                         {
                             tlWorlds.TryGetValue(kv.Key, out var tl);
@@ -423,15 +421,52 @@ public class InstanceController
                             return (WorldId: kv.Key, WorldName: name, WorldThumb: thumb,
                                     Seconds: wSec, Visits: visits);
                         })
-                        .Where(w => !string.IsNullOrEmpty(w.WorldName)) // skip worlds with no name yet
+                        .Where(w => !string.IsNullOrEmpty(w.WorldName))
                         .OrderByDescending(w => w.Seconds)
-                        .Take(200)
                         .ToList();
 
-                    Invoke(() => _core.SendToJS("vrcTimeSpentData", new
+                    // Global stats from full dataset (before any filter/pagination)
+                    var globalFriendIds = new HashSet<string>(
+                        allPersons.Where(p => _friends.GetStoreValue(p.UserId) != null).Select(p => p.UserId));
+                    var globalFriendCount   = globalFriendIds.Count;
+                    var globalStrangerCount = allPersons.Count - globalFriendCount;
+                    var globalTopFriend     = allPersons.FirstOrDefault(p => globalFriendIds.Contains(p.UserId));
+                    var globalTopStranger   = allPersons.FirstOrDefault(p => !globalFriendIds.Contains(p.UserId));
+                    var globalTotalWithOthers = allPersons.Sum(p => (long)p.Seconds);
+                    var globalTopWorld      = allWorlds.FirstOrDefault();
+                    var globalTotalVisits   = allWorlds.Sum(w => (long)w.Visits);
+
+                    // Filter by search query
+                    var filteredPersons = string.IsNullOrEmpty(tsQuery)
+                        ? allPersons
+                        : allPersons.Where(p => (p.DisplayName ?? "").ToLowerInvariant().Contains(tsQuery)).ToList();
+
+                    var filteredWorlds = string.IsNullOrEmpty(tsQuery)
+                        ? allWorlds
+                        : allWorlds.Where(w => (w.WorldName ?? "").ToLowerInvariant().Contains(tsQuery)).ToList();
+
+                    // Paginate
+                    var personPage = filteredPersons.Skip(tsPage * tsPageSize).Take(tsPageSize).ToList();
+                    var worldPage  = filteredWorlds.Skip(tsPage * tsPageSize).Take(tsPageSize).ToList();
+
+                    void SendPage() => Invoke(() => _core.SendToJS("vrcTimeSpentData", new
                     {
-                        totalSeconds = stats.TotalSeconds,
-                        worlds = worldList.Select(w => new
+                        totalSeconds  = stats.TotalSeconds,
+                        page          = tsPage,
+                        totalWorlds   = filteredWorlds.Count,
+                        totalPersons  = filteredPersons.Count,
+                        allUniqueWorlds   = allWorlds.Count,
+                        allUniquePersons  = allPersons.Count,
+                        globalFriendCount,
+                        globalStrangerCount,
+                        globalTopFriendName    = globalTopFriend.UserId != null ? (globalTopFriend.DisplayName ?? "") : "",
+                        globalTopFriendSeconds = globalTopFriend.UserId != null ? globalTopFriend.Seconds : 0,
+                        globalTopStrangerName    = globalTopStranger.UserId != null ? (globalTopStranger.DisplayName ?? "") : "",
+                        globalTopStrangerSeconds = globalTopStranger.UserId != null ? globalTopStranger.Seconds : 0,
+                        globalTotalWithOthers,
+                        globalTopWorldName  = globalTopWorld.WorldId != null ? (globalTopWorld.WorldName ?? "") : "",
+                        globalTotalVisits,
+                        worlds = worldPage.Select(w => new
                         {
                             worldId    = w.WorldId,
                             worldName  = w.WorldName,
@@ -439,7 +474,7 @@ public class InstanceController
                             seconds    = w.Seconds,
                             visits     = w.Visits,
                         }),
-                        persons = personList.Select(p => new
+                        persons = personPage.Select(p => new
                         {
                             userId      = p.UserId,
                             displayName = p.DisplayName,
@@ -448,6 +483,108 @@ public class InstanceController
                             meets       = p.Meets,
                         }),
                     }));
+
+                    SendPage();
+
+                    // Backfill world thumbs on the current page (re-fetch any world not yet resolved this session)
+                    var missingWorldIds = worldPage
+                        .Where(w => !string.IsNullOrEmpty(w.WorldId)
+                            && !_core.WorldThumbCache.ContainsKey(w.WorldId))
+                        .Select(w => w.WorldId).Distinct().Take(20).ToList();
+
+                    bool anyResolved = false;
+                    foreach (var wid in missingWorldIds)
+                    {
+                        try
+                        {
+                            var wj = await _core.VrcApi.GetWorldAsync(wid);
+                            if (wj != null)
+                            {
+                                var wName  = wj["name"]?.ToString() ?? "";
+                                var wThumb = wj["imageUrl"]?.ToString() ?? wj["thumbnailImageUrl"]?.ToString() ?? "";
+                                _core.WorldThumbCache[wid] = wThumb;
+                                _core.TimeEngine.UpdateWorldInfo(wid, wName, wThumb);
+                                var idx = worldPage.FindIndex(x => x.WorldId == wid);
+                                if (idx >= 0)
+                                {
+                                    var e = worldPage[idx];
+                                    worldPage[idx] = (e.WorldId,
+                                        string.IsNullOrEmpty(e.WorldName) ? wName : e.WorldName,
+                                        wThumb, e.Seconds, e.Visits);
+                                    anyResolved = true;
+                                }
+                            }
+                            else _core.WorldThumbCache[wid] = "";
+                        }
+                        catch { _core.WorldThumbCache[wid] = ""; }
+                    }
+
+                    // Backfill missing person images on the current page
+                    var missingPersonIds = personPage
+                        .Where(p => string.IsNullOrEmpty(p.Image) && !string.IsNullOrEmpty(p.UserId))
+                        .Select(p => p.UserId).Distinct().Take(30).ToList();
+
+                    if (missingPersonIds.Count > 0)
+                    {
+                        var sem = new SemaphoreSlim(3);
+                        await Task.WhenAll(missingPersonIds.Select(async uid =>
+                        {
+                            await sem.WaitAsync();
+                            try
+                            {
+                                string resolved = "";
+                                if (_core.PlayerImageCache.TryGetValue(uid, out var ci) && !string.IsNullOrEmpty(ci))
+                                    resolved = ci;
+                                else if (_friends.TryGetNameImage(uid, out var fi) && !string.IsNullOrEmpty(fi.image))
+                                { resolved = fi.image; _core.PlayerImageCache[uid] = fi.image; }
+                                else
+                                {
+                                    var profile = await _core.VrcApi.GetUserAsync(uid);
+                                    if (profile != null)
+                                    {
+                                        var img = VRChatApiService.GetUserImage(profile);
+                                        if (!string.IsNullOrEmpty(img))
+                                        {
+                                            resolved = img;
+                                            _core.PlayerImageCache[uid] = img;
+                                            _core.Timeline.SetUserImage(uid, img);
+                                        }
+                                    }
+                                    await Task.Delay(250);
+                                }
+                                if (!string.IsNullOrEmpty(resolved))
+                                {
+                                    var idx = personPage.FindIndex(p => p.UserId == uid);
+                                    if (idx >= 0)
+                                    {
+                                        var p = personPage[idx];
+                                        personPage[idx] = (p.UserId, p.DisplayName, resolved, p.Seconds, p.Meets);
+                                        anyResolved = true;
+                                    }
+                                }
+                            }
+                            finally { sem.Release(); }
+                        }));
+                    }
+
+                    if (anyResolved)
+                    {
+                        // Pre-download world thumbs so JS gets localhost URLs, not auth-gated VRC URLs
+                        if (_core.ImgCache != null)
+                        {
+                            for (int i = 0; i < worldPage.Count; i++)
+                            {
+                                var w = worldPage[i];
+                                if (!string.IsNullOrEmpty(w.WorldThumb) && w.WorldThumb.StartsWith("http") && !w.WorldThumb.Contains("localhost"))
+                                {
+                                    var localUrl = await _core.ImgCache.GetWorldAsync(w.WorldThumb);
+                                    if (!string.IsNullOrEmpty(localUrl) && localUrl.Contains("localhost"))
+                                        worldPage[i] = (w.WorldId, w.WorldName, localUrl, w.Seconds, w.Visits);
+                                }
+                            }
+                        }
+                        SendPage();
+                    }
                 });
                 break;
             }
@@ -1113,14 +1250,18 @@ public class InstanceController
         }
     }
 
-    public object BuildTimelinePayload(TimelineService.TimelineEvent ev) => new
+    public object BuildTimelinePayload(TimelineService.TimelineEvent ev)
     {
+        var wThumb = !string.IsNullOrEmpty(ev.WorldThumb) ? ev.WorldThumb
+            : (!string.IsNullOrEmpty(ev.WorldId) && _core.WorldThumbCache.TryGetValue(ev.WorldId, out var wt) && !string.IsNullOrEmpty(wt) ? wt : "");
+        return new
+        {
         id          = ev.Id,
         type        = ev.Type,
         timestamp   = ev.Timestamp,
         worldId     = ev.WorldId,
         worldName   = ev.WorldName,
-        worldThumb  = _core.ResolveAndCache(ev.WorldThumb, longTtl: true),
+        worldThumb  = _core.ResolveAndCache(wThumb, longTtl: true),
         location    = ev.Location,
         players     = ev.Players.Select(p => new { userId = p.UserId, displayName = p.DisplayName, image = _core.ResolveAndCache(_friends.ResolvePlayerImage(p.UserId, p.Image)) }).ToList(),
         photoPath   = ev.PhotoPath,
@@ -1136,7 +1277,8 @@ public class InstanceController
         senderId    = ev.SenderId,
         senderImage = _core.ResolveAndCache(_friends.ResolvePlayerImage(ev.SenderId, ev.SenderImage)),
         message     = ev.Message,
-    };
+        };
+    }
 
     // Photino compatibility shim
     private static void Invoke(Action action) => action();

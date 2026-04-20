@@ -8,6 +8,25 @@ let _tsLoading = false;
 let _tsInited = false;
 let _tsWorldQuery = '';
 let _tsPersonQuery = '';
+let _tsSearchTimer = null;
+let _tsWorldPage = 0;
+let _tsPersonPage = 0;
+let _tsTotalWorlds = 0;
+let _tsTotalPersons = 0;
+let _tsAllUniqueWorlds = 0;
+let _tsAllUniquePersons = 0;
+const TS_PAGE_SIZE = 100;
+
+// Global stats — always reflect full dataset regardless of search/pagination
+let _tsGlobalFriendCount = 0;
+let _tsGlobalStrangerCount = 0;
+let _tsGlobalTopFriendName = '';
+let _tsGlobalTopFriendSeconds = 0;
+let _tsGlobalTopStrangerName = '';
+let _tsGlobalTopStrangerSeconds = 0;
+let _tsGlobalTotalWithOthers = 0;
+let _tsGlobalTopWorldName = '';
+let _tsGlobalTotalVisits = 0;
 
 document.documentElement.addEventListener('tabchange', () => {
     const tab16 = document.getElementById('tab16');
@@ -52,12 +71,39 @@ function tsFmtTimeLong(seconds) {
     return tsFmtTime(seconds);
 }
 
+function tsFilterSearch(value) {
+    const search = value.trim();
+    const list = document.getElementById('tsList');
+    if (list) list.innerHTML = '<div class="ts-items"><div class="ts-sk-item"></div><div class="ts-sk-item"></div><div class="ts-sk-item"></div><div class="ts-sk-item"></div><div class="ts-sk-item"></div></div>';
+    _tsSetPaginator('');
+    clearTimeout(_tsSearchTimer);
+    _tsSearchTimer = setTimeout(() => {
+        if (_tsView === 'worlds') { _tsWorldQuery = search; _tsWorldPage = 0; }
+        else                      { _tsPersonQuery = search; _tsPersonPage = 0; }
+        _tsLoading = false;
+        _tsLoad();
+    }, 300);
+}
+
 function tsRefresh() {
     _tsData = null;
-    tsLoad();
+    _tsWorldPage = 0;
+    _tsPersonPage = 0;
+    _tsWorldQuery = '';
+    _tsPersonQuery = '';
+    clearTimeout(_tsSearchTimer);
+    const wi = document.getElementById('tsWorldSearchInput');
+    const pi = document.getElementById('tsPersonSearchInput');
+    if (wi) wi.value = '';
+    if (pi) pi.value = '';
+    _tsLoad();
 }
 
 function tsLoad() {
+    _tsLoad();
+}
+
+function _tsLoad() {
     if (_tsLoading) return;
     _tsLoading = true;
 
@@ -72,12 +118,35 @@ function tsLoad() {
     const summary = document.getElementById('tsSummary');
     if (summary) summary.innerHTML = '';
 
-    sendToCS({ action: 'vrcGetTimeSpent' });
+    const query = _tsView === 'worlds' ? _tsWorldQuery : _tsPersonQuery;
+    const page  = _tsView === 'worlds' ? _tsWorldPage  : _tsPersonPage;
+    sendToCS({ action: 'vrcGetTimeSpent', view: _tsView, query: query.trim(), page });
 }
 
 function tsOnData(payload) {
+    const currentQuery = _tsView === 'worlds'
+        ? (document.getElementById('tsWorldSearchInput')?.value ?? '').trim()
+        : (document.getElementById('tsPersonSearchInput')?.value ?? '').trim();
+    if (currentQuery !== (_tsView === 'worlds' ? _tsWorldQuery : _tsPersonQuery)) return;
     _tsLoading = false;
     _tsData = payload;
+    _tsTotalWorlds       = payload.totalWorlds   ?? 0;
+    _tsTotalPersons      = payload.totalPersons  ?? 0;
+    _tsAllUniqueWorlds   = payload.allUniqueWorlds  ?? _tsTotalWorlds;
+    _tsAllUniquePersons  = payload.allUniquePersons ?? _tsTotalPersons;
+
+    // Store global stats — only update when present (backfill SendPage re-sends everything)
+    if (payload.globalFriendCount !== undefined) {
+        _tsGlobalFriendCount       = payload.globalFriendCount   ?? 0;
+        _tsGlobalStrangerCount     = payload.globalStrangerCount ?? 0;
+        _tsGlobalTopFriendName     = payload.globalTopFriendName ?? '';
+        _tsGlobalTopFriendSeconds  = payload.globalTopFriendSeconds ?? 0;
+        _tsGlobalTopStrangerName   = payload.globalTopStrangerName ?? '';
+        _tsGlobalTopStrangerSeconds = payload.globalTopStrangerSeconds ?? 0;
+        _tsGlobalTotalWithOthers   = payload.globalTotalWithOthers ?? 0;
+        _tsGlobalTopWorldName      = payload.globalTopWorldName ?? '';
+        _tsGlobalTotalVisits       = payload.globalTotalVisits ?? 0;
+    }
 
     const icon = document.getElementById('tsRefreshIcon');
     if (icon) icon.classList.remove('ts-spin');
@@ -92,10 +161,20 @@ function tsOnData(payload) {
 
 function tsSetView(view) {
     _tsView = view;
+    _tsWorldPage = 0;
+    _tsPersonPage = 0;
     document.getElementById('tsBtnWorlds')?.classList.toggle('active', view === 'worlds');
     document.getElementById('tsBtnPersons')?.classList.toggle('active', view === 'persons');
-    if (_tsData) tsRender();
-    else tsLoad();
+    document.getElementById('tsSearchWorlds')?.style.setProperty('display', view === 'worlds' ? '' : 'none');
+    document.getElementById('tsSearchPersons')?.style.setProperty('display', view === 'persons' ? '' : 'none');
+    _tsLoad();
+}
+
+function _tsShowSearch() {
+    const wrap = document.getElementById('tsSearchWrap');
+    if (wrap) wrap.style.display = '';
+    document.getElementById('tsSearchWorlds')?.style.setProperty('display', _tsView === 'worlds' ? '' : 'none');
+    document.getElementById('tsSearchPersons')?.style.setProperty('display', _tsView === 'persons' ? '' : 'none');
 }
 
 function tsRender() {
@@ -109,9 +188,7 @@ function tsRender() {
 }
 
 function tsRenderWorlds() {
-    const worlds = _tsData.worlds || [];
     const totalSec = _tsData.totalSeconds || 0;
-    const topWorld = worlds[0];
     const summary = document.getElementById('tsSummary');
     if (!summary) return;
 
@@ -124,51 +201,47 @@ function tsRenderWorlds() {
             </div>
             <div class="ts-stat">
                 <span class="msi ts-stat-icon">travel_explore</span>
-                <div class="ts-stat-val">${worlds.length}</div>
+                <div class="ts-stat-val">${_tsAllUniqueWorlds}</div>
                 <div class="ts-stat-label">${t('timespent.summary.unique_worlds', 'Unique Worlds')}</div>
             </div>
             <div class="ts-stat">
                 <span class="msi ts-stat-icon">star</span>
-                <div class="ts-stat-val">${topWorld ? esc(topWorld.worldName || t('timespent.unknown_world', 'Unknown')) : '-'}</div>
+                <div class="ts-stat-val">${_tsGlobalTopWorldName ? esc(_tsGlobalTopWorldName) : '-'}</div>
                 <div class="ts-stat-label">${t('timespent.summary.favourite_world', 'Favourite World')}</div>
             </div>
             <div class="ts-stat">
                 <span class="msi ts-stat-icon">login</span>
-                <div class="ts-stat-val">${worlds.reduce((sum, world) => sum + world.visits, 0)}</div>
+                <div class="ts-stat-val">${_tsGlobalTotalVisits.toLocaleString()}</div>
                 <div class="ts-stat-label">${t('timespent.summary.total_joins', 'Total Joins')}</div>
             </div>
-        </div>
-        <div class="search-bar-row ts-search-bar">
-            <span class="msi search-ico">search</span>
-            <input type="text" class="search-input" placeholder="${esc(t('timespent.search.worlds', 'Filter worlds...'))}"
-                   value="${_tsWorldQuery.replace(/"/g, '&quot;')}"
-                   oninput="_tsWorldQuery=this.value;tsRenderWorldItems()">
         </div>`;
 
+    _tsShowSearch();
     tsRenderWorldItems();
 }
 
 function tsRenderWorldItems() {
     const worlds = _tsData?.worlds || [];
-    const query = _tsWorldQuery.toLowerCase().trim();
-    const list = query ? worlds.filter(world => (world.worldName || '').toLowerCase().includes(query)) : worlds;
     const tsList = document.getElementById('tsList');
     if (!tsList) return;
 
-    if (worlds.length === 0) {
+    if (_tsAllUniqueWorlds === 0) {
         tsList.innerHTML = `<div class="ts-empty"><span class="msi" style="font-size:28px;color:var(--tx3);">travel_explore</span><div>${t('timespent.empty.no_world_data', 'No world data yet.')}</div></div>`;
+        _tsSetPaginator('');
         return;
     }
 
-    if (list.length === 0) {
+    if (worlds.length === 0) {
         tsList.innerHTML = `<div class="ts-empty"><span class="msi" style="font-size:28px;color:var(--tx3);">search_off</span><div>${t('timespent.empty.no_world_match', 'No worlds match your search.')}</div></div>`;
+        _tsSetPaginator('');
         return;
     }
 
-    const maxSec = list[0].seconds || 1;
-    const rows = list.map(world => {
+    const totalPages = Math.ceil(_tsTotalWorlds / TS_PAGE_SIZE) || 1;
+    const maxSec = worlds[0].seconds || 1;
+    const rows = worlds.map((world, i) => {
         const pct = Math.round((world.seconds / maxSec) * 100);
-        const rank = worlds.indexOf(world) + 1;
+        const rank = _tsWorldPage * TS_PAGE_SIZE + i + 1;
         const thumb = world.worldThumb
             ? `<img class="ts-item-thumb" src="${esc(world.worldThumb)}" onerror="this.style.display='none'">`
             : `<div class="ts-item-thumb ts-thumb-placeholder"><span class="msi" style="font-size:18px;color:var(--tx3);">travel_explore</span></div>`;
@@ -194,15 +267,18 @@ function tsRenderWorldItems() {
     }).join('');
 
     tsList.innerHTML = `<div class="ts-items">${rows}</div>`;
+    _tsSetPaginator(_tsBuildPaginator(_tsWorldPage, totalPages, _tsTotalWorlds, 'tsWorldGoPage'));
+}
+
+function tsWorldGoPage(page) {
+    const totalPages = Math.ceil(_tsTotalWorlds / TS_PAGE_SIZE) || 1;
+    if (page < 0 || page >= totalPages) return;
+    _tsWorldPage = page;
+    _tsLoad();
+    document.getElementById('tsList')?.scrollTo(0, 0);
 }
 
 function tsRenderPersons() {
-    const persons = _tsData.persons || [];
-    const friendCount = persons.filter(person => person.isFriend).length;
-    const strangerCount = persons.length - friendCount;
-    const totalWithOthers = persons.reduce((sum, person) => sum + person.seconds, 0);
-    const topFriend = persons.find(person => person.isFriend);
-    const topStranger = persons.find(person => !person.isFriend);
     const summary = document.getElementById('tsSummary');
     if (!summary) return;
 
@@ -210,67 +286,63 @@ function tsRenderPersons() {
         <div class="ts-stat-row">
             <div class="ts-stat">
                 <span class="msi ts-stat-icon">group</span>
-                <div class="ts-stat-val">${persons.length}</div>
+                <div class="ts-stat-val">${_tsAllUniquePersons}</div>
                 <div class="ts-stat-label">${t('timespent.summary.unique_people', 'Unique People')}</div>
             </div>
             <div class="ts-stat">
                 <span class="msi ts-stat-icon" style="color:var(--ok);">person</span>
-                <div class="ts-stat-val">${friendCount}</div>
+                <div class="ts-stat-val">${_tsGlobalFriendCount}</div>
                 <div class="ts-stat-label">${t('timespent.summary.friends', 'Friends')}</div>
             </div>
             <div class="ts-stat">
                 <span class="msi ts-stat-icon" style="color:var(--cyan);">person_outline</span>
-                <div class="ts-stat-val">${strangerCount}</div>
+                <div class="ts-stat-val">${_tsGlobalStrangerCount}</div>
                 <div class="ts-stat-label">${t('timespent.summary.others', 'Others')}</div>
             </div>
             <div class="ts-stat">
                 <span class="msi ts-stat-icon">schedule</span>
-                <div class="ts-stat-val">${tsFmtTimeDH(totalWithOthers)}</div>
+                <div class="ts-stat-val">${tsFmtTimeDH(_tsGlobalTotalWithOthers)}</div>
                 <div class="ts-stat-label">${t('timespent.summary.total_social_time', 'Total Social Time')}</div>
             </div>
         </div>
-        ${topFriend || topStranger ? `
+        ${_tsGlobalTopFriendName || _tsGlobalTopStrangerName ? `
         <div class="ts-highlights">
-            ${topFriend ? `<div class="ts-highlight ts-hl-friend">
+            ${_tsGlobalTopFriendName ? `<div class="ts-highlight ts-hl-friend">
                 <span class="msi" style="font-size:13px;">favorite</span>
-                <span>${t('timespent.highlight.friend', 'Most time with friend')}: <strong>${esc(topFriend.displayName)}</strong> - ${tsFmtTimeLong(topFriend.seconds)}</span>
+                <span>${t('timespent.highlight.friend', 'Most time with friend')}: <strong>${esc(_tsGlobalTopFriendName)}</strong> - ${tsFmtTimeLong(_tsGlobalTopFriendSeconds)}</span>
             </div>` : ''}
-            ${topStranger ? `<div class="ts-highlight ts-hl-stranger">
+            ${_tsGlobalTopStrangerName ? `<div class="ts-highlight ts-hl-stranger">
                 <span class="msi" style="font-size:13px;">person_add</span>
-                <span>${t('timespent.highlight.new_person', 'Most time with someone new')}: <strong>${esc(topStranger.displayName)}</strong> - ${tsFmtTimeLong(topStranger.seconds)}</span>
+                <span>${t('timespent.highlight.new_person', 'Most time with someone new')}: <strong>${esc(_tsGlobalTopStrangerName)}</strong> - ${tsFmtTimeLong(_tsGlobalTopStrangerSeconds)}</span>
             </div>` : ''}
-        </div>` : ''}
-        <div class="search-bar-row ts-search-bar">
-            <span class="msi search-ico">search</span>
-            <input type="text" class="search-input" placeholder="${esc(t('timespent.search.persons', 'Filter persons...'))}"
-                   value="${_tsPersonQuery.replace(/"/g, '&quot;')}"
-                   oninput="_tsPersonQuery=this.value;tsRenderPersonItems()">
-        </div>`;
+        </div>` : ''}`;
 
+    _tsShowSearch();
     tsRenderPersonItems();
 }
 
 function tsRenderPersonItems() {
     const persons = _tsData?.persons || [];
-    const query = _tsPersonQuery.toLowerCase().trim();
-    const list = query ? persons.filter(person => (person.displayName || person.userId || '').toLowerCase().includes(query)) : persons;
     const tsList = document.getElementById('tsList');
     if (!tsList) return;
 
-    if (persons.length === 0) {
+    if (_tsAllUniquePersons === 0) {
         tsList.innerHTML = `<div class="ts-empty"><span class="msi" style="font-size:28px;color:var(--tx3);">group</span><div>${t('timespent.empty.no_person_data', 'No person data yet.')}</div></div>`;
+        _tsSetPaginator('');
         return;
     }
 
-    if (list.length === 0) {
+    if (persons.length === 0) {
         tsList.innerHTML = `<div class="ts-empty"><span class="msi" style="font-size:28px;color:var(--tx3);">search_off</span><div>${t('timespent.empty.no_person_match', 'No persons match your search.')}</div></div>`;
+        _tsSetPaginator('');
         return;
     }
 
-    const maxSec = list[0].seconds || 1;
-    const rows = list.map(person => {
+    const totalPages = Math.ceil(_tsTotalPersons / TS_PAGE_SIZE) || 1;
+    const maxSec = persons[0].seconds || 1;
+    const rows = persons.map((person, i) => {
         const pct = Math.round((person.seconds / maxSec) * 100);
-        const rank = persons.indexOf(person) + 1;
+        const rank = _tsPersonPage * TS_PAGE_SIZE + i + 1;
         const isFriend = person.isFriend;
         const avatar = person.image
             ? `<img class="ts-item-avatar" src="${esc(person.image)}" onerror="this.style.display='none'">`
@@ -299,6 +371,31 @@ function tsRenderPersonItems() {
     }).join('');
 
     tsList.innerHTML = `<div class="ts-items">${rows}</div>`;
+    _tsSetPaginator(_tsBuildPaginator(_tsPersonPage, totalPages, _tsTotalPersons, 'tsPersonGoPage'));
+}
+
+function tsPersonGoPage(page) {
+    const totalPages = Math.ceil(_tsTotalPersons / TS_PAGE_SIZE) || 1;
+    if (page < 0 || page >= totalPages) return;
+    _tsPersonPage = page;
+    _tsLoad();
+    document.getElementById('tsList')?.scrollTo(0, 0);
+}
+
+function _tsSetPaginator(html) {
+    const bar = document.getElementById('tsPaginatorBar');
+    if (bar) bar.innerHTML = html;
+}
+
+function _tsBuildPaginator(page, totalPages, total, onPageFn) {
+    if (totalPages <= 1) return '';
+    const prevDis = page === 0 ? 'disabled' : '';
+    const nextDis = page >= totalPages - 1 ? 'disabled' : '';
+    const countInfo = `<span style="font-size:11px;color:var(--tx3);padding:0 8px;">${total.toLocaleString()}</span>`;
+    return `<button class="vrcn-button" ${prevDis} onclick="${onPageFn}(${page - 1})"><span class="msi" style="font-size:16px;">chevron_left</span></button>
+        ${_buildPaginatorBtns(page, totalPages, onPageFn)}
+        <button class="vrcn-button" ${nextDis} onclick="${onPageFn}(${page + 1})"><span class="msi" style="font-size:16px;">chevron_right</span></button>
+        ${countInfo}`;
 }
 
 function rerenderTimeSpentTranslations() {

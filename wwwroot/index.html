@@ -1132,9 +1132,20 @@
                         </button>
                     </div>
                     <div class="ts-summary" id="tsSummary"></div>
+                    <div class="ts-search-wrap" id="tsSearchWrap" style="display:none;">
+                        <div class="search-bar-row ts-search-bar" id="tsSearchWorlds">
+                            <span class="msi search-ico">search</span>
+                            <input type="text" id="tsWorldSearchInput" class="search-input" data-i18n-placeholder="timespent.search.worlds" placeholder="Filter worlds..." oninput="tsFilterSearch(this.value)">
+                        </div>
+                        <div class="search-bar-row ts-search-bar" id="tsSearchPersons" style="display:none;">
+                            <span class="msi search-ico">search</span>
+                            <input type="text" id="tsPersonSearchInput" class="search-input" data-i18n-placeholder="timespent.search.persons" placeholder="Filter persons..." oninput="tsFilterSearch(this.value)">
+                        </div>
+                    </div>
                     <div class="ts-list" id="tsList">
                         <div class="ts-empty"><span class="msi" style="font-size:28px;color:var(--tx3);">schedule</span><div><span data-i18n="timespent.empty.no_session">No session data yet.</span><br><span style="font-size:11px;" data-i18n="timespent.empty.no_session_hint">Join some worlds in VRChat to see stats.</span></div></div>
                     </div>
+                    <div id="tsPaginatorBar" class="tl-paginator-bar"></div>
                 </div>
             </div>
             <!-- Tab 17: Calendar (content built by calendar.js) -->

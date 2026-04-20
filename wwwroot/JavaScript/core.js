@@ -1066,6 +1066,7 @@ function showTab(i) {
     if (contentEl) {
         contentEl.classList.toggle('tab7-active', i === 7);
         contentEl.classList.toggle('tab12-active', i === 12);
+        contentEl.classList.toggle('tab16-active', i === 16);
     }
     // Clear active from all nav-btns (including sub-items and group headers)
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
