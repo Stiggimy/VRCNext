@@ -472,16 +472,22 @@
                     <div class="ts-stat"><span class="msi ts-stat-icon">storage</span><div class="ts-stat-val" id="statSize">0 MB</div><div class="ts-stat-label" data-i18n="relay.stats.total_size">TOTAL SIZE</div></div>
                     <div class="ts-stat"><span class="msi ts-stat-icon">timer</span><div class="ts-stat-val" id="statUptime">00:00:00</div><div class="ts-stat-label" data-i18n="relay.stats.uptime">UPTIME</div></div>
                 </div>
-                <div class="vrcn-panel-card" style="margin-top:16px;">
-                    <div class="vrcn-panel-card-header"><span class="msi" style="font-size:16px;">cell_tower</span> <span data-i18n="relay.control.title">Relay Control</span></div>
-                    <div class="sf-toggle-row"><span data-i18n="common.start_with_vrchat_vr">Start when launching VRChat in VR</span><label class="toggle"><input type="checkbox" id="setAutoStartVR" onchange="autoSave()"><div class="toggle-track"><div class="toggle-knob"></div></div></label></div>
-                    <div class="sf-toggle-row"><span data-i18n="common.start_with_vrchat_desktop">Start when launching VRChat on Desktop</span><label class="toggle"><input type="checkbox" id="setAutoStartDesktop" onchange="autoSave()"><div class="toggle-track"><div class="toggle-knob"></div></div></label></div>
+                <div style="display:flex;gap:12px;margin-top:16px;flex-wrap:wrap;">
+                    <div class="vrcn-panel-card" style="flex:1;min-width:200px;">
+                        <div class="vrcn-panel-card-header"><span class="msi" style="font-size:16px;">cell_tower</span> <span data-i18n="relay.control.title">Relay Control</span></div>
+                        <div class="sf-toggle-row"><span data-i18n="common.start_with_vrchat_vr">Start when launching VRChat in VR</span><label class="toggle"><input type="checkbox" id="setAutoStartVR" onchange="autoSave()"><div class="toggle-track"><div class="toggle-knob"></div></div></label></div>
+                        <div class="sf-toggle-row"><span data-i18n="common.start_with_vrchat_desktop">Start when launching VRChat on Desktop</span><label class="toggle"><input type="checkbox" id="setAutoStartDesktop" onchange="autoSave()"><div class="toggle-track"><div class="toggle-knob"></div></div></label></div>
+                    </div>
+                    <div class="vrcn-panel-card" style="flex:1;min-width:200px;">
+                        <div class="vrcn-panel-card-header"><span class="msi" style="font-size:16px;">smart_toy</span> <span data-i18n="relay.bot_identity">Bot Identity</span></div>
+                        <div class="input-row"><label data-i18n="relay.bot_name">Bot Name</label><input type="text" id="setBotName" class="vrcn-edit-field" value="VRCNext" style="flex:1;"></div>
+                        <div class="input-row"><label data-i18n="relay.avatar_url">Avatar URL</label><input type="text" id="setBotAvatar" class="vrcn-edit-field" value="" placeholder="https://..." style="flex:1;"></div>
+                    </div>
                 </div>
-                <div class="sect-label" style="margin-top:20px;" data-i18n="relay.bot_identity">BOT IDENTITY</div>
-                <div class="input-row"><label data-i18n="relay.bot_name">Bot Name</label><input type="text" id="setBotName" class="vrcn-edit-field" value="VRCNext" style="flex:1;"></div>
-                <div class="input-row"><label data-i18n="relay.avatar_url">Avatar URL</label><input type="text" id="setBotAvatar" class="vrcn-edit-field" value="" placeholder="https://..." style="flex:1;"></div>
-                <div class="sect-label" data-i18n="relay.webhook_channels">WEBHOOK CHANNELS</div>
-                <div id="whCards"></div>
+                <div class="vrcn-panel-card" style="margin-top:16px;">
+                    <div class="vrcn-panel-card-header"><span class="msi" style="font-size:16px;">webhook</span> <span data-i18n="relay.webhook_channels">Webhook Channels</span></div>
+                    <div id="whCards"></div>
+                </div>
                 <div class="file-list-header"><h3 data-i18n="relay.posted_files">Posted Files</h3><button class="vrcn-button vrcn-btn-danger" onclick="showDeleteAllModal()"><span class="msi" style="font-size:16px;">delete</span> <span data-i18n="library.delete_all.confirm">Delete All</span></button></div>
                 <div class="file-table"><div class="file-table-head"><span data-i18n="common.file">FILE</span><span data-i18n="common.channel">CHANNEL</span><span data-i18n="common.size">SIZE</span><span data-i18n="common.time">TIME</span><span></span></div><div id="fileList"><div class="empty-msg" data-i18n="relay.empty.posted_files">No files posted yet</div></div></div>
             </div>
