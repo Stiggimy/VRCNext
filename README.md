@@ -481,6 +481,6 @@ AI Disclaimer: The frontend (the visual interface you see) was partially created
 > The application only uses public information and does not place features behind a paywall or any form of monetization.
 >
 > Use of the application is at the user's own risk.
-> In short nothing is saved on any server. Cookies are saved LOCAL on the user machine. i don't get any information about any user :) saftey is important to me!
+> In short nothing is saved on any server. Cookies are saved LOCAL on the user machine. I don't get any information about any user :) safety is important to me!
 
 <img width="218" height="84" alt="image" src="https://github.com/user-attachments/assets/47e584ba-780a-434c-82ff-3004f2e3388a" />
