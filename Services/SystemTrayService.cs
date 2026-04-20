@@ -51,6 +51,7 @@ public class SystemTrayService : IDisposable
     public Func<string, Task<byte[]>>? ImageDownloader;
 
     private bool _pendingVisible;
+    private readonly List<TrayNotifForm> _activeNotifForms = new();
 
     // Lifecycle.
 
@@ -294,6 +295,61 @@ public class SystemTrayService : IDisposable
     {
         _syncCtx?.Post(_ => _popup?.Close(), null);
         OnShowWindow?.Invoke();
+    }
+
+    public void ShowNotification(string title, string subtitle, string imageUrl, string accentKey)
+    {
+        _syncCtx?.Post(_ =>
+        {
+            TrayTheme theme;
+            lock (_dataLock) { theme = _theme; }
+
+            var accent = accentKey == "ok"  ? TrayTheme.StatusOnline
+                       : accentKey == "err" ? theme.Err
+                       : theme.Accent;
+
+            var form = new TrayNotifForm(title, subtitle, accent, theme);
+
+            var screen = Screen.PrimaryScreen?.WorkingArea ?? new Rectangle(0, 0, 1920, 1080);
+            int x = screen.Right - form.Width - 12;
+            int y = screen.Bottom - form.Height - 12;
+            foreach (var active in _activeNotifForms)
+            {
+                if (!active.IsDisposed && active.Visible)
+                    y -= active.Height + 8;
+            }
+            form.Location = new Point(x, y);
+            form.FormClosed += (_, _) => _activeNotifForms.Remove(form);
+            _activeNotifForms.Add(form);
+            form.Show();
+
+            if (!string.IsNullOrEmpty(imageUrl))
+                _ = DownloadAndApplyNotifImageAsync(form, imageUrl);
+        }, null);
+    }
+
+    private async Task DownloadAndApplyNotifImageAsync(TrayNotifForm form, string url)
+    {
+        try
+        {
+            byte[]? bytes = null;
+            if (ImageDownloader != null)
+                bytes = await ImageDownloader(url);
+            else
+            {
+                using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+                bytes = await http.GetByteArrayAsync(url);
+            }
+            if (bytes == null || bytes.Length == 0) return;
+            var ms = new MemoryStream(bytes);
+            var img = Image.FromStream(ms);
+            _syncCtx?.Post(_ =>
+            {
+                if (form.IsDisposed) { img.Dispose(); return; }
+                form.SetAvatar(img);
+            }, null);
+        }
+        catch { }
     }
 
     // Dispose.
@@ -751,6 +807,245 @@ public class SystemTrayService : IDisposable
                 cp.ClassStyle |= 0x00020000; // CS_DROPSHADOW
                 return cp;
             }
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  TrayNotifForm — incoming notification card (matches nc-card design)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    private class TrayNotifForm : Form
+    {
+        private const int W          = 320;
+        private const int PadLeft    = 14;
+        private const int PadTop     = 14;
+        private const int PadRight   = 12;
+        private const int PadBot     = 12;
+        private const int AvatarSz   = 36;
+        private const int AvatarRad  = 8;
+        private const int BodyGap    = 10;
+        private const int CloseSize  = 18;
+        private const int TimerBarH  = 3;
+        private const int FormCorner = 14;
+        private const int DismissMs  = 8000;
+        private const int FadeInMs   = 180;
+        private const int FadeOutMs  = 280;
+
+        private readonly string    _title;
+        private readonly string    _subtitle;
+        private readonly Color     _accent;
+        private readonly TrayTheme _theme;
+        private Image?  _avatar;
+        private bool    _closeHovered;
+        private Rectangle _closeRect;
+        private readonly System.Windows.Forms.Timer _ticker;
+        private float _progress   = 1f;
+        private float _fadeOpacity = 0f;
+        private bool  _fadingOut  = false;
+        private int   _fadeOutMs  = 0;
+
+        public TrayNotifForm(string title, string subtitle, Color accent, TrayTheme theme)
+        {
+            _title    = title;
+            _subtitle = subtitle;
+            _accent   = accent;
+            _theme    = theme;
+
+            FormBorderStyle = FormBorderStyle.None;
+            StartPosition   = FormStartPosition.Manual;
+            ShowInTaskbar   = false;
+            TopMost         = true;
+            BackColor       = theme.BgCard;
+            DoubleBuffered  = true;
+            Opacity         = 0;
+
+            bool hasSub = !string.IsNullOrEmpty(subtitle);
+            int contentH = Math.Max(AvatarSz, 18 + (hasSub ? 4 + 14 : 0));
+            int formH    = PadTop + contentH + PadBot + TimerBarH;
+            Size   = new Size(W, formH);
+            Region = MakeRoundedRegion(W, formH, FormCorner);
+
+            _ticker = new System.Windows.Forms.Timer { Interval = 50 };
+            _ticker.Tick += (_, _) =>
+            {
+                if (_fadingOut)
+                {
+                    _fadeOutMs += 50;
+                    _fadeOpacity = Math.Max(0f, 1f - _fadeOutMs / (float)FadeOutMs);
+                    Opacity = _fadeOpacity;
+                    if (_fadeOutMs >= FadeOutMs) { _ticker.Stop(); Close(); }
+                    return;
+                }
+                if (_fadeOpacity < 1f)
+                {
+                    _fadeOpacity = Math.Min(1f, _fadeOpacity + 50f / FadeInMs);
+                    Opacity = _fadeOpacity;
+                }
+                _progress -= 50f / DismissMs;
+                if (_progress <= 0f) { StartFadeOut(); return; }
+                Invalidate(new Rectangle(0, Height - TimerBarH, Width, TimerBarH));
+            };
+            _ticker.Start();
+        }
+
+        private void StartFadeOut()
+        {
+            _fadingOut = true;
+            _fadeOutMs = 0;
+        }
+
+        public void SetAvatar(Image img)
+        {
+            _avatar?.Dispose();
+            _avatar = img;
+            Invalidate();
+        }
+
+        private static Region MakeRoundedRegion(int w, int h, int r)
+        {
+            var p = new GraphicsPath();
+            p.AddArc(0, 0, r * 2, r * 2, 180, 90);
+            p.AddArc(w - r * 2, 0, r * 2, r * 2, 270, 90);
+            p.AddArc(w - r * 2, h - r * 2, r * 2, r * 2, 0, 90);
+            p.AddArc(0, h - r * 2, r * 2, r * 2, 90, 90);
+            p.CloseFigure();
+            return new Region(p);
+        }
+
+        private static GraphicsPath RoundedRect(Rectangle r, int radius)
+        {
+            var p = new GraphicsPath();
+            int d = radius * 2;
+            p.AddArc(r.X, r.Y, d, d, 180, 90);
+            p.AddArc(r.Right - d, r.Y, d, d, 270, 90);
+            p.AddArc(r.Right - d, r.Bottom - d, d, d, 0, 90);
+            p.AddArc(r.X, r.Bottom - d, d, d, 90, 90);
+            p.CloseFigure();
+            return p;
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            var g = e.Graphics;
+            g.SmoothingMode      = SmoothingMode.AntiAlias;
+            g.TextRenderingHint  = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
+
+            using (var bg = new SolidBrush(_theme.BgCard))
+                g.FillRectangle(bg, ClientRectangle);
+
+            int contentH = Height - PadTop - PadBot - TimerBarH;
+
+            // Avatar
+            var avRect = new Rectangle(PadLeft, PadTop + (contentH - AvatarSz) / 2, AvatarSz, AvatarSz);
+            if (_avatar != null)
+            {
+                using var clipPath = RoundedRect(avRect, AvatarRad);
+                var saved = g.Clip;
+                g.SetClip(clipPath);
+                g.DrawImage(_avatar, avRect);
+                g.Clip = saved;
+            }
+            else
+            {
+                using var avBg = new SolidBrush(_theme.BgHover);
+                using var clipPath = RoundedRect(avRect, AvatarRad);
+                g.FillPath(avBg, clipPath);
+                int dotSz = 12;
+                using var dot = new SolidBrush(_accent);
+                g.FillEllipse(dot, avRect.X + (avRect.Width - dotSz) / 2, avRect.Y + (avRect.Height - dotSz) / 2, dotSz, dotSz);
+            }
+            using (var pen = new Pen(_theme.Brd, 1f))
+            {
+                using var border = RoundedRect(avRect, AvatarRad);
+                g.DrawPath(pen, border);
+            }
+
+            // Close button
+            int closeX = W - PadRight - CloseSize;
+            int closeY = PadTop + (contentH - CloseSize) / 2;
+            _closeRect = new Rectangle(closeX, closeY, CloseSize, CloseSize);
+            if (_closeHovered)
+            {
+                using var hb = new SolidBrush(_theme.BgHover);
+                using var hp = RoundedRect(_closeRect, 4);
+                g.FillPath(hb, hp);
+            }
+            using (var cp = new Pen(_closeHovered ? _theme.Tx1 : _theme.Tx2, 1.5f))
+            {
+                int bx = closeX + 5, by = closeY + 5, bw = CloseSize - 10;
+                g.DrawLine(cp, bx, by, bx + bw, by + bw);
+                g.DrawLine(cp, bx + bw, by, bx, by + bw);
+            }
+
+            // Text body
+            int bodyX    = PadLeft + AvatarSz + BodyGap;
+            int bodyW    = closeX - 4 - bodyX;
+            bool hasSub  = !string.IsNullOrEmpty(_subtitle);
+            int totalTH  = 18 + (hasSub ? 4 + 14 : 0);
+            int textTop  = PadTop + (contentH - totalTH) / 2;
+
+            using (var tf = new Font("Segoe UI", 9.5f))
+            using (var tb = new SolidBrush(_theme.Tx1))
+            {
+                var sf = new StringFormat { Trimming = StringTrimming.EllipsisCharacter, FormatFlags = StringFormatFlags.NoWrap };
+                g.DrawString(_title, tf, tb, new RectangleF(bodyX, textTop, bodyW, 20), sf);
+            }
+            if (hasSub)
+            {
+                using var sf2  = new Font("Segoe UI", 8f);
+                using var sb2  = new SolidBrush(_theme.Tx2);
+                var sfmt = new StringFormat { Trimming = StringTrimming.EllipsisCharacter, FormatFlags = StringFormatFlags.NoWrap };
+                g.DrawString(_subtitle, sf2, sb2, new RectangleF(bodyX, textTop + 22, bodyW, 16), sfmt);
+            }
+
+            // Outer border
+            using (var borderPen = new Pen(_theme.Brd, 1))
+            {
+                using var borderPath = RoundedRect(new Rectangle(0, 0, Width - 1, Height - TimerBarH - 1), FormCorner);
+                g.DrawPath(borderPen, borderPath);
+            }
+
+            // Timer bar
+            int timerY = Height - TimerBarH;
+            using (var bgBar = new SolidBrush(_theme.BgHover))
+                g.FillRectangle(bgBar, 0, timerY, Width, TimerBarH);
+            int barW = (int)(Width * _progress);
+            if (barW > 0)
+            {
+                using var fgBar = new SolidBrush(_accent);
+                g.FillRectangle(fgBar, 0, timerY, barW, TimerBarH);
+            }
+        }
+
+        protected override void OnMouseMove(MouseEventArgs e)
+        {
+            base.OnMouseMove(e);
+            bool h = _closeRect.Contains(e.Location);
+            if (h != _closeHovered) { _closeHovered = h; Cursor = h ? Cursors.Hand : Cursors.Default; Invalidate(); }
+        }
+
+        protected override void OnMouseLeave(EventArgs e)
+        {
+            base.OnMouseLeave(e);
+            if (_closeHovered) { _closeHovered = false; Cursor = Cursors.Default; Invalidate(); }
+        }
+
+        protected override void OnMouseClick(MouseEventArgs e)
+        {
+            base.OnMouseClick(e);
+            if (e.Button == MouseButtons.Left && _closeRect.Contains(e.Location))
+                StartFadeOut();
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing) { _ticker.Dispose(); _avatar?.Dispose(); }
+            base.Dispose(disposing);
+        }
+
+        protected override CreateParams CreateParams
+        {
+            get { var cp = base.CreateParams; cp.ClassStyle |= 0x00020000; return cp; }
         }
     }
 }

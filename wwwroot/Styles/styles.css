@@ -4400,6 +4400,10 @@ html.text-tools-active * { user-select: text !important; }
 .sf-toggle-row + .sf-toggle-row {
     border-top: 1px solid var(--brd);
 }
+.sf-toggle-row.disabled {
+    opacity: 0.4;
+    pointer-events: none;
+}
 
 .osc-param-list {
     flex: 1;

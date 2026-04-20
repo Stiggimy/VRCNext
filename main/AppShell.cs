@@ -199,8 +199,9 @@ public partial class AppShell
         };
         _trayService.ImageDownloader = async url =>
         {
-            var http = _vrcApi.GetHttpClient();
-            return await http.GetByteArrayAsync(url);
+            if (_imgCache != null && url.Contains($"localhost:{_httpPort}"))
+                return await _imgCache.GetBytesAsync(url) ?? [];
+            return await _vrcApi.GetHttpClient().GetByteArrayAsync(url);
         };
         _trayService.Initialize();
         _core.OnTraySettingChanged = (enabled, autoHide) => ApplyTraySetting(enabled, autoHide);

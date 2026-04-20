@@ -784,6 +784,7 @@ public class AuthController
             _core.Settings.MediaRelaySoundEnabled = data["mediaRelaySoundEnabled"]?.Value<bool>() ?? false;
             _core.Settings.SteamOverlaySoundEnabled = data["steamOverlaySoundEnabled"]?.Value<bool>() ?? true;
             _core.Settings.MinimizeToTray = data["minimizeToTray"]?.Value<bool>() ?? false;
+            _core.Settings.TrayNotificationsEnabled = data["trayNotificationsEnabled"]?.Value<bool>() ?? false;
 #if WINDOWS
             _core.OnTraySettingChanged?.Invoke(_core.Settings.MinimizeToTray, false);
 #endif

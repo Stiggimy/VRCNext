@@ -137,6 +137,12 @@ public class WindowController
         _minimizeToTray = hide;
     }
 
+    public bool IsWindowHidden()
+    {
+        var window = _core.Window;
+        return window == null || !IsWindowVisible(window.WindowHandle);
+    }
+
     /// <summary>
     /// Unconditionally hides the window (SW_HIDE). Used on startup to auto-hide to tray.
     /// </summary>

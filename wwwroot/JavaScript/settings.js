@@ -126,6 +126,7 @@ function saveSettings() {
             relayAutoStartDesktop:   document.getElementById('setAutoStartDesktop')?.checked  ?? false,
             startWithWindows: document.getElementById('setStartWithWindows').checked,
             minimizeToTray: document.getElementById('setMinimizeToTray').checked,
+            trayNotificationsEnabled: document.getElementById('setTrayNotifications')?.checked ?? false,
             notifySound: false, // legacy â€” kept for JSON compat
             notifySoundEnabled: document.getElementById('setNotifySoundEnabled').checked,
             messageSoundEnabled: document.getElementById('setMessageSoundEnabled').checked,
@@ -239,6 +240,14 @@ function saveSettings() {
     sendToCS(payload);
 }
 
+function updateTrayNotifToggle() {
+    const hideInTray = document.getElementById('setMinimizeToTray')?.checked ?? false;
+    const row = document.getElementById('trayNotifRow');
+    const desc = document.getElementById('trayNotifDesc');
+    if (row)  row.classList.toggle('disabled', !hideInTray);
+    if (desc) desc.classList.toggle('disabled', !hideInTray);
+}
+
 // Autosave: debounced save on any settings change
 let _autoSaveTimer = null;
 function autoSave() {
@@ -247,7 +256,7 @@ function autoSave() {
 }
 // Attach autosave listeners after DOM ready
 function initAutoSave() {
-    const ids = ['setBotName','setBotAvatar','setVrcPath','setStartWithWindows','setMinimizeToTray',
+    const ids = ['setBotName','setBotAvatar','setVrcPath','setStartWithWindows','setMinimizeToTray','setTrayNotifications',
         'setNotifySoundEnabled','setMessageSoundEnabled','setMediaRelaySoundEnabled','setSteamOverlaySoundEnabled',
         'setDashOpacity','setRandomBg','setClockEnabled','setClockAmPm',
         'setVrcUser','setVrcPass',
@@ -293,6 +302,9 @@ function loadSettingsToUI(s) {
     const _asDT  = document.getElementById('setAutoStartDesktop'); if (_asDT) _asDT.checked = s.RelayAutoStartDesktop ?? s.relayAutoStartDesktop ?? false;
     document.getElementById('setStartWithWindows').checked = s.StartWithWindows || s.startWithWindows || false;
     document.getElementById('setMinimizeToTray').checked = s.MinimizeToTray ?? s.minimizeToTray ?? false;
+    const _trayNotifEl = document.getElementById('setTrayNotifications');
+    if (_trayNotifEl) _trayNotifEl.checked = s.TrayNotificationsEnabled ?? s.trayNotificationsEnabled ?? false;
+    updateTrayNotifToggle();
     document.getElementById('setNotifySoundEnabled').checked = s.NotifySoundEnabled ?? s.notifySoundEnabled ?? false;
     document.getElementById('setMessageSoundEnabled').checked = s.MessageSoundEnabled ?? s.messageSoundEnabled ?? false;
     document.getElementById('setMediaRelaySoundEnabled').checked = s.MediaRelaySoundEnabled ?? s.mediaRelaySoundEnabled ?? false;

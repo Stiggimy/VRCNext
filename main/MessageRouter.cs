@@ -1820,6 +1820,19 @@ public partial class AppShell
                     Services.CrashHandler.ClearPendingCrash();
                     break;
 
+                case "trayNotification":
+#if WINDOWS
+                    if (_settings.MinimizeToTray && _settings.TrayNotificationsEnabled)
+                    {
+                        var tnTitle  = msg["title"]?.ToString()    ?? "";
+                        var tnSub   = msg["subtitle"]?.ToString()  ?? "";
+                        var tnAccent = msg["accentKey"]?.ToString() ?? "accent";
+                        var tnImage  = msg["imageUrl"]?.ToString()  ?? "";
+                        _trayService?.ShowNotification(tnTitle, tnSub, tnImage, tnAccent);
+                    }
+#endif
+                    break;
+
                 // VR Wrist Overlay
                 case "vroConnect":
                 case "vroDisconnect":

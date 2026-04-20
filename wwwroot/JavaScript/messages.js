@@ -656,6 +656,12 @@ case 'popularWorlds':
                             oldIcon.replaceWith(av);
                         }
                     }
+                    // Fire pending tray notification with the now-resolved localhost image URL
+                    if (typeof _pendingTrayNotifs !== 'undefined' && _pendingTrayNotifs[payload.notifId]) {
+                        const p = _pendingTrayNotifs[payload.notifId];
+                        delete _pendingTrayNotifs[payload.notifId];
+                        sendToCS({ action: 'trayNotification', title: p.title, subtitle: p.subtitle, imageUrl: payload.image || '', accentKey: p.accentKey });
+                    }
                 }
                 break;
             case 'vrcLaunchNeeded':

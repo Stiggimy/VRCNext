@@ -516,7 +516,7 @@
             <!-- Tab 8: Activity Log -->
             <div class="tab" id="tab8">
                 <div class="log-header" style="margin-top:0;display:flex;align-items:center;gap:5px;flex-shrink:0;">
-                    <div class="search-bar-row" style="margin-bottom:0;flex:1;min-width:120px;max-width:200px;"><span class="msi search-ico">search</span><input id="logSearchInput" type="text" class="vrcn-input" placeholder="Search..." oninput="onLogSearch(this.value)"></div>
+                    <div class="search-bar-row" style="margin-bottom:0;flex:1;min-width:120px;max-width:200px;"><span class="msi search-ico">search</span><input id="logSearchInput" type="text" class="vrcn-input" placeholder="Search..." data-i18n-placeholder="logs.search.placeholder" oninput="onLogSearch(this.value)"></div>
                     <button id="logShowFullBtn" class="vrcn-button" onclick="toggleLogShowFull()">Show Full</button>
                     <div style="flex:1;"></div>
                     <div class="mini-badge" id="httpBadge200" style="display:none;background:rgba(59,165,93,.12);border-color:rgba(59,165,93,.4);"><span class="mini-badge-label" style="color:#3ba55d;font-variant-numeric:tabular-nums;">200: 0</span></div>
@@ -645,11 +645,17 @@
                             <div class="folder-btns" style="margin-top:10px;">
                                 <button class="vrcn-button" onclick="browseExe('extra-vr')"><span class="msi" style="font-size:16px;">add</span> <span data-i18n="settings.launch.add_app">Add App</span></button>
                             </div>
-                            <div style="height:12px;"></div>
-                            <div class="sf-toggle-row"><span id="labelStartWithSystem" data-i18n="settings.launch.auto_start_windows">Auto-start VRCNext with Windows</span><label class="toggle"><input type="checkbox" id="setStartWithWindows" onchange="autoSave()"><div class="toggle-track"><div class="toggle-knob"></div></div></label></div>
-                            <div class="sf-toggle-row" data-windows-only><span data-i18n="settings.system.hide_in_tray">Hide in System Tray</span><label class="toggle"><input type="checkbox" id="setMinimizeToTray" onchange="autoSave()"><div class="toggle-track"><div class="toggle-knob"></div></div></label></div>
                         </div>
                     </div><!-- /vrcn-panel-card-pair Watch Folders + Launch Options -->
+
+                    <!-- System Tray Settings -->
+                    <div class="vrcn-panel-card" style="margin-bottom:16px;">
+                        <div class="vrcn-panel-card-header"><span class="msi" style="font-size:16px;">notifications_active</span> <span data-i18n="settings.system.tray.title">System Tray</span></div>
+                        <div class="sf-toggle-row"><span id="labelStartWithSystem" data-i18n="settings.launch.auto_start_windows">Auto-start VRCNext with Windows</span><label class="toggle"><input type="checkbox" id="setStartWithWindows" onchange="autoSave()"><div class="toggle-track"><div class="toggle-knob"></div></div></label></div>
+                        <div class="sf-toggle-row" data-windows-only><span data-i18n="settings.system.hide_in_tray">Hide in System Tray</span><label class="toggle"><input type="checkbox" id="setMinimizeToTray" onchange="autoSave(); updateTrayNotifToggle()"><div class="toggle-track"><div class="toggle-knob"></div></div></label></div>
+                        <div class="sf-toggle-row" id="trayNotifRow" data-windows-only><span data-i18n="settings.system.tray.notifications">Show notifications on system tray</span><label class="toggle"><input type="checkbox" id="setTrayNotifications" onchange="autoSave()"><div class="toggle-track"><div class="toggle-knob"></div></div></label></div>
+                        <div class="set-desc" id="trayNotifDesc" data-windows-only data-i18n="settings.system.tray.notifications_desc">Displays a notification when a new VRChat notification arrives while VRCNext is hidden in the system tray.</div>
+                    </div>
 
                     <!-- VRCHAT API LOGIN + DEBUGGING -->
                     <div class="vrcn-panel-card-pair">

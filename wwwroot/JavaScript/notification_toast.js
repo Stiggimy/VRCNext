@@ -4,6 +4,7 @@
  */
 
 const _shownNotifCardIds = new Set();
+const _pendingTrayNotifs = {};
 
 function showNotificationToasts(notifList) {
     const all = (notifList || []).filter(n => !n.seen && !_shownNotifCardIds.has(n.id));
@@ -111,6 +112,37 @@ function _showNotifCard(n) {
 
     const timer = setTimeout(() => _dismissNotifCard(card), 8200);
     card._ncTimer = timer;
+
+    // Mirror to system tray — defer until vrcNotifImageUpdate provides the resolved localhost image URL
+    if (document.getElementById('setMinimizeToTray')?.checked && document.getElementById('setTrayNotifications')?.checked) {
+        let plainTitle = '';
+        if (n._v2 && n._title) {
+            plainTitle = n._title;
+        } else if (n.type === 'invite') {
+            const worldName = det.worldName || t('notifications.world_fallback', 'a world');
+            plainTitle = `${n.senderUsername || '?'} ${t('notifications.title.invited_you_to', 'invited you to')} ${worldName}`;
+        } else if (n.type === 'requestInvite') {
+            plainTitle = `${n.senderUsername || '?'} ${t('notifications.title.wants_invite', 'wants an invite')}`;
+        } else if (n.type === 'friendRequest') {
+            plainTitle = `${n.senderUsername || '?'} ${t('notifications.title.friend_request_received', 'sent you a friend request')}`;
+        } else if (n.type === 'group.invite') {
+            plainTitle = `${n.senderUsername || '?'} ${t('notifications.title.group_invited_you', 'invited you to a group')}`;
+        } else if (n.type === 'group.joinRequest') {
+            plainTitle = `${n.senderUsername || '?'} ${t('notifications.title.group_join_request', 'wants to join your group')}`;
+        } else if (n.type === 'group.announcement') {
+            plainTitle = t('notifications.title.group_announcement', 'Group announcement');
+        } else {
+            plainTitle = n.senderUsername || notifToastLabel(n.type);
+        }
+        const accentKey = accentColor === 'var(--ok)' ? 'ok' : accentColor === 'var(--err)' ? 'err' : 'accent';
+        _pendingTrayNotifs[n.id] = { title: plainTitle, subtitle: subText, accentKey };
+        // Fallback: fire after 5s with whatever image is available if vrcNotifImageUpdate never arrives
+        setTimeout(() => {
+            if (!_pendingTrayNotifs[n.id]) return;
+            delete _pendingTrayNotifs[n.id];
+            sendToCS({ action: 'trayNotification', title: plainTitle, subtitle: subText, imageUrl: nImg, accentKey });
+        }, 5000);
+    }
 }
 
 function _dismissNotifCard(card) {

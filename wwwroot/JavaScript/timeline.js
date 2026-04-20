@@ -1590,9 +1590,9 @@ function renderFtStatusBody(ev) {
     const oldCls  = statusCssClass(ev.oldValue);
     const newCls  = statusCssClass(ev.newValue);
     const chips   = `<div style="display:flex;align-items:center;gap:6px;margin-top:4px;">
-        <span class="ft-status-chip ${oldCls}">${esc(ev.oldValue || '?')}</span>
+        <span class="ft-status-chip ${oldCls}">${esc(statusLabel(ev.oldValue) || '?')}</span>
         <span class="msi" style="font-size:12px;color:var(--tx3);">arrow_forward</span>
-        <span class="ft-status-chip ${newCls}">${esc(ev.newValue || '?')}</span>
+        <span class="ft-status-chip ${newCls}">${esc(statusLabel(ev.newValue) || '?')}</span>
     </div>`;
     return `<div class="tl-card-body">${av}<div class="tl-card-info">
         <div class="tl-main-label">${esc(ev.friendName || t('timeline.unknown', 'Unknown'))}</div>${chips}
@@ -1823,9 +1823,9 @@ function renderFtDetailStatus(ev, el) {
             <div class="fd-meta-row"><span class="fd-meta-label">${esc(t('timeline.detail.time', 'Time'))}</span><span>${esc(timeStr)}</span></div>
             <div class="fd-meta-row"><span class="fd-meta-label">${esc(t('timeline.detail.change', 'Change'))}</span>
                 <span style="display:flex;align-items:center;gap:6px;">
-                    <span class="ft-status-chip ${oldCls}">${esc(ev.oldValue || '?')}</span>
+                    <span class="ft-status-chip ${oldCls}">${esc(statusLabel(ev.oldValue) || '?')}</span>
                     <span class="msi" style="font-size:12px;color:var(--tx3);">arrow_forward</span>
-                    <span class="ft-status-chip ${newCls}">${esc(ev.newValue || '?')}</span>
+                    <span class="ft-status-chip ${newCls}">${esc(statusLabel(ev.newValue) || '?')}</span>
                 </span>
             </div>
         </div>
@@ -2072,9 +2072,9 @@ function _ftListDetail(ev) {
         case 'friend_status': {
             const oldCls = statusCssClass(ev.oldValue);
             const newCls = statusCssClass(ev.newValue);
-            return `<span class="ft-status-chip ${oldCls}">${esc(ev.oldValue || '?')}</span>`
+            return `<span class="ft-status-chip ${oldCls}">${esc(statusLabel(ev.oldValue) || '?')}</span>`
                  + `<span class="msi" style="font-size:12px;color:var(--tx3);vertical-align:middle;margin:0 4px;">arrow_forward</span>`
-                 + `<span class="ft-status-chip ${newCls}">${esc(ev.newValue || '?')}</span>`;
+                 + `<span class="ft-status-chip ${newCls}">${esc(statusLabel(ev.newValue) || '?')}</span>`;
         }
         case 'friend_statusdesc': {
             const v = (ev.newValue || '').slice(0, 80);
